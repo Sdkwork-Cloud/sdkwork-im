@@ -1128,7 +1128,12 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     ));
     entries.extend(prefix_routes(
         "comms-social-service",
-        vec![HttpMethod::Get, HttpMethod::Post, HttpMethod::Delete, HttpMethod::Patch],
+        vec![
+            HttpMethod::Get,
+            HttpMethod::Post,
+            HttpMethod::Delete,
+            HttpMethod::Patch,
+        ],
         &["/im/v3/api/social/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::SdkworkImSdk],
@@ -1136,7 +1141,12 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
     ));
     entries.extend(prefix_routes(
         "comms-space-service",
-        vec![HttpMethod::Get, HttpMethod::Post, HttpMethod::Delete, HttpMethod::Patch],
+        vec![
+            HttpMethod::Get,
+            HttpMethod::Post,
+            HttpMethod::Delete,
+            HttpMethod::Patch,
+        ],
         &["/im/v3/api/spaces/{*path}"],
         RouteVisibility::Public,
         vec![SdkTarget::SdkworkImSdk],

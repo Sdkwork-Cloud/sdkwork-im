@@ -39,11 +39,11 @@ async fn run() -> Result<(), String> {
 
 fn resolve_bind_addr() -> Result<SocketAddr, String> {
     let session_gateway_bind_addr = std::env::var("SESSION_GATEWAY_BIND_ADDR").ok();
-    let workspace_bind_addr = std::env::var("SDKWORK_IM_BIND_ADDR").ok();
+    let topology_bind_addr = std::env::var("SDKWORK_IM_INTERNAL_SESSION_GATEWAY_BIND").ok();
 
     resolve_bind_addr_from_env(
         session_gateway_bind_addr.as_deref(),
-        workspace_bind_addr.as_deref(),
+        topology_bind_addr.as_deref(),
     )
 }
 
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn resolve_bind_addr_prefers_service_specific_env_value() {
-        let resolved = resolve_bind_addr_from_env(Some("0.0.0.0:28080"), Some("127.0.0.1:18090"))
+        let resolved = resolve_bind_addr_from_env(Some("0.0.0.0:28080"), Some("127.0.0.1:18080"))
             .expect("service-specific bind addr should parse");
 
         assert_eq!(
@@ -81,13 +81,13 @@ mod tests {
     }
 
     #[test]
-    fn resolve_bind_addr_falls_back_to_workspace_bind_addr() {
-        let resolved = resolve_bind_addr_from_env(None, Some("127.0.0.1:18090"))
-            .expect("workspace bind addr should parse");
+    fn resolve_bind_addr_falls_back_to_topology_bind_env() {
+        let resolved = resolve_bind_addr_from_env(None, Some("127.0.0.1:18080"))
+            .expect("topology bind env should parse");
 
         assert_eq!(
             resolved,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 18090)
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 18080)
         );
     }
 

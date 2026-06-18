@@ -1,9 +1,9 @@
 //! Channel access rule API handlers.
 
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::http::AppState;
@@ -37,7 +37,10 @@ pub async fn create_access_rule(
     Path((_space_id, _channel_id)): Path<(String, String)>,
     Json(_request): Json<CreateAccessRuleRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    Ok((StatusCode::CREATED, Json(serde_json::json!({"status": "created"}))))
+    Ok((
+        StatusCode::CREATED,
+        Json(serde_json::json!({"status": "created"})),
+    ))
 }
 
 pub async fn list_access_rules(

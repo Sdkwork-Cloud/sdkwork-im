@@ -305,6 +305,7 @@ fn test_create_thread_does_not_leak_state_when_batch_commit_fails() {
     let root_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_parent_thread_batch_fail".into(),
             sender: Sender {
                 id: "u_root_author".into(),
@@ -403,6 +404,7 @@ fn test_create_conversation_and_post_message_emits_commit_events_in_order() {
     let message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_demo".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -559,6 +561,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
     let first = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_post_retry".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -582,6 +585,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
     let duplicate = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_post_retry".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -626,6 +630,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
 
     let conflicting_retry = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
+        organization_id: "default".into(),
         conversation_id: "c_post_retry".into(),
         sender: Sender {
             id: "u_demo".into(),
@@ -671,6 +676,7 @@ fn test_rtc_signal_message_backfills_top_level_rtc_session_id_from_signal_payloa
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_rtc_signal_backfill".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -721,6 +727,7 @@ fn test_runtime_replays_recorded_conversation_events_after_rebuild() {
     source_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_replay".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -758,6 +765,7 @@ fn test_runtime_replays_recorded_conversation_events_after_rebuild() {
     let posted = replay_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_replay".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -807,6 +815,7 @@ fn test_same_conversation_id_is_isolated_per_tenant() {
     let alpha_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_alpha".into(),
+            organization_id: "default".into(),
             conversation_id: "c_shared".into(),
             sender: Sender {
                 id: "u_alpha".into(),
@@ -830,6 +839,7 @@ fn test_same_conversation_id_is_isolated_per_tenant() {
     let beta_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_beta".into(),
+            organization_id: "default".into(),
             conversation_id: "c_shared".into(),
             sender: Sender {
                 id: "u_beta".into(),
@@ -870,6 +880,7 @@ fn test_post_message_rejects_sender_kind_mismatch_against_member_principal_kind(
 
     let post = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
+        organization_id: "default".into(),
         conversation_id: "c_kind_guard".into(),
         sender: Sender {
             id: "u_demo".into(),
@@ -909,6 +920,7 @@ fn test_edit_message_rejects_editor_kind_mismatch_against_member_principal_kind(
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_edit_kind_guard".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -968,6 +980,7 @@ fn test_recall_message_rejects_actor_kind_mismatch_against_member_principal_kind
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_recall_kind_guard".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -1628,6 +1641,7 @@ fn test_agent_handoff_allows_source_and_target_posts() {
     let source_post = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_agent_handoff_post".into(),
             sender: Sender {
                 id: "ag_source".into(),
@@ -1652,6 +1666,7 @@ fn test_agent_handoff_allows_source_and_target_posts() {
     let target_post = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_agent_handoff_post".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -1773,6 +1788,7 @@ fn test_agent_handoff_accept_resolve_close_state_machine_and_closed_handoff_reje
 
     let post_after_close = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
+        organization_id: "default".into(),
         conversation_id: "c_agent_handoff_state".into(),
         sender: Sender {
             id: "u_demo".into(),
@@ -2030,6 +2046,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_cursor".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2053,6 +2070,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_cursor".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2159,6 +2177,7 @@ fn test_read_cursor_unread_count_excludes_messages_sent_by_current_principal() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_received_unread_only".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2197,6 +2216,7 @@ fn test_read_cursor_unread_count_excludes_messages_sent_by_current_principal() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_received_unread_only".into(),
             sender: Sender {
                 id: "u_friend".into(),
@@ -2250,6 +2270,7 @@ fn test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind() 
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_cursor_actor_kind_guard".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2332,6 +2353,7 @@ fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay(
     let posted = source_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_policy_replay".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2463,6 +2485,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_retention_policy".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2509,6 +2532,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
     replay_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_retention_policy".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2556,6 +2580,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
 
     let subscriber_post = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
+        organization_id: "default".into(),
         conversation_id: "c_system_channel_post".into(),
         sender: Sender {
             id: "u_demo".into(),
@@ -2581,6 +2606,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
 
     let system_post = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
+        organization_id: "default".into(),
         conversation_id: "c_system_channel_post".into(),
         sender: Sender {
             id: "svc_ops".into(),
@@ -2682,6 +2708,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_agent_cursor".into(),
             sender: Sender {
                 id: "u_requester".into(),
@@ -2742,6 +2769,7 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_mutation".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -2830,6 +2858,7 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: conversation_id.clone(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -2912,6 +2941,7 @@ fn test_non_member_cannot_post_message_to_conversation() {
 
     let result = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
+        organization_id: "default".into(),
         conversation_id: "c_private".into(),
         sender: Sender {
             id: "u_intruder".into(),
@@ -2951,6 +2981,7 @@ fn test_non_member_cannot_edit_or_recall_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_private_mutation".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -3034,6 +3065,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_group_mutation".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -3117,6 +3149,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_group_owner_override".into(),
             sender: Sender {
                 id: "u_member".into(),
@@ -3203,6 +3236,7 @@ fn test_direct_conversation_owner_cannot_recall_other_members_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_direct_mutation".into(),
             sender: Sender {
                 id: "u_peer".into(),
@@ -3698,6 +3732,7 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_group_cursor_commit_fail".into(),
             sender: Sender {
                 id: "u_member".into(),
@@ -3761,6 +3796,7 @@ fn test_post_message_does_not_leak_message_when_journal_append_fails() {
 
     let post_attempt = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
+        organization_id: "default".into(),
         conversation_id: "c_group_post_commit_fail".into(),
         sender: Sender {
             id: "u_owner".into(),
@@ -3811,6 +3847,7 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_group_edit_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -3885,6 +3922,7 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_group_recall_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -3950,6 +3988,7 @@ fn test_add_reaction_does_not_leak_reaction_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_group_reaction_add_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -4020,6 +4059,7 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_group_reaction_remove_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -4109,6 +4149,7 @@ fn test_pin_message_does_not_leak_pin_state_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_group_pin_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -4170,6 +4211,7 @@ fn test_unpin_message_does_not_leak_pin_removal_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_group_unpin_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -4489,6 +4531,7 @@ fn test_group_member_can_leave_and_loses_access() {
 
     let post_after_leave = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
+        organization_id: "default".into(),
         conversation_id: "c_group_leave".into(),
         sender: Sender {
             id: "u_member".into(),
@@ -5186,6 +5229,7 @@ fn test_posted_message_timestamps_advance_between_distinct_messages() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_posted_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5211,6 +5255,7 @@ fn test_posted_message_timestamps_advance_between_distinct_messages() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_posted_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5264,6 +5309,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_cursor_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5286,6 +5332,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_cursor_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5431,6 +5478,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     let first = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_mutation_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5453,6 +5501,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     let second = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_mutation_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5588,6 +5637,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_reaction_flow".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -5727,6 +5777,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_pin_flow".into(),
             sender: Sender {
                 id: "u_member".into(),
@@ -5861,6 +5912,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
     let posted = source_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_reaction_pin_replay".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6098,6 +6150,7 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
     let root_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_parent_thread".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6170,6 +6223,7 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
     let reply = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_thread_runtime".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6252,6 +6306,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     let first_root = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_parent_thread_retry".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6275,6 +6330,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     let second_root = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_parent_thread_retry".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6421,6 +6477,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
     let root_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_parent_thread_notify".into(),
             sender: Sender {
                 id: "u_root_author".into(),
@@ -6535,6 +6592,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
     let reply = replay_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_thread_notify".into(),
             sender: Sender {
                 id: "u_root_author".into(),
@@ -6589,6 +6647,7 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_shared_sync_runtime".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6992,6 +7051,7 @@ fn test_post_message_rejects_oversized_sender_session_id() {
     let error = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_sender_session_oversized".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -7061,6 +7121,7 @@ fn test_post_message_rejects_oversized_sender_metadata() {
     let error = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_sender_metadata_oversized".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -7105,6 +7166,7 @@ fn test_post_message_rejects_oversized_render_hints() {
     let error = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_render_hints_oversized".into(),
             sender: Sender {
                 id: "u_demo".into(),

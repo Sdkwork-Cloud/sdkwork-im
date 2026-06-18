@@ -1,9 +1,9 @@
 //! Group API handlers.
 
+use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::Json;
 use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
 
@@ -125,7 +125,8 @@ pub async fn list_groups(
         limit,
     ) {
         Ok(records) => {
-            let response: Vec<GroupResponse> = records.into_iter().map(GroupResponse::from).collect();
+            let response: Vec<GroupResponse> =
+                records.into_iter().map(GroupResponse::from).collect();
             Ok(Json(response))
         }
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),

@@ -18,6 +18,7 @@ use im_domain_core::social::{
     normalize_user_pair,
 };
 use im_platform_contracts::{CommitEnvelope, CommitJournal, ContractError};
+use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 
@@ -1904,6 +1905,8 @@ pub struct SocialRuntime {
     tx_marker_path: Option<Arc<PathBuf>>,
     write_lock_path: Option<Arc<PathBuf>>,
     snapshot_failpoint_path: Option<Arc<PathBuf>>,
+    shared_channel_sync_trigger:
+        RwLock<Option<Arc<dyn crate::SharedChannelLinkedMemberSyncTrigger>>>,
     #[allow(dead_code)]
     shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool,
 }
@@ -1949,6 +1952,7 @@ impl SocialRuntime {
             tx_marker_path: None,
             write_lock_path: None,
             snapshot_failpoint_path: snapshot_failpoint_path.map(Arc::new),
+            shared_channel_sync_trigger: RwLock::new(None),
             shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool::new(false),
         }
     }
@@ -1977,8 +1981,64 @@ impl SocialRuntime {
             tx_marker_path: Some(Arc::new(tx_marker_path)),
             write_lock_path: Some(Arc::new(write_lock_path)),
             snapshot_failpoint_path: Some(Arc::new(state_dir.join("social-failpoints.json"))),
+            shared_channel_sync_trigger: RwLock::new(None),
             shared_channel_sync_stale_reclaim_scheduler_started: AtomicBool::new(false),
         }
+    }
+
+    pub fn set_shared_channel_linked_member_sync_trigger(
+        &self,
+        trigger: Arc<dyn crate::SharedChannelLinkedMemberSyncTrigger>,
+    ) {
+        *self
+            .shared_channel_sync_trigger
+            .write()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock) = Some(trigger);
+    }
+
+    pub fn dispatch_shared_channel_sync_requests(
+        &self,
+        requests: &[SharedChannelLinkedMemberSyncRequest],
+    ) -> Result<(), String> {
+        if requests.is_empty() {
+            return Ok(());
+        }
+
+        let trigger = self
+            .shared_channel_sync_trigger
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
+            .clone();
+        let Some(trigger) = trigger else {
+            let now = utc_now_rfc3339_millis();
+            let mut state = self
+                .state
+                .write()
+                .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
+            state.record_failed_shared_channel_sync_requests(
+                requests,
+                "shared-channel sync trigger is not configured",
+                now.as_str(),
+            );
+            drop(state);
+            return self.persist_state_snapshot("shared-channel sync trigger backlog");
+        };
+
+        for request in requests {
+            trigger.trigger(request.clone())?;
+        }
+        Ok(())
+    }
+
+    fn persist_state_snapshot(&self, context: &str) -> Result<(), String> {
+        let state = self
+            .state
+            .read()
+            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
+            .clone();
+        self.state_store
+            .save(&state)
+            .map_err(|error| format!("{context}: {error}"))
     }
 
     pub(crate) fn recover_poisoned_social_runtime_lock<T>(

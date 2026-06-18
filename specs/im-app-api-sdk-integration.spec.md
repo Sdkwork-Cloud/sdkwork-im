@@ -65,8 +65,11 @@ Rules:
 - The legacy appbase QR auth resource `openPlatform.qrAuth` and `/app/v3/api/open_platform/qr_auth/*` paths are retired and must not be consumed, proxied, regenerated, or documented as current capabilities.
 - The current canonical appbase auth package exposes `qrLoginEnabled`; Sdkwork IM must not pass unsupported runtime-config fields such as `qrLoginType` until the canonical appbase type includes them.
 - A successful login must persist `authToken`, `accessToken`, optional `refreshToken`, `context`, `sessionId`, and normalized user data.
-- `@sdkwork/im-sdk` construction must receive the same auth token manager, `accessToken`, and platform identity derived from the persisted IAM session. Current `tenantId`, `organizationId`, `userId`, and `sessionId` are request context and must be attached through the dynamic request header provider, not passed as static SDK options.
+- `@sdkwork/im-sdk` construction must receive the same auth token manager, `accessToken`, and platform identity derived from the persisted IAM session. Current `tenantId`, `organizationId`, `userId`, and `sessionId` are server-resolved request context from `Authorization` plus `Access-Token`; PC business services must not pass them as SDK method parameters, query fields, request bodies, or custom headers.
 - After login, chat and RTC code must be able to call IM SDK methods without a second login or manually assembled auth headers.
+- Drive, Notary, Agent, and other foundation SDK integrations must follow the same rule: only business fields belong in service-layer SDK calls. Tenant and organization scope belong to token validation and backend `AppRequestContext` resolution.
+- AIoT app SDK calls use token-scoped generated methods such as `client.iot.devicesList()` and `client.iot.devicesCommandsCreate(...)`; IM PC services must not pass `tenantId`, `organizationId`, or `X-Sdkwork-*` scope headers.
+- Notary composed Drive helpers must not pass `tenantId` into Drive download/delete calls.
 
 ## 4. Database Sharing
 
@@ -89,7 +92,7 @@ Rules:
 - Local `apps/sdkwork-im-pc/package.json` dependencies for SDKWork packages use relative `link:` specifiers.
 - Vite and TypeScript aliases resolve generated IM app/backend SDKs, `@sdkwork/im-sdk`, `@sdkwork/drive-app-sdk`, appbase IAM packages, core PC React, and UI PC React to source entries, not prebuilt `dist`.
 - Vite `optimizeDeps.exclude` must include linked SDKWork source packages so live source edits are not hidden by dependency pre-bundling.
-- Local PC development exposes one public backend entrypoint, `http://127.0.0.1:18079`, through the unified Sdkwork IM gateway. Appbase IAM App API defaults route through `sdkwork-api-gateway`; explicit split-deployment overrides may still point to an internal appbase upstream such as `127.0.0.1:18090`, but the renderer must not depend on that port directly.
+- Local PC development exposes one public backend entrypoint, `http://127.0.0.1:18079`, through the unified Sdkwork IM gateway. Appbase IAM App API defaults route through `sdkwork-api-gateway`; explicit split-deployment overrides may still point to an internal appbase upstream on the platform gateway bind, but the renderer must not depend on that port directly.
 - The chat-pc `pnpm-workspace.yaml` must not register sibling `sdkwork-appbase`, `sdkwork-core`, or `sdkwork-ui` packages as workspace importers. They remain source-linked dependencies; otherwise pnpm install rewrites sibling `node_modules` and breaks isolated local builds.
 - Release builds set `SDKWORK_SHARED_SDK_MODE=git`, run `prepare:shared-sdk`, materialize `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `sdkwork-im-sdk`, `sdkwork-drive-app-sdk`, `sdkwork-appbase`, `sdkwork-core`, `sdkwork-ui`, `sdkwork-claw-router`, and `sdkwork-birdcoder` from git-backed source checkouts, then build Sdkwork IM PC from those source links.
 
@@ -103,17 +106,20 @@ composition point.
 
 Rules:
 
-- Production and private deployments should use `SDKWORK_IM_SERVER_API_BASE_URL` as the common SDK
-  root when that root points at `sdkwork-api-gateway` or a reverse proxy backed by it.
-- Browser/app SDK bootstrap continues to use `VITE_SDKWORK_IM_APP_API_BASE_URL`,
-  `VITE_SDKWORK_IM_IM_API_BASE_URL`, and `VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL`; these are derived
-  from the common gateway root by runtime/bootstrap scripts.
-- Local PC development starts the sibling `sdkwork-api-gateway` Cargo service. Product-local
-  foundation upstream defaults for Appbase, Drive, and Notary point at that gateway root by
-  default. Direct dependency-owned service URLs are allowed only through explicit split-deployment
-  override env keys such as `SDKWORK_IM_APPBASE_APP_API_UPSTREAM`,
-  `SDKWORK_IM_DRIVE_APP_API_UPSTREAM`, and `SDKWORK_IM_NOTARY_APP_API_UPSTREAM`.
-- `services/sdkwork-im-gateway`, `crates/sdkwork-im-gateway-config`, and `services/local-minimal-node`
+- Production and private deployments should use `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` as the
+  platform SDK root and `SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL` /
+  `SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL` as the IM application public surfaces.
+- Browser/app SDK bootstrap uses `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`,
+  `VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL`, and
+  `VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL`; these are resolved by
+  `apps/sdkwork-im-pc/scripts/sdkwork-im-iam-env.mjs` and topology profile env files.
+- Local PC development starts through `scripts/im-dev.mjs`, which loads topology profiles and
+  starts the sibling `sdkwork-api-gateway` Cargo service. Platform upstream defaults for Appbase,
+  Drive, and Notary point at that gateway root by default. Direct dependency-owned service URLs
+  are allowed only through explicit split-deployment override env keys such as
+  `SDKWORK_IM_APPBASE_APP_API_UPSTREAM`, `SDKWORK_IM_DRIVE_APP_API_UPSTREAM`, and
+  `SDKWORK_IM_NOTARY_APP_API_UPSTREAM`.
+- `services/sdkwork-im-gateway`, `crates/sdkwork-im-gateway-config`, and split internal services behind `application.public-ingress`
   remain product-owned IM routing, config, and local/private runtime layers. Foundation API
   aggregation is owned by `sdkwork-api-gateway`, not by Sdkwork IM product servers.
 - Executable foundation API integration evidence is owned by the `sdkwork-api-gateway` Cargo

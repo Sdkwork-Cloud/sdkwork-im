@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-const DEFAULT_BASE_URL: &str = "http://127.0.0.1:18090";
+const DEFAULT_BASE_URL: &str = "http://127.0.0.1:18079";
 const DEFAULT_TENANT_ID: &str = "t_demo";
 const DEFAULT_USER_ID: &str = "u_demo";
 
@@ -609,7 +609,16 @@ fn build_command_context(global: GlobalOptions) -> CommandContext {
 
 fn resolve_base_url_from_config() -> Option<String> {
     let config_path = find_local_env_file()?;
-    let bind_address = read_env_file_value(config_path.as_path(), "SDKWORK_IM_BIND_ADDR")?;
+    if let Some(http_url) = read_env_file_value(
+        config_path.as_path(),
+        "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+    ) {
+        return Some(http_url.trim_end_matches('/').to_owned());
+    }
+    let bind_address = read_env_file_value(
+        config_path.as_path(),
+        "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+    )?;
     Some(bind_address_to_base_url(bind_address.as_str()))
 }
 
@@ -626,10 +635,9 @@ fn env_file_candidates() -> Vec<PathBuf> {
         for ancestor in current_dir.ancestors() {
             candidates.push(
                 ancestor
-                    .join(".runtime")
-                    .join("local-minimal")
-                    .join("config")
-                    .join("local-minimal.env"),
+                    .join("configs")
+                    .join("topology")
+                    .join("self-hosted.split-services.development.env"),
             );
         }
     }
@@ -638,10 +646,9 @@ fn env_file_candidates() -> Vec<PathBuf> {
     if let Some(repo_root) = manifest_root.ancestors().nth(2) {
         candidates.push(
             repo_root
-                .join(".runtime")
-                .join("local-minimal")
-                .join("config")
-                .join("local-minimal.env"),
+                .join("configs")
+                .join("topology")
+                .join("self-hosted.split-services.development.env"),
         );
     }
 
@@ -688,7 +695,7 @@ pub(crate) fn sanitize_identifier(raw: &str) -> String {
 
 fn bind_address_to_base_url(bind_address: &str) -> String {
     let mut parts = bind_address.rsplitn(2, ':');
-    let port = parts.next().unwrap_or("18090").trim();
+    let port = parts.next().unwrap_or("18079").trim();
     let host = parts.next().unwrap_or("127.0.0.1").trim();
     let normalized_host = match host {
         "" | "0.0.0.0" | "::" | "[::]" => "127.0.0.1",
@@ -863,12 +870,13 @@ mod tests {
             "\
 # comment
 NOT_A_VALID_ENV_LINE
-SDKWORK_IM_BIND_ADDR=127.0.0.1:18124
+SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=127.0.0.1:18124
 ",
         )
         .expect("temp env file should be written");
 
-        let value = read_env_file_value(path.as_path(), "SDKWORK_IM_BIND_ADDR");
+        let value =
+            read_env_file_value(path.as_path(), "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND");
 
         let _ = fs::remove_file(&path);
         assert_eq!(value.as_deref(), Some("127.0.0.1:18124"));

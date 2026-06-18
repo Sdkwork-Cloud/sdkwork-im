@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::middleware;
-use axum::routing::{delete, get, patch, post};
+use axum::routing::{delete, get, post};
 use im_app_context::inject_app_request_context_middleware;
 
 use super::block;
@@ -31,10 +31,7 @@ pub fn build_supplemental_app(state: PostgresAppState) -> Router {
             "/im/v3/api/social/friendships",
             get(friendship::list_friends),
         )
-        .route(
-            "/im/v3/api/social/user_blocks",
-            get(block::list_blocks),
-        )
+        .route("/im/v3/api/social/user_blocks", get(block::list_blocks))
         .route(
             "/im/v3/api/social/user_blocks/{block_id}",
             delete(block::unblock_user),

@@ -166,8 +166,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -180,8 +180,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -194,8 +194,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -208,8 +208,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -222,8 +222,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -236,8 +236,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -250,8 +250,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -264,8 +264,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -278,8 +278,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       },
@@ -292,8 +292,8 @@
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-gateway",
-          "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
-          "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
           "catalogPolicy": "no-dedicated-gateway-catalog"
         }
       }
@@ -307,14 +307,14 @@
     "foundationApiGateway": {
       "targetApplication": "sdkwork-api-gateway",
       "targetMode": "shared-gateway",
-      "commonSdkRootEnv": "SDKWORK_IM_SERVER_API_BASE_URL",
+      "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
       "gatewayBaseUrlEnvKeys": [
-        "SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL",
+        "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
         "SDKWORK_API_GATEWAY_BASE_URL"
       ],
       "gatewayBindEnv": "SDKWORK_API_GATEWAY_BIND",
       "defaultLocalGatewayBaseUrl": "http://127.0.0.1:3900",
-      "browserSdkRootEnv": "VITE_SDKWORK_IM_APP_API_BASE_URL",
+      "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
       "authority": "cargo-workspace",
       "catalogPolicy": "no-dedicated-gateway-catalog",
       "productApiPolicy": "Sdkwork IM IM APIs remain product-owned SDKWork API surfaces",

@@ -8,7 +8,7 @@ use im_adapters_social_postgres::organization_store::{
 };
 use im_adapters_social_postgres::{SocialPostgresConfig, SocialPostgresPool};
 
-use crate::http::{build_embedded_app, build_public_app, AppState};
+use crate::http::{AppState, build_embedded_app, build_public_app};
 
 pub const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 

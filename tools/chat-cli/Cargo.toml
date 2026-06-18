@@ -24,4 +24,3 @@ tokio-tungstenite = "0.28.0"
 
 [dev-dependencies]
 axum.workspace = true
-local-minimal-node = { path = "../../services/local-minimal-node" }

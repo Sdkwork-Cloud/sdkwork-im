@@ -124,12 +124,9 @@ fn has_explicit_portal_api_base_url() -> bool {
     [
         "SDKWORK_IM_PORTAL_API_BASE_URL",
         "SDKWORK_PORTAL_API_BASE_URL",
-        "SDKWORK_IM_SERVER_API_BASE_URL",
-        "SDKWORK_IM_SERVER_BASE_URL",
-        "SDKWORK_IM_SERVER_BIND",
-        "SDKWORK_IM_SERVER_API_BASE_URL",
-        "SDKWORK_IM_SERVER_BASE_URL",
-        "SDKWORK_IM_BIND_ADDR",
+        "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+        "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+        "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
     ]
     .iter()
     .any(|env_name| {
@@ -233,18 +230,15 @@ mod tests {
     }
 
     #[test]
-    fn server_public_base_url_envs_count_as_explicit_portal_binding() {
+    fn application_public_http_url_env_counts_as_explicit_portal_binding() {
         let _guard = env_guard();
         let _portal = ScopedEnvVar::remove("SDKWORK_IM_PORTAL_API_BASE_URL");
         let _sdkwork_portal = ScopedEnvVar::remove("SDKWORK_PORTAL_API_BASE_URL");
-        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
-        let _sdkwork_chat_server_api = ScopedEnvVar::set(
-            "SDKWORK_IM_SERVER_API_BASE_URL",
-            "https://chat.example.com/sdkwork/chat",
+        let _application_public_http = ScopedEnvVar::set(
+            "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+            "https://im.sdkwork.com",
         );
-        let _server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
-        let _server_api = ScopedEnvVar::remove("SDKWORK_IM_SERVER_API_BASE_URL");
-        let _bind = ScopedEnvVar::remove("SDKWORK_IM_BIND_ADDR");
+        let _bind = ScopedEnvVar::remove("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND");
 
         assert!(has_explicit_portal_api_base_url());
     }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::middleware;
-use axum::routing::{delete, get, patch, post};
+use axum::routing::{delete, get, post};
 use im_app_context::inject_app_request_context_middleware;
 
 use crate::ban;
@@ -51,8 +51,7 @@ fn build_space_api_routes(state: AppState) -> Router {
         // Space members
         .route(
             "/im/v3/api/spaces/{space_id}/members",
-            post(space_member::add_space_member)
-                .get(space_member::list_space_members),
+            post(space_member::add_space_member).get(space_member::list_space_members),
         )
         .route(
             "/im/v3/api/spaces/{space_id}/members/{user_id}",
@@ -74,8 +73,7 @@ fn build_space_api_routes(state: AppState) -> Router {
         // Group members
         .route(
             "/im/v3/api/spaces/{space_id}/groups/{group_id}/members",
-            post(group_member::add_group_member)
-                .get(group_member::list_group_members),
+            post(group_member::add_group_member).get(group_member::list_group_members),
         )
         .route(
             "/im/v3/api/spaces/{space_id}/groups/{group_id}/members/{user_id}",
@@ -107,8 +105,7 @@ fn build_space_api_routes(state: AppState) -> Router {
         // Invitations
         .route(
             "/im/v3/api/spaces/{space_id}/invites",
-            post(invitation::create_invitation)
-                .get(invitation::list_invitations),
+            post(invitation::create_invitation).get(invitation::list_invitations),
         )
         .route(
             "/im/v3/api/spaces/{space_id}/invites/{invite_code}",

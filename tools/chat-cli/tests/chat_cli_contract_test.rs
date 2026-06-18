@@ -35,6 +35,24 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
+fn sibling_repo_root() -> PathBuf {
+    workspace_root()
+        .parent()
+        .expect("sdkwork-im should live beside sibling repositories")
+        .to_path_buf()
+}
+
+fn rtc_sdk_family_root() -> PathBuf {
+    sibling_repo_root()
+        .join("sdkwork-rtc")
+        .join("sdks")
+        .join("sdkwork-rtc-sdk")
+}
+
+fn rtc_sdk_readme_path() -> PathBuf {
+    rtc_sdk_family_root().join("README.md")
+}
+
 async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
@@ -175,9 +193,8 @@ fn test_step12_cli_docs_freeze_authority_model_and_validation_paths() {
 
     for required_text in [
         "chat-cli.*",
-        "chat-cli-local.*",
         "chat-window.*",
-        "docs:verify",
+        "pnpm im:dev",
         "sdkwork-im-app-sdk",
         "sdkwork-im-backend-sdk",
         "sdkwork-rtc-sdk",
@@ -215,7 +232,7 @@ fn test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points()
         .join("README.md");
     let backend_sdk = fs::read_to_string(&backend_sdk_path)
         .unwrap_or_else(|_| panic!("missing backend SDK README: {}", backend_sdk_path.display()));
-    let rtc_sdk_path = root.join("sdks").join("sdkwork-rtc-sdk").join("README.md");
+    let rtc_sdk_path = rtc_sdk_readme_path();
     let rtc_sdk = fs::read_to_string(&rtc_sdk_path)
         .unwrap_or_else(|_| panic!("missing RTC SDK README: {}", rtc_sdk_path.display()));
     let readme_path = root.join("README.md");
@@ -283,7 +300,7 @@ fn test_step12_sdk_readmes_freeze_facade_boundaries_and_workspace_entry_points()
     for required_text in [
         "sdkwork-rtc-sdk",
         "provider-standard",
-        "not a route-generated SDK workspace",
+        "OpenAPI-generated HTTP SDK family",
     ] {
         assert!(
             rtc_sdk.contains(required_text),
@@ -458,12 +475,11 @@ fn test_continuous_optimization_docs_freeze_single_validation_index() {
         );
     }
 
-    for required_text in ["chat-cli.*"] {
-        assert!(
-            deploy_readme.contains(required_text),
-            "CLI docs must contain {required_text}"
-        );
-    }
+    let required_text = "chat-cli.*";
+    assert!(
+        deploy_readme.contains(required_text),
+        "CLI docs must contain {required_text}"
+    );
 
     assert!(
         sdk_index.contains("sdkwork-im-backend-sdk"),
@@ -775,16 +791,6 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_release_catalog_boundary
                 catalog_path,
             ],
         ),
-        (
-            "RTC SDK README",
-            root.join("sdks").join("sdkwork-rtc-sdk").join("README.md"),
-            [
-                "sdk-release-catalog.json",
-                "template_only_pending_generation",
-                "not_published",
-                catalog_path,
-            ],
-        ),
     ] {
         let readme = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("missing {label}: {}", path.display()));
@@ -818,10 +824,6 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_release_catalog_bou
             root.join("sdks")
                 .join("sdkwork-im-backend-sdk")
                 .join("README.md"),
-        ),
-        (
-            "RTC SDK container README",
-            root.join("sdks").join("sdkwork-rtc-sdk").join("README.md"),
         ),
     ] {
         let readme = fs::read_to_string(&path)
@@ -1058,13 +1060,6 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_version_decision_source_
                 .join("sdkwork-im-backend-sdk")
                 .join("README.md"),
         ),
-        (
-            "RTC SDK README",
-            workspace_root()
-                .join("sdks")
-                .join("sdkwork-rtc-sdk")
-                .join("README.md"),
-        ),
     ] {
         let readme = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("missing {label}: {}", path.display()));
@@ -1110,13 +1105,6 @@ fn test_continuous_optimization_sdk_leaf_readmes_freeze_version_placeholder_boun
                 .join("sdkwork-im-backend-sdk")
                 .join("README.md"),
         ),
-        (
-            "RTC SDK README",
-            workspace_root()
-                .join("sdks")
-                .join("sdkwork-rtc-sdk")
-                .join("README.md"),
-        ),
     ] {
         let readme = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("missing {label}: {}", path.display()));
@@ -1156,13 +1144,6 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_version_placeholder
             workspace_root()
                 .join("sdks")
                 .join("sdkwork-im-backend-sdk")
-                .join("README.md"),
-        ),
-        (
-            "RTC SDK container README",
-            workspace_root()
-                .join("sdks")
-                .join("sdkwork-rtc-sdk")
                 .join("README.md"),
         ),
     ] {
@@ -1206,13 +1187,6 @@ fn test_continuous_optimization_sdk_container_readmes_freeze_version_decision_so
                 .join("sdkwork-im-backend-sdk")
                 .join("README.md"),
         ),
-        (
-            "RTC SDK container README",
-            workspace_root()
-                .join("sdks")
-                .join("sdkwork-rtc-sdk")
-                .join("README.md"),
-        ),
     ] {
         let readme = fs::read_to_string(&path)
             .unwrap_or_else(|_| panic!("missing {label}: {}", path.display()));
@@ -1246,6 +1220,41 @@ fn test_step12_compatibility_matrix_doc_freezes_control_plane_mapping_and_client
         assert!(
             doc.contains(required_text),
             "current SDK boundary doc must contain {required_text}"
+        );
+    }
+}
+
+#[test]
+fn test_rtc_sdk_family_lives_in_sibling_repo_not_local_sdks() {
+    let local_rtc_sdk = workspace_root().join("sdks").join("sdkwork-rtc-sdk");
+    assert!(
+        !local_rtc_sdk.exists(),
+        "sdkwork-rtc-sdk must not be materialized under sdkwork-im/sdks; use sibling ../sdkwork-rtc"
+    );
+
+    let rtc_readme = rtc_sdk_readme_path();
+    let rtc_readme_text = fs::read_to_string(&rtc_readme).unwrap_or_else(|_| {
+        panic!(
+            "missing sibling RTC SDK README: {} (clone ../sdkwork-rtc beside sdkwork-im)",
+            rtc_readme.display()
+        )
+    });
+    let rtc_assembly = rtc_sdk_family_root().join(".sdkwork-assembly.json");
+    assert!(
+        rtc_assembly.is_file(),
+        "sibling RTC SDK family must expose assembly metadata: {}",
+        rtc_assembly.display()
+    );
+
+    for required_text in [
+        "sdkwork-rtc-sdk",
+        "RtcProviderDriver",
+        "verify-sdk.mjs",
+        ".sdkwork-assembly.json",
+    ] {
+        assert!(
+            rtc_readme_text.contains(required_text),
+            "sibling RTC SDK README must contain {required_text}"
         );
     }
 }

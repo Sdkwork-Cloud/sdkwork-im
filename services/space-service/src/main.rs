@@ -42,9 +42,7 @@ async fn run() -> Result<(), String> {
         .map_err(|error| format!("comms-space-service failed to bind {bind_addr}: {error}"))?;
     tracing::info!(
         "comms-space-service listening on {}",
-        listener
-            .local_addr()
-            .map_err(|error| error.to_string())?
+        listener.local_addr().map_err(|error| error.to_string())?
     );
     axum::serve(listener, app)
         .with_graceful_shutdown(async {

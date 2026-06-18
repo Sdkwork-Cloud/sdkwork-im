@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports)]
+
 mod block;
 mod direct_chat;
 mod external;
@@ -15,12 +17,16 @@ pub use http::{
     build_public_app_with_postgres_extension,
 };
 pub use postgres::{
-    app_state_from_postgres_pool, build_supplemental_app, build_supplemental_public_app,
-    try_postgres_app_state_from_database_url_env, PostgresAppState,
+    PostgresAppState, app_state_from_postgres_pool, build_supplemental_app,
+    build_supplemental_public_app, try_postgres_app_state_from_database_url_env,
 };
 pub use runtime::SocialRuntime;
 
 pub const SHARED_CHANNEL_SYNC_DEAD_LETTER_FAILURE_THRESHOLD: u32 = 3;
+
+pub trait SharedChannelLinkedMemberSyncTrigger: Send + Sync {
+    fn trigger(&self, request: SharedChannelLinkedMemberSyncRequest) -> Result<(), String>;
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

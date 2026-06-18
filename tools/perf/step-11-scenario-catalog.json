@@ -13,7 +13,7 @@
     "docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md"
   ],
   "sharedConstraints": [
-    "Reuse the Step 10 local-minimal deployment and runtime-ops baseline.",
+    "Reuse the Step 10 self-hosted.split-services.development deployment and runtime-ops baseline.",
     "Freeze scenario inventory before adding new load infrastructure.",
     "Use the same metric vocabulary across performance and HA/DR drills.",
     "Treat docs/review as the source of checkpoint evidence."
@@ -31,17 +31,17 @@
       "id": "ci-smoke",
       "name": "CI Smoke Tier",
       "goal": "Fast in-repo regression for connection, routing, stream, and recovery semantics.",
-      "intendedScale": "single-node local-minimal and targeted multi-node simulation",
+      "intendedScale": "single-node self-hosted.split-services.development and targeted multi-node simulation",
       "evidence": "targeted cargo tests or smoke scripts finish quickly and leave reproducible output"
     },
     {
       "id": "pre-release",
       "name": "Pre-Release Tier",
-      "profile": "local-default",
+      "profile": "self-hosted.split-services.development",
       "state": "template_only_pending_execution",
       "operatorDocPath": "docs/部署/性能与灾备演练场景.md",
       "goal": "Release-gate validation for medium-scale concurrency, throughput, and operator drills.",
-      "intendedScale": "local-default or dedicated pre-release topology with controlled clients",
+      "intendedScale": "self-hosted.split-services.development or dedicated pre-release topology with controlled clients",
       "evidence": "at least one quantitative run per major scenario family",
       "gateTemplate": "tools/perf/step-11-pre-release-tier-gate.json",
       "artifactRoot": "artifacts/perf/step-11/pre-release"
@@ -76,8 +76,8 @@
         "connect_p95_ms"
       ],
       "repoAssets": [
-        "services/local-minimal-node/tests/websocket_e2e_test.rs",
-        "services/local-minimal-node/tests/performance_quant_baseline_test.rs",
+        "services/sdkwork-im-gateway/tests/websocket_e2e_test.rs",
+        "services/sdkwork-im-gateway/tests/performance_quant_baseline_test.rs",
         "tools/perf/step-11-cp11-2-local-baseline.json",
         "tools/chat-cli/tests/chat_cli_e2e_test.rs",
         "tools/smoke/local_stack_smoke.ps1",
@@ -104,8 +104,8 @@
         "route_transfer_success_rate"
       ],
       "repoAssets": [
-        "services/local-minimal-node/tests/cluster_realtime_routing_e2e_test.rs",
-        "services/local-minimal-node/tests/performance_quant_baseline_test.rs",
+        "services/sdkwork-im-gateway/tests/cluster_realtime_routing_e2e_test.rs",
+        "services/sdkwork-im-gateway/tests/performance_quant_baseline_test.rs",
         "tools/perf/step-11-cp11-2-local-baseline.json",
         "tools/chat-cli/tests/chat_cli_e2e_test.rs"
       ],
@@ -130,8 +130,8 @@
         "frame_p95_ms"
       ],
       "repoAssets": [
-        "services/local-minimal-node/tests/stream_runtime_persistence_test.rs",
-        "services/local-minimal-node/tests/performance_quant_baseline_test.rs",
+        "services/sdkwork-im-gateway/tests/stream_runtime_persistence_test.rs",
+        "services/sdkwork-im-gateway/tests/performance_quant_baseline_test.rs",
         "tools/perf/step-11-cp11-2-local-baseline.json"
       ],
       "nextCheckpoints": [
@@ -216,8 +216,8 @@
         "post_drain_route_loss"
       ],
       "repoAssets": [
-        "services/local-minimal-node/tests/cluster_drain_rebalance_e2e_test.rs",
-        "services/local-minimal-node/tests/performance_ha_dr_drill_test.rs",
+        "services/sdkwork-im-gateway/tests/cluster_drain_rebalance_e2e_test.rs",
+        "services/sdkwork-im-gateway/tests/performance_ha_dr_drill_test.rs",
         "services/governance-service/tests/governance_loop_test.rs",
         "tools/perf/step-11-cp11-3-local-drill-baseline.json"
       ],
@@ -241,9 +241,9 @@
         "preview_diff_accuracy"
       ],
       "repoAssets": [
-        "services/local-minimal-node/tests/runtime_dir_restore_test.rs",
-        "services/local-minimal-node/tests/runtime_dir_restore_preview_test.rs",
-        "services/local-minimal-node/tests/performance_ha_dr_drill_test.rs",
+        "services/sdkwork-im-gateway/tests/runtime_dir_restore_test.rs",
+        "services/sdkwork-im-gateway/tests/runtime_dir_restore_preview_test.rs",
+        "services/sdkwork-im-gateway/tests/performance_ha_dr_drill_test.rs",
         "tools/perf/step-11-cp11-3-local-drill-baseline.json"
       ],
       "nextCheckpoints": [
@@ -266,8 +266,8 @@
         "resume_takeover_success_rate"
       ],
       "repoAssets": [
-        "services/local-minimal-node/tests/cluster_realtime_routing_e2e_test.rs",
-        "services/local-minimal-node/tests/performance_ha_dr_drill_test.rs",
+        "services/sdkwork-im-gateway/tests/cluster_realtime_routing_e2e_test.rs",
+        "services/sdkwork-im-gateway/tests/performance_ha_dr_drill_test.rs",
         "tools/perf/step-11-cp11-3-local-drill-baseline.json"
       ],
       "nextCheckpoints": [
@@ -291,7 +291,7 @@
       ],
       "repoAssets": [
         "crates/sdkwork-im-ccp-registry/tests/compatibility_matrix_test.rs",
-        "services/local-minimal-node/tests/performance_ha_dr_drill_test.rs",
+        "services/sdkwork-im-gateway/tests/performance_ha_dr_drill_test.rs",
         "services/governance-service/tests/protocol_registry_test.rs",
         "services/governance-service/tests/protocol_governance_test.rs",
         "tools/perf/step-11-cp11-3-local-drill-baseline.json"

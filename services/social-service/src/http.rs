@@ -26,75 +26,75 @@ pub fn build_app(social_runtime: Arc<SocialRuntime>) -> Router {
 fn build_social_api_routes(state: AppState) -> Router {
     Router::new()
         .route(
-            "/im/v3/api/social/friend_requests",
+            "/backend/v3/api/control/social/friend_requests",
             get(friendship::list_friend_requests).post(friendship::submit_friend_request),
         )
         .route(
-            "/im/v3/api/social/friend_requests/{request_id}",
+            "/backend/v3/api/control/social/friend_requests/{request_id}",
             get(friendship::friend_request_snapshot),
         )
         .route(
-            "/im/v3/api/social/friend_requests/{request_id}/accept",
+            "/backend/v3/api/control/social/friend_requests/{request_id}/accept",
             post(friendship::accept_friend_request),
         )
         .route(
-            "/im/v3/api/social/friend_requests/{request_id}/decline",
+            "/backend/v3/api/control/social/friend_requests/{request_id}/decline",
             post(friendship::decline_friend_request),
         )
         .route(
-            "/im/v3/api/social/friend_requests/{request_id}/cancel",
+            "/backend/v3/api/control/social/friend_requests/{request_id}/cancel",
             post(friendship::cancel_friend_request),
         )
         .route(
-            "/im/v3/api/social/friendships",
+            "/backend/v3/api/control/social/friendships",
             post(friendship::activate_friendship),
         )
         .route(
-            "/im/v3/api/social/friendships/{friendship_id}",
+            "/backend/v3/api/control/social/friendships/{friendship_id}",
             get(friendship::friendship_snapshot),
         )
         .route(
-            "/im/v3/api/social/friendships/{friendship_id}/remove",
+            "/backend/v3/api/control/social/friendships/{friendship_id}/remove",
             post(friendship::remove_friendship),
         )
         .route(
-            "/im/v3/api/social/user_blocks",
+            "/backend/v3/api/control/social/user_blocks",
             post(block::block_user),
         )
         .route(
-            "/im/v3/api/social/user_blocks/{block_id}",
+            "/backend/v3/api/control/social/user_blocks/{block_id}",
             get(block::user_block_snapshot),
         )
         .route(
-            "/im/v3/api/social/direct_chats/bindings",
+            "/backend/v3/api/control/social/direct_chats/bindings",
             post(direct_chat::bind_direct_chat),
         )
         .route(
-            "/im/v3/api/social/direct_chats/{direct_chat_id}",
+            "/backend/v3/api/control/social/direct_chats/{direct_chat_id}",
             get(direct_chat::direct_chat_snapshot),
         )
         .route(
-            "/im/v3/api/social/external_connections",
+            "/backend/v3/api/control/social/external_connections",
             post(external::establish_external_connection),
         )
         .route(
-            "/im/v3/api/social/external_connections/{connection_id}",
+            "/backend/v3/api/control/social/external_connections/{connection_id}",
             get(external::external_connection_snapshot),
         )
         .route(
-            "/im/v3/api/social/external_member_links",
+            "/backend/v3/api/control/social/external_member_links",
             post(external::bind_external_member_link),
         )
         .route(
-            "/im/v3/api/social/external_member_links/{link_id}",
+            "/backend/v3/api/control/social/external_member_links/{link_id}",
             get(external::external_member_link_snapshot),
         )
         .route(
-            "/im/v3/api/social/shared_channel_policies",
+            "/backend/v3/api/control/social/shared_channel_policies",
             post(shared_channel::apply_shared_channel_policy),
         )
         .route(
-            "/im/v3/api/social/shared_channel_policies/{policy_id}",
+            "/backend/v3/api/control/social/shared_channel_policies/{policy_id}",
             get(shared_channel::shared_channel_policy_snapshot),
         )
         .with_state(state)

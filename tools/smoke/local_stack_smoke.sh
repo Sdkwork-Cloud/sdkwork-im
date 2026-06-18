@@ -5,12 +5,12 @@ show_help() {
   cat <<'EOF'
 Usage: bash tools/smoke/local_stack_smoke.sh [--base-url <url>]
 
-Run a minimal local-stack smoke check against the local-minimal deployment profile.
+Run a minimal local-stack smoke check against the self-hosted.split-services.development deployment profile.
 EOF
 }
 
-DEFAULT_BASE_URL="http://127.0.0.1:18090"
-DEFAULT_HEALTH_URL="http://127.0.0.1:18090/healthz"
+DEFAULT_BASE_URL="http://127.0.0.1:18079"
+DEFAULT_HEALTH_URL="http://127.0.0.1:18079/healthz"
 base_url="$DEFAULT_BASE_URL"
 
 while [[ $# -gt 0 ]]; do

@@ -160,9 +160,6 @@ async fn test_public_app_rejects_missing_access_token_header_over_http() {
                 .method("POST")
                 .uri("/im/v3/api/chat/conversations")
                 .header("authorization", "Bearer auth_demo")
-                .with_dual_token_tenant("t_demo")
-                .with_dual_token_user("u_demo")
-                .with_dual_token_actor_kind("user")
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{

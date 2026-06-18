@@ -1,9 +1,9 @@
 //! Friendship API handlers.
 
+use axum::Json;
 use axum::extract::{Extension, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::Json;
 use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
 

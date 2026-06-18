@@ -12,7 +12,7 @@ fn test_chat_cli_rejects_removed_login_command() {
     let error = parse_cli_args([
         "sdkwork-im-cli",
         "--base-url",
-        "http://127.0.0.1:18090",
+        "http://127.0.0.1:18079",
         "--tenant-id",
         "t_demo",
         "--session-id",
@@ -40,7 +40,7 @@ async fn test_chat_cli_token_command_uses_supplied_bearer_token_without_login() 
         parse_cli_args([
             "sdkwork-im-cli",
             "--base-url",
-            "http://127.0.0.1:18090",
+            "http://127.0.0.1:18079",
             "--tenant-id",
             "t_demo",
             "--user-id",

@@ -68,6 +68,7 @@ pub(crate) struct BoundExternalMemberLink {
     pub(crate) external_member_link: ExternalMemberLink,
     pub(crate) latest_commit: CommitEnvelope,
     pub(crate) persistence: SocialWritePersistence,
+    pub(crate) shared_channel_sync_requests: Vec<crate::SharedChannelLinkedMemberSyncRequest>,
 }
 
 // ---------------------------------------------------------------------------
@@ -598,6 +599,7 @@ impl SocialRuntime {
                             external_member_link: record.external_member_link,
                             latest_commit: commit,
                             persistence,
+                            shared_channel_sync_requests: Vec::new(),
                         })
                     }
                     other => Err(social_event_id_conflict_message(
@@ -645,6 +647,11 @@ impl SocialRuntime {
                 commits: vec![commit.clone()],
             },
         );
+        let shared_channel_sync_requests =
+            crate::shared_channel::shared_channel_sync_requests_for_external_member_link(
+                &next_state,
+                &external_member_link,
+            );
         let persistence = self.persist_state_transition(&next_state, &commit)?;
         *state = next_state;
 
@@ -652,6 +659,7 @@ impl SocialRuntime {
             external_member_link,
             latest_commit: commit,
             persistence,
+            shared_channel_sync_requests,
         })
     }
 
@@ -734,6 +742,11 @@ pub(crate) async fn bind_external_member_link(
         state
             .social_runtime
             .bind_external_member_link(auth.tenant_id.as_str(), &auth, request)?;
+
+    state
+        .social_runtime
+        .dispatch_shared_channel_sync_requests(&bound.shared_channel_sync_requests)
+        .map_err(|error| SocialServiceError::invalid("shared_channel_sync_failed", error))?;
 
     Ok(Json(SocialExternalMemberLinkCommitResponse {
         status: SocialExternalMemberLinkWriteStatus::Bound,

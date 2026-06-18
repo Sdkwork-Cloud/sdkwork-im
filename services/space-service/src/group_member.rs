@@ -1,9 +1,9 @@
 //! Group member API handlers.
 
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::http::AppState;
@@ -41,7 +41,10 @@ pub async fn add_group_member(
     Path((_space_id, _group_id)): Path<(String, String)>,
     Json(_request): Json<AddMemberRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    Ok((StatusCode::CREATED, Json(serde_json::json!({"status": "added"}))))
+    Ok((
+        StatusCode::CREATED,
+        Json(serde_json::json!({"status": "added"})),
+    ))
 }
 
 pub async fn list_group_members(

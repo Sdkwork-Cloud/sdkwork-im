@@ -1,5 +1,5 @@
 param(
-    [string]$BaseUrl = "http://127.0.0.1:18090"
+    [string]$BaseUrl = "http://127.0.0.1:18079"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -57,7 +57,7 @@ $headers = @{
     "Access-Token" = $accessToken
     "Content-Type" = "application/json"
 }
-$defaultBaseUrl = "http://127.0.0.1:18090"
+$defaultBaseUrl = "http://127.0.0.1:18079"
 
 function Wait-Healthy {
     param([string]$Url)
@@ -126,7 +126,7 @@ if ($auditExport.total -lt 2) {
 }
 
 $opsCluster = Invoke-RestMethod -Method Get -Uri "$BaseUrl/backend/v3/api/ops/cluster" -Headers $headers
-if ($opsCluster.nodes[0].profile -ne "local-minimal") {
+if ($opsCluster.nodes[0].profile -ne "self-hosted.split-services.development") {
     throw "Unexpected ops cluster profile"
 }
 

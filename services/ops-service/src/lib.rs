@@ -723,7 +723,7 @@ fn default_lag_items() -> Vec<LagItem> {
     vec![
         LagItem {
             component: "commit_journal".into(),
-            scope_id: "local-minimal".into(),
+            scope_id: "self-hosted.split-services.development".into(),
             current_offset: 0,
             committed_offset: 0,
             lag: 0,

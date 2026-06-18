@@ -1,5 +1,5 @@
 {
-  "profile": "local-minimal",
+  "profile": "self-hosted.split-services.development",
   "tier": "CI Smoke Tier",
   "connection": {
     "connectionCount": 32

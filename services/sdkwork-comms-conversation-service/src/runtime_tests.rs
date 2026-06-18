@@ -149,6 +149,7 @@ fn test_post_message_recovers_from_poisoned_runtime_state_lock() {
     let result = panic::catch_unwind(AssertUnwindSafe(|| {
         runtime.post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
             conversation_id: "c_demo".into(),
             sender: Sender {
                 id: "u_demo".into(),

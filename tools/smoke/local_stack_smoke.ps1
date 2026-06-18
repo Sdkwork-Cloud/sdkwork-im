@@ -1,5 +1,5 @@
 param(
-    [string]$BaseUrl = "http://127.0.0.1:18090"
+    [string]$BaseUrl = "http://127.0.0.1:18079"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -58,8 +58,8 @@ $headers = @{
     "Content-Type" = "application/json"
 }
 
-$defaultBaseUrl = "http://127.0.0.1:18090"
-$defaultHealthUrl = "http://127.0.0.1:18090/healthz"
+$defaultBaseUrl = "http://127.0.0.1:18079"
+$defaultHealthUrl = "http://127.0.0.1:18079/healthz"
 
 function Wait-Healthy {
     param([string]$Url)

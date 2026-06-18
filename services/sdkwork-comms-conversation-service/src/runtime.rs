@@ -483,6 +483,10 @@ fn default_organization_id() -> String {
     "default".to_owned()
 }
 
+pub fn default_post_message_organization_id() -> String {
+    default_organization_id()
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PublishSystemChannelMessageCommand {
@@ -911,6 +915,25 @@ impl PostMessageCommand {
             organization_id: auth.organization_id.clone(),
             conversation_id,
             sender: sender_from_auth_context(auth),
+            client_msg_id,
+            message_type,
+            body,
+        }
+    }
+
+    pub fn new(
+        tenant_id: impl Into<String>,
+        conversation_id: impl Into<String>,
+        sender: Sender,
+        client_msg_id: Option<String>,
+        message_type: MessageType,
+        body: MessageBody,
+    ) -> Self {
+        Self {
+            tenant_id: tenant_id.into(),
+            organization_id: default_organization_id(),
+            conversation_id: conversation_id.into(),
+            sender,
             client_msg_id,
             message_type,
             body,
@@ -2040,17 +2063,15 @@ where
             .conversations
             .get(conversation_scope_key(tenant_id, conversation_id).as_str())
             .ok_or_else(|| RuntimeError::ConversationNotFound(conversation_id.into()))?;
-        for (_, member) in conversation.roster.members() {
+        for member in conversation.roster.members().values() {
             let record = member_to_record(tenant_id, organization_id, conversation_id, member);
-            store
-                .upsert_member(record)
-                .map_err(|e| RuntimeError::from(e))?;
+            store.upsert_member(record).map_err(RuntimeError::from)?;
         }
-        for (_, cursor) in conversation.roster.read_cursors() {
+        for cursor in conversation.roster.read_cursors().values() {
             let record = cursor_to_record(tenant_id, organization_id, conversation_id, cursor);
             store
                 .upsert_read_cursor(record)
-                .map_err(|e| RuntimeError::from(e))?;
+                .map_err(RuntimeError::from)?;
         }
         Ok(())
     }
@@ -2163,7 +2184,7 @@ where
                                 command.organization_id.as_str(),
                                 command.conversation_id.as_str(),
                             )
-                            .map_err(|error| RuntimeError::from(error))?
+                            .map_err(RuntimeError::from)?
                     } else {
                         conversation.message_log.high_watermark() + 1
                     };
@@ -2175,10 +2196,7 @@ where
 
                     // ID 生成：优先使用 Snowflake，fallback 到确定性字符串拼接
                     let message_id = if let Some(generator) = &self.id_generator {
-                        generator
-                            .next_id()
-                            .map_err(|error| RuntimeError::from(error))?
-                            .to_string()
+                        generator.next_id().map_err(RuntimeError::from)?.to_string()
                     } else {
                         generated_message_id(command.conversation_id.as_str(), message_seq)
                     };
@@ -2201,10 +2219,7 @@ where
                         committed_at: Some(message_timestamp),
                     };
                     let event_id = if let Some(generator) = &self.id_generator {
-                        generator
-                            .next_id()
-                            .map_err(|error| RuntimeError::from(error))?
-                            .to_string()
+                        generator.next_id().map_err(RuntimeError::from)?.to_string()
                     } else {
                         format!("evt_{}_posted", message.message_id)
                     };
@@ -2267,7 +2282,7 @@ where
                         };
                         store
                             .insert_message(stored_record)
-                            .map_err(|error| RuntimeError::from(error))?;
+                            .map_err(RuntimeError::from)?;
                     }
 
                     conversation.message_log.store_posted(message.clone());

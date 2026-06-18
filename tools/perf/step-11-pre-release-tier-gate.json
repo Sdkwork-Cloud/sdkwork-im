@@ -3,7 +3,7 @@
   "step": "11",
   "tierId": "pre-release",
   "tier": "Pre-Release Tier",
-  "profile": "local-default",
+  "profile": "self-hosted.split-services.development",
   "state": "template_only_pending_execution",
   "operatorDocPath": "docs/部署/性能与灾备演练场景.md",
   "scenarioCatalogPath": "tools/perf/step-11-scenario-catalog.json",

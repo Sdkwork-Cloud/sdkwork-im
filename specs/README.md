@@ -19,14 +19,15 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 ## Contract Manifest
 
 - [component.spec.json](./component.spec.json) is the machine-readable component contract.
-- Shared foundation API composition targets `sdkwork-api-gateway` through the existing
-  `SDKWORK_IM_SERVER_API_BASE_URL` server common SDK root and
-  `VITE_SDKWORK_IM_APP_API_BASE_URL` browser app-api root. `services/sdkwork-im-gateway` and
-  `crates/sdkwork-im-gateway-config` keep product-owned IM routing only; foundation API routing is
+- Shared foundation API composition targets `sdkwork-api-gateway` through
+  `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` and `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`.
+  Application HTTP/WebSocket traffic uses `SDKWORK_IM_APPLICATION_PUBLIC_*` and
+  `VITE_SDKWORK_IM_APPLICATION_PUBLIC_*`. `services/sdkwork-im-gateway` and
+  `crates/sdkwork-im-gateway-config` keep product-owned IM routing only; platform API routing is
   owned by the shared gateway boundary.
-- Local PC development starts the sibling `sdkwork-api-gateway` Cargo service as the shared
-  foundation gateway. Product-local server env defaults route Drive and Notary app-api traffic to
-  that gateway root; dependency-specific upstream env keys are split-deployment overrides only.
+- Local PC development starts through `scripts/im-dev.mjs` (`pnpm im:dev`), which loads topology
+  profiles from `configs/topology/` and starts the sibling `sdkwork-api-gateway` Cargo service as
+  the shared platform gateway.
 - `crates/sdkwork-im-gateway-config` defaults Appbase, Drive, and Notary service upstreams to the
   shared gateway root. Direct module URLs remain explicit split-deployment overrides.
 - Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
@@ -84,5 +85,9 @@ Historical `sdkwork-clawchat-*` package names were retired by the
 ## Verification
 
 - `cargo test --workspace`
+- `pnpm test:topology-baggage`
+- `pnpm test:runtime-standard`
+- `pnpm test:rtc-signaling-boundary`
 - `node scripts/dev/sdkwork-im-database-naming-standard.test.mjs`
 - `node scripts/sdkwork-workspace-structure-standard.test.mjs`
+- `node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json`

@@ -14,8 +14,9 @@ use crate::SharedChannelLinkedMemberSyncRequest;
 use crate::external::CommitEnvelopeResponse;
 use crate::friendship::{AppState, SocialServiceError};
 use crate::runtime::{
-    SocialConnectionIndexKey, SocialRuntime, SocialSharedChannelPolicyTargetIndexKey,
-    SocialWritePersistence, StoredExternalConnection, StoredSharedChannelPolicy,
+    SocialConnectionIndexKey, SocialControlState, SocialRuntime,
+    SocialSharedChannelPolicyTargetIndexKey, SocialWritePersistence, StoredExternalConnection,
+    StoredExternalMemberLink, StoredSharedChannelPolicy,
 };
 
 const MAX_ID_BYTES: usize = 256;
@@ -48,7 +49,6 @@ pub(crate) struct AppliedSharedChannelPolicy {
     pub(crate) shared_channel_policy: SharedChannelPolicy,
     pub(crate) latest_commit: CommitEnvelope,
     pub(crate) persistence: SocialWritePersistence,
-    #[allow(dead_code)]
     pub(crate) shared_channel_sync_requests: Vec<SharedChannelLinkedMemberSyncRequest>,
 }
 
@@ -407,41 +407,122 @@ impl SocialRuntime {
 // Sync request generation
 // ---------------------------------------------------------------------------
 
-fn shared_channel_sync_requests_for_shared_channel_policy(
-    state: &crate::runtime::SocialControlState,
-    policy: &SharedChannelPolicy,
-) -> Vec<SharedChannelLinkedMemberSyncRequest> {
-    let Some(link_ids) =
-        state
-            .active_external_member_connection_index
-            .get(&SocialConnectionIndexKey::new(
-                policy.tenant_id.as_str(),
-                policy.connection_id.as_str(),
-            ))
-    else {
-        return Vec::new();
-    };
-    link_ids
-        .iter()
+fn non_empty_string(value: Option<&str>) -> Option<String> {
+    value.and_then(|value| {
+        if value.trim().is_empty() {
+            None
+        } else {
+            Some(value.to_owned())
+        }
+    })
+}
+
+fn active_external_member_link_records_for_connection(
+    state: &SocialControlState,
+    tenant_id: &str,
+    connection_id: &str,
+) -> Vec<StoredExternalMemberLink> {
+    let key = SocialConnectionIndexKey::new(tenant_id, connection_id);
+    state
+        .active_external_member_connection_index
+        .get(&key)
+        .into_iter()
+        .flat_map(|link_ids| link_ids.iter())
         .filter_map(|link_id| {
-            let record = state.external_member_links.get(link_id.as_str())?;
-            if record.external_member_link.status
-                != im_domain_core::social::ExternalMemberLinkStatus::Active
-            {
-                return None;
-            }
-            let conversation_id = policy.conversation_id.clone().unwrap_or_default();
-            Some(SharedChannelLinkedMemberSyncRequest {
-                tenant_id: policy.tenant_id.clone(),
-                conversation_id,
-                shared_channel_policy_id: policy.policy_id.clone(),
-                external_connection_id: policy.connection_id.clone(),
-                local_actor_id: record.external_member_link.local_actor_id.clone(),
-                local_actor_kind: record.external_member_link.local_actor_kind.clone(),
-                external_member_id: record.external_member_link.external_member_id.clone(),
-            })
+            state
+                .external_member_links
+                .get(link_id)
+                .filter(|record| record.external_member_link.status.is_active())
+                .cloned()
         })
         .collect()
+}
+
+fn active_shared_channel_policy_records_for_connection(
+    state: &SocialControlState,
+    tenant_id: &str,
+    connection_id: &str,
+) -> Vec<StoredSharedChannelPolicy> {
+    let key = SocialConnectionIndexKey::new(tenant_id, connection_id);
+    state
+        .active_shared_channel_policy_connection_index
+        .get(&key)
+        .into_iter()
+        .flat_map(|policy_ids| policy_ids.iter())
+        .filter_map(|policy_id| {
+            state
+                .shared_channel_policies
+                .get(policy_id)
+                .filter(|record| record.shared_channel_policy.status.is_active())
+                .cloned()
+        })
+        .collect()
+}
+
+pub(crate) fn shared_channel_sync_requests_for_external_member_link(
+    state: &SocialControlState,
+    link: &im_domain_core::social::ExternalMemberLink,
+) -> Vec<SharedChannelLinkedMemberSyncRequest> {
+    active_shared_channel_policy_records_for_connection(
+        state,
+        link.tenant_id.as_str(),
+        link.connection_id.as_str(),
+    )
+    .into_iter()
+    .filter_map(|record| {
+        let policy = &record.shared_channel_policy;
+        let conversation_id = non_empty_string(policy.conversation_id.as_deref())?;
+        if policy.history_visibility != "shared" {
+            return None;
+        }
+
+        Some(SharedChannelLinkedMemberSyncRequest {
+            tenant_id: link.tenant_id.clone(),
+            conversation_id,
+            shared_channel_policy_id: policy.policy_id.clone(),
+            external_connection_id: link.connection_id.clone(),
+            local_actor_id: link.local_actor_id.clone(),
+            local_actor_kind: link.local_actor_kind.clone(),
+            external_member_id: link.external_member_id.clone(),
+        })
+    })
+    .collect()
+}
+
+fn shared_channel_sync_requests_for_shared_channel_policy(
+    state: &SocialControlState,
+    policy: &SharedChannelPolicy,
+) -> Vec<SharedChannelLinkedMemberSyncRequest> {
+    let Some(conversation_id) = non_empty_string(policy.conversation_id.as_deref()) else {
+        return Vec::new();
+    };
+    if !policy.status.is_active() || policy.history_visibility != "shared" {
+        return Vec::new();
+    }
+
+    active_external_member_link_records_for_connection(
+        state,
+        policy.tenant_id.as_str(),
+        policy.connection_id.as_str(),
+    )
+    .into_iter()
+    .filter_map(|record| {
+        if record.external_member_link.status
+            != im_domain_core::social::ExternalMemberLinkStatus::Active
+        {
+            return None;
+        }
+        Some(SharedChannelLinkedMemberSyncRequest {
+            tenant_id: policy.tenant_id.clone(),
+            conversation_id: conversation_id.clone(),
+            shared_channel_policy_id: policy.policy_id.clone(),
+            external_connection_id: policy.connection_id.clone(),
+            local_actor_id: record.external_member_link.local_actor_id.clone(),
+            local_actor_kind: record.external_member_link.local_actor_kind.clone(),
+            external_member_id: record.external_member_link.external_member_id.clone(),
+        })
+    })
+    .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -460,6 +541,11 @@ pub(crate) async fn apply_shared_channel_policy(
         &auth,
         request,
     )?;
+
+    state
+        .social_runtime
+        .dispatch_shared_channel_sync_requests(&applied.shared_channel_sync_requests)
+        .map_err(|error| SocialServiceError::invalid("shared_channel_sync_failed", error))?;
 
     Ok(Json(SocialSharedChannelPolicyCommitResponse {
         status: SocialSharedChannelPolicyWriteStatus::Applied,

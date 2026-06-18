@@ -404,9 +404,8 @@ Rules:
 Reference implementations:
 
 - `crates/sdkwork-api-product-runtime/src/local_iam.rs`
-- `services/local-minimal-node/tests/openapi_schema_export_test.rs`
-- `services/local-minimal-node/tests/openapi_im_v3_contract_test.rs`
-- `services/local-minimal-node/tests/chat_runtime_session_namespace_test.rs`
+- `services/sdkwork-im-gateway/tests/openapi_index_test.rs`
+- `services/sdkwork-im-gateway/tests/http_proxy_test.rs`
 
 ## 11. Appbase Package And Workspace Aliasing
 
@@ -469,9 +468,7 @@ Reference commands for Sdkwork IM:
 ```text
 node apps/sdkwork-im-pc/scripts/auth-appbase-ui-contract.test.mjs
 cargo test -p sdkwork-im-gateway --test http_proxy_test
-cargo test -p local-minimal-node --test openapi_schema_export_test
-cargo test -p local-minimal-node --test openapi_im_v3_contract_test
-cargo test -p local-minimal-node --test chat_runtime_session_namespace_test
+cargo test -p sdkwork-im-gateway --test openapi_index_test
 ```
 
 Run narrower tests first, then broader workspace checks when the blast radius warrants it.
@@ -491,7 +488,7 @@ Run narrower tests first, then broader workspace checks when the blast radius wa
 | Gateway route descriptors, CORS, embedded fallback | `services/sdkwork-im-gateway/src/lib.rs` |
 | Gateway routing and local IAM proxy tests | `services/sdkwork-im-gateway/tests/http_proxy_test.rs` |
 | Local/private IAM parity router | `crates/sdkwork-api-product-runtime/src/local_iam.rs` |
-| OpenAPI path parity tests | `services/local-minimal-node/tests/openapi_schema_export_test.rs` |
+| OpenAPI path parity tests | `services/sdkwork-im-gateway/tests/openapi_index_test.rs` |
 
 ## 14. Quick Integration Checklist For New Apps
 

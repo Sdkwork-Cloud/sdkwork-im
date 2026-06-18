@@ -1,9 +1,9 @@
 //! Invitation API handlers.
 
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::http::AppState;
@@ -42,7 +42,10 @@ pub async fn create_invitation(
     Path(_space_id): Path<String>,
     Json(_request): Json<CreateInvitationRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    Ok((StatusCode::CREATED, Json(serde_json::json!({"status": "created"}))))
+    Ok((
+        StatusCode::CREATED,
+        Json(serde_json::json!({"status": "created"})),
+    ))
 }
 
 pub async fn list_invitations(

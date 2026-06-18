@@ -5,8 +5,8 @@ use std::time::Duration;
 fn test_build_diagnostic_views_from_runtime() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["conversation-runtime".into(), "notification-service".into()],
         vec!["conversation:c_demo".into()],
     );
@@ -14,7 +14,10 @@ fn test_build_diagnostic_views_from_runtime() {
     let cluster = runtime.cluster_view();
     assert_eq!(cluster.nodes.len(), 1);
     assert_eq!(cluster.nodes[0].node_id, "node_local_1");
-    assert_eq!(cluster.nodes[0].profile, "local-minimal");
+    assert_eq!(
+        cluster.nodes[0].profile,
+        "self-hosted.split-services.development"
+    );
     assert_eq!(cluster.nodes[0].client_route_count, 0);
 
     let lag = runtime.lag_view();
@@ -26,7 +29,10 @@ fn test_build_diagnostic_views_from_runtime() {
     assert_eq!(health.realtime_inbox.pending_event_count, 0);
 
     let diagnostics = runtime.diagnostic_bundle();
-    assert_eq!(diagnostics.profile, "local-minimal");
+    assert_eq!(
+        diagnostics.profile,
+        "self-hosted.split-services.development"
+    );
     assert_eq!(diagnostics.owned_scopes[0], "conversation:c_demo");
     assert_eq!(diagnostics.client_routes.len(), 0);
     assert_eq!(diagnostics.side_effect_outboxes.len(), 0);
@@ -38,8 +44,8 @@ fn test_build_diagnostic_views_from_runtime() {
 fn test_runtime_exposes_route_ownership_and_drain_state() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["conversation-runtime".into()],
         vec!["conversation:*".into()],
     );
@@ -69,8 +75,8 @@ fn test_runtime_exposes_route_ownership_and_drain_state() {
 fn test_diagnostic_bundle_generated_at_advances_between_calls() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["conversation-runtime".into()],
         vec!["conversation:*".into()],
     );
@@ -86,8 +92,8 @@ fn test_diagnostic_bundle_generated_at_advances_between_calls() {
 fn test_runtime_exposes_projection_replay_status_with_derived_throughput() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["conversation-runtime".into()],
         vec!["conversation:*".into()],
     );
@@ -122,8 +128,8 @@ fn test_runtime_exposes_projection_replay_status_with_derived_throughput() {
 fn test_runtime_exposes_provider_binding_snapshots_and_diagnostics() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["conversation-runtime".into()],
         vec!["conversation:*".into()],
     );
@@ -188,8 +194,8 @@ fn test_runtime_exposes_provider_binding_snapshots_and_diagnostics() {
 fn test_runtime_exposes_side_effect_outbox_diagnostics() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["conversation-runtime".into()],
         vec!["conversation:*".into()],
     );
@@ -224,8 +230,8 @@ fn test_runtime_exposes_side_effect_outbox_diagnostics() {
 fn test_runtime_exposes_realtime_inbox_diagnostics() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["conversation-runtime".into()],
         vec!["conversation:*".into()],
     );
@@ -311,8 +317,8 @@ fn test_runtime_exposes_realtime_inbox_diagnostics() {
 fn test_health_view_rolls_up_realtime_inbox_severity() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["conversation-runtime".into()],
         vec!["conversation:*".into()],
     );
@@ -370,8 +376,8 @@ fn test_realtime_inbox_diagnostics_default_is_operationally_valid() {
 fn test_runtime_exposes_provider_binding_drift_against_global_snapshot() {
     let runtime = ops_service::OpsRuntime::new(
         "node_local_1",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["conversation-runtime".into()],
         vec!["conversation:*".into()],
     );

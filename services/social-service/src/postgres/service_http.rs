@@ -2,7 +2,7 @@
 
 use axum::extract::Extension;
 use axum::http::{HeaderMap, StatusCode};
-use im_app_context::{require_handler_request_scope, AppContext, AppRequestScope};
+use im_app_context::{AppContext, AppRequestScope, require_handler_request_scope};
 
 pub(crate) fn require_request_scope(
     auth: Option<Extension<AppContext>>,

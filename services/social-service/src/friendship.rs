@@ -51,6 +51,7 @@ pub(crate) struct SocialServiceError {
     status: StatusCode,
     code: &'static str,
     message: String,
+    details: Option<serde_json::Value>,
 }
 
 impl SocialServiceError {
@@ -59,6 +60,7 @@ impl SocialServiceError {
             status: StatusCode::BAD_REQUEST,
             code,
             message: message.into(),
+            details: None,
         }
     }
 
@@ -67,6 +69,7 @@ impl SocialServiceError {
             status: StatusCode::NOT_FOUND,
             code,
             message: message.into(),
+            details: None,
         }
     }
 
@@ -75,6 +78,7 @@ impl SocialServiceError {
             status: StatusCode::CONFLICT,
             code,
             message: message.into(),
+            details: None,
         }
     }
 
@@ -86,7 +90,8 @@ impl SocialServiceError {
         Self {
             status: StatusCode::CONFLICT,
             code,
-            message: format!("{}: {}", message.into(), details),
+            message: message.into(),
+            details: Some(details),
         }
     }
 
@@ -97,6 +102,7 @@ impl SocialServiceError {
             message: format!(
                 "{field} exceeds maximum size of {max_bytes} bytes (got {actual_bytes})"
             ),
+            details: None,
         }
     }
 
@@ -105,16 +111,20 @@ impl SocialServiceError {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             code: "social_service_error",
             message: error,
+            details: None,
         }
     }
 }
 
 impl IntoResponse for SocialServiceError {
     fn into_response(self) -> Response {
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "code": self.code,
             "message": self.message,
         });
+        if let Some(details) = self.details {
+            body["details"] = details;
+        }
         (self.status, Json(body)).into_response()
     }
 }
@@ -2032,6 +2042,7 @@ impl SocialRuntime {
 // ---------------------------------------------------------------------------
 
 pub(crate) async fn list_friend_requests(
+    headers: HeaderMap,
     Query(query): Query<FriendRequestInventoryQuery>,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendRequestInventoryResponse>, SocialServiceError> {
@@ -2055,7 +2066,8 @@ pub(crate) async fn list_friend_requests(
         None
     };
 
-    let tenant_id = "default";
+    let auth = resolve_auth_from_headers(&headers)?;
+    let tenant_id = auth.tenant_id.as_str();
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
     state
         .social_runtime
@@ -2077,25 +2089,12 @@ pub(crate) async fn list_friend_requests(
 }
 
 pub(crate) async fn submit_friend_request(
+    headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<SubmitFriendRequestRequest>,
 ) -> Result<Json<SocialFriendRequestCommitResponse>, SocialServiceError> {
-    let tenant_id = "default";
-    let auth = AppContext {
-        tenant_id: tenant_id.into(),
-        organization_id: "default".to_owned(),
-        user_id: String::new(),
-        session_id: None,
-        app_id: None,
-        environment: None,
-        deployment_mode: None,
-        auth_level: None,
-        data_scope: Default::default(),
-        permission_scope: Default::default(),
-        actor_id: "system".into(),
-        actor_kind: "system".into(),
-        device_id: None,
-    };
+    let auth = resolve_auth_from_headers(&headers)?;
+    let tenant_id = auth.tenant_id.as_str();
 
     let submitted = state
         .social_runtime
@@ -2199,9 +2198,11 @@ pub(crate) async fn cancel_friend_request(
 
 pub(crate) async fn friend_request_snapshot(
     Path(request_id): Path<String>,
+    headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendRequestSnapshotResponse>, SocialServiceError> {
-    let tenant_id = "default";
+    let auth = resolve_auth_from_headers(&headers)?;
+    let tenant_id = auth.tenant_id.as_str();
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
     state
@@ -2225,25 +2226,12 @@ pub(crate) async fn friend_request_snapshot(
 }
 
 pub(crate) async fn activate_friendship(
+    headers: HeaderMap,
     State(state): State<AppState>,
     Json(request): Json<ActivateFriendshipRequest>,
 ) -> Result<Json<SocialFriendshipCommitResponse>, SocialServiceError> {
-    let tenant_id = "default";
-    let auth = AppContext {
-        tenant_id: tenant_id.into(),
-        organization_id: "default".to_owned(),
-        user_id: String::new(),
-        session_id: None,
-        app_id: None,
-        environment: None,
-        deployment_mode: None,
-        auth_level: None,
-        data_scope: Default::default(),
-        permission_scope: Default::default(),
-        actor_id: "system".into(),
-        actor_kind: "system".into(),
-        device_id: None,
-    };
+    let auth = resolve_auth_from_headers(&headers)?;
+    let tenant_id = auth.tenant_id.as_str();
 
     let activated = state
         .social_runtime
@@ -2283,9 +2271,11 @@ pub(crate) async fn remove_friendship(
 
 pub(crate) async fn friendship_snapshot(
     Path(friendship_id): Path<String>,
+    headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Json<SocialFriendshipSnapshotResponse>, SocialServiceError> {
-    let tenant_id = "default";
+    let auth = resolve_auth_from_headers(&headers)?;
+    let tenant_id = auth.tenant_id.as_str();
 
     let _read_lock = state.social_runtime.acquire_cross_instance_read_lock()?;
     state

@@ -1,5 +1,7 @@
 //! Space Service - 空间、群组、频道、成员、邀请、封禁
 
+#![allow(dead_code, unused_imports)]
+
 mod ban;
 mod bootstrap;
 mod channel;
