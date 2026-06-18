@@ -451,7 +451,7 @@ fn test_memory_presence_state_store_conditionally_expires_only_stale_online_stat
 
 #[test]
 fn test_memory_commit_journal_appends_in_order() {
-    let journal = MemoryCommitJournal::with_partition("local-minimal");
+    let journal = MemoryCommitJournal::with_partition("dev-memory-journal");
 
     let first = journal
         .append(im_domain_events::CommitEnvelope::minimal(
@@ -474,9 +474,9 @@ fn test_memory_commit_journal_appends_in_order() {
         ))
         .expect("second append should succeed");
 
-    assert_eq!(first.partition, "local-minimal");
+    assert_eq!(first.partition, "dev-memory-journal");
     assert_eq!(first.offset, 1);
-    assert_eq!(second.partition, "local-minimal");
+    assert_eq!(second.partition, "dev-memory-journal");
     assert_eq!(second.offset, 2);
     assert_eq!(journal.recorded().len(), 2);
 }

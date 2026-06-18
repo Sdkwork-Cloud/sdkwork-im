@@ -172,16 +172,16 @@ async function main(): Promise<void> {
   assert.deepEqual(
     incomingCalls,
     [
-      { direction: 'incoming', status: 'all', limit: 100 },
-      { direction: 'incoming', status: 'all', limit: 100, cursor: '1' },
+      { direction: 'incoming', status: 'pending', limit: 100 },
+      { direction: 'incoming', status: 'pending', limit: 100, cursor: '1' },
     ],
     'incoming friend request sync must continue until nextCursor is exhausted',
   );
   assert.deepEqual(
     outgoingCalls,
     [
-      { direction: 'outgoing', status: 'all', limit: 100 },
-      { direction: 'outgoing', status: 'all', limit: 100, cursor: '1' },
+      { direction: 'outgoing', status: 'pending', limit: 100 },
+      { direction: 'outgoing', status: 'pending', limit: 100, cursor: '1' },
     ],
     'outgoing friend request sync must continue until nextCursor is exhausted',
   );

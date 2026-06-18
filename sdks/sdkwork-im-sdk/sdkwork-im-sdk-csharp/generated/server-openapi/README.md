@@ -21,7 +21,7 @@ using Sdkwork.Im.Sdk.Generated.Models;
 using Sdkwork.Im.Sdk.Generated;
 using SDKwork.Common.Core;
 
-var config = new SdkConfig("http://127.0.0.1:18090");
+var config = new SdkConfig("http://127.0.0.1:18079");
 var client = new SdkworkImClient(config);
 client.SetAuthToken("your-auth-token");
 client.SetAccessToken("your-access-token");
@@ -41,7 +41,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```csharp
-var config = new SdkConfig("http://127.0.0.1:18090");
+var config = new SdkConfig("http://127.0.0.1:18079");
 var client = new SdkworkImClient(config);
 
 // Set custom headers

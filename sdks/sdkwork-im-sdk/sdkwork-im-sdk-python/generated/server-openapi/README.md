@@ -14,7 +14,7 @@ pip install sdkwork-im-sdk-generated
 from sdkwork_im_sdk_generated import SdkworkImClient, SdkConfig
 
 config = SdkConfig(
-    base_url="http://127.0.0.1:18090",
+    base_url="http://127.0.0.1:18079",
 )
 
 client = SdkworkImClient(config)
@@ -39,7 +39,7 @@ Access-Token: <accessToken>
 from sdkwork_im_sdk_generated import SdkworkImClient, SdkConfig
 
 config = SdkConfig(
-    base_url="http://127.0.0.1:18090",
+    base_url="http://127.0.0.1:18079",
 )
 
 client = SdkworkImClient(config)

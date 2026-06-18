@@ -75,6 +75,14 @@ export function buildCommercialReadinessChecks({
       env: pnpmRuntimeEnv,
     },
     {
+      id: 'topology-baggage',
+      label: 'Topology v2 baggage contract',
+      cwd: repoRoot,
+      command: pnpmExecutable,
+      args: ['run', 'test:topology-baggage'],
+      env: pnpmRuntimeEnv,
+    },
+    {
       id: 'dependency-management',
       label: 'SDKWork dependency management standard',
       cwd: repoRoot,
@@ -98,11 +106,11 @@ export function buildCommercialReadinessChecks({
       args: ['test', '-p', 'governance-service', '--tests'],
     },
     {
-      id: 'commercial-gate-contract',
-      label: 'Commercial contract gate',
+      id: 'gateway-integration-tests',
+      label: 'Sdkwork IM gateway integration tests',
       cwd: repoRoot,
       command: 'cargo',
-      args: ['test', '-p', 'local-minimal-node', '--test', 'commercial_gate_contract_test'],
+      args: ['test', '-p', 'sdkwork-im-gateway', '--tests'],
     },
     {
       id: 'session-gateway-tests',
@@ -110,20 +118,6 @@ export function buildCommercialReadinessChecks({
       cwd: repoRoot,
       command: 'cargo',
       args: ['test', '-p', 'session-gateway', '--tests'],
-    },
-    {
-      id: 'performance-quant-baseline',
-      label: 'Local performance quant baseline',
-      cwd: repoRoot,
-      command: 'cargo',
-      args: ['test', '-p', 'local-minimal-node', '--test', 'performance_quant_baseline_test'],
-    },
-    {
-      id: 'performance-drill-catalog',
-      label: 'Performance drill catalog',
-      cwd: repoRoot,
-      command: 'cargo',
-      args: ['test', '-p', 'local-minimal-node', '--test', 'performance_drill_catalog_test'],
     },
   ];
 }

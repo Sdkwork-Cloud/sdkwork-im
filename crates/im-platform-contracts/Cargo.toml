@@ -15,7 +15,7 @@ sdkwork-im-contract-stream.workspace = true
 im-domain-core.workspace = true
 im-domain-events.workspace = true
 im-time.workspace = true
-sdkwork-rtc-core.workspace = true
+sdkwork-communication-rtc-service.workspace = true
 serde.workspace = true
 
 [dev-dependencies]

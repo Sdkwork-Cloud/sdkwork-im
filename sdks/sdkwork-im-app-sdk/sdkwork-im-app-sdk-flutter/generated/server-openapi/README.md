@@ -16,7 +16,7 @@ dependencies:
 ```dart
 import 'package:im_app_api_generated/im_app_api_generated.dart';
 
-final client = SdkworkImAppClient.withBaseUrl(baseUrl: 'http://127.0.0.1:18090');
+final client = SdkworkImAppClient.withBaseUrl(baseUrl: 'http://127.0.0.1:18079');
 client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 
@@ -36,7 +36,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```dart
-final client = SdkworkImAppClient.withBaseUrl(baseUrl: 'http://127.0.0.1:18090');
+final client = SdkworkImAppClient.withBaseUrl(baseUrl: 'http://127.0.0.1:18079');
 
 // Set custom headers
 client.setHeader('X-Custom-Header', 'value');

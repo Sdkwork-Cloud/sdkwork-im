@@ -31,6 +31,7 @@ SDKWork Chat maintainers.
 
 ## Verification
 
-Run `pnpm run test:sdkwork-workspace-structure-standard` from the repository root after application
+Run `pnpm im:dev` from the repository root for the full PC + server stack. Run
+`pnpm run test:sdkwork-workspace-structure-standard` from the repository root after application
 layout changes. Run the owning application root checks from `apps/sdkwork-im-pc` when PC packages,
 manifests, or SDK wiring change.

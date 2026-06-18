@@ -22,7 +22,7 @@
 
 ## 是否偏离架构
 - 无偏离。
-- 本轮沿用既有 `deploy-local` / `local_stack_smoke.*` / `local-minimal.yml` 交付面收敛认证合同，没有引入新的旁路脚本，也没有制造新的平台差异。
+- 本轮沿用既有 `retired-lifecycle-deploy` / `local_stack_smoke.*` / `self-hosted.split-services.development.yml` 交付面收敛认证合同，没有引入新的旁路脚本，也没有制造新的平台差异。
 
 ## 回写决议
 - `docs/架构/09-实施计划.md` 追加 `As-Built 100`
@@ -33,10 +33,10 @@
 
 ## 证据
 - 代码：
-  - `deployments/docker-compose/local-minimal.yml`
+  - `(removed compose file)`
   - `tools/smoke/local_stack_smoke.ps1`
   - `tools/smoke/local_stack_smoke.sh`
-  - `services/local-minimal-node/tests/deployment_profile_test.rs`
+  - `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 - 文档：
   - `docs/部署/本地最小安装与运行.md`
   - `docs/部署/快速启动脚本.md`
@@ -44,10 +44,10 @@
   - `README.md`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p local-minimal-node --offline --test deployment_profile_test`
-  - `cargo test -p local-minimal-node --offline --test public_auth_e2e_test`
-  - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/deploy-local.ps1 -Help`
-  - `cmd /c bin\\deploy-local.cmd --help`
+  - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
+  - `cargo test -p sdkwork-im-gateway --offline --test public_auth_e2e_test`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+  - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 
 ## 当前判断
 - 当前增量：通过

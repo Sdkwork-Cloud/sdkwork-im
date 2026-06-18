@@ -47,7 +47,7 @@ pub use id_generator::{IdGenerator, IdGeneratorConfig};
 pub use message_store::{MessageStore, MessageWindow, StoredMessageRecord};
 pub use outbox_store::{OutboxEventRecord, OutboxPublishStatus, OutboxStore};
 
-pub use sdkwork_rtc_core::{
+pub use sdkwork_communication_rtc_service::{
     RtcContractError, RtcCreateMediaSessionRequest, RtcMediaSessionMode, RtcParticipantCredential,
     RtcProviderEventKind, RtcProviderPort, RtcProviderWebhookEvent, RtcProviderWebhookParseRequest,
     RtcRecordingArtifact, RtcSessionHandle, rtc_provider_payload_hash,

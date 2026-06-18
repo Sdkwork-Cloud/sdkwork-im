@@ -7,7 +7,7 @@
 //! It replaces the previous single-machine JSONL append file
 //! (`adapters/local-disk/src/journal.rs`) as the production source of truth,
 //! while keeping the synchronous [`CommitJournal`] trait surface stable so
-//! callers in `conversation-runtime` and `local-minimal-node` do not change.
+//! callers in `conversation-runtime` and `sdkwork-im-gateway` do not change.
 //!
 //! ## Threading bridge
 //!

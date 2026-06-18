@@ -11,15 +11,15 @@
 - `docs/架构/139-权限能力模型与协议演进设计-2026-04-06.md`
   - auth context 下的 tenant/client route fanout scope capture 应由单一 owner seam 维护
 - `docs/架构/147-CCP到Crate与接口模块落地映射设计-2026-04-06.md`
-  - 该 seam 应映射到 `projection-service::access`，consumer 位于 `local-minimal-node/effects.rs`
+  - 该 seam 应映射到 `projection-service::access`，consumer 位于 `sdkwork-im-server/effects.rs`
 
 ## 2. 本轮架构兑现
 
 - `projection-service` 新增 `realtime_fanout_targets_from_auth_context(...)`。
-- `local-minimal-node/effects.rs` 现在通过这条 seam 统一完成 realtime publish helper 的 auth-context capture。
+- `sdkwork-im-server/effects.rs` 现在通过这条 seam 统一完成 realtime publish helper 的 auth-context capture。
 - owner / consumer 边界变为：
   - owner：`services/projection-service/src/access.rs`
-  - consumer：`services/local-minimal-node/src/node/effects.rs`
+  - consumer：`services/sdkwork-im-gateway/src/node/effects.rs`
 
 ## 3. 当前决议
 

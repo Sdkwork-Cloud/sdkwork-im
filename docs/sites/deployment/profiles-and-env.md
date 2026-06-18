@@ -1,47 +1,48 @@
 ﻿# Profiles and Environment
 
-Use this page to choose the right local profile and confirm the environment variables required for
-startup, dual-token auth context, private service projection, and shared-channel sync behavior.
+Sdkwork IM development and production routing are owned by topology v2. Use
+`specs/topology.spec.json` and `configs/topology/*.env` as the only profile authority.
 
-## Profile Matrix
+## Development Profiles
 
-| Item | `local-minimal` | `local-default` |
+| Profile id | Command | Purpose |
 | --- | --- | --- |
-| Template | `deployments/templates/local-minimal.env.example` | `deployments/templates/local-default.env.example` |
-| Primary config file | `.runtime/local-minimal/config/local-minimal.env` | `.runtime/local-default/config/local-default.env` |
-| Default bind | `127.0.0.1:18090` | `127.0.0.1:18090` |
-| Effective runtime dir by default | `.runtime/local-minimal` | Falls back to `.runtime/local-minimal` |
-| Compose shape | Standalone definition | Extends `local-minimal` |
+| `self-hosted.split-services.development` | `pnpm im:dev` | Default PC + server + platform gateway dev stack |
+| `self-hosted.unified-process.development` | `pnpm im:dev:unified` | Smoke/CI single-process ingress layout |
+| `self-hosted.split-services.production` | private install templates | On-prem production bind + URL contract |
+| `cloud-hosted.split-services.production` | `pnpm im:build` | SaaS production (`im.sdkwork.com`, `api.sdkwork.com`) |
 
-## Baseline Environment Variables
+See [Production Domain Binding](/deployment/production-domain-binding) for public URL keys.
 
-| Variable | Purpose |
-| --- | --- |
-| `SDKWORK_IM_BIND_ADDR` | Listener bind address |
-| `SDKWORK_IM_RUNTIME_DIR` | Managed runtime directory |
-| `SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET` | Domain signing secret for friend-request pagination cursors |
-| `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE` | Requires signed SDKWork AppContext projections on protected local service routes. |
-| `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET` | Shared secret used by the trusted gateway to sign AppContext projections and by local services to verify them. |
+## Application and Platform Surfaces
 
-## Production Domain Variables
+| Surface | Server env | Client env |
+| --- | --- | --- |
+| IM HTTP | `SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL` | `VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL` |
+| IM WebSocket | `SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL` | `VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL` |
+| Platform gateway | `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` | `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` |
+| Ingress bind | `SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND` | — |
 
-For packaged server and web release deployments, use [Production Domain Binding](/deployment/production-domain-binding)
-as the source of truth.
+## Server-Only Dev
 
-| Variable | Purpose |
-| --- | --- |
-| `SDKWORK_IM_SERVER_BASE_URL` | Public web/docs origin for the packaged server deployment. |
-| `SDKWORK_IM_SERVER_API_BASE_URL` | Public HTTP gateway base URL. The generated SDKs append `/app/v3/api` and `/im/v3/api`. |
-| `SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL` | Public realtime WebSocket gateway base URL. The IM SDK appends `/im/v3/api/realtime/ws`. |
-| `SDKWORK_IM_BROWSER_ORIGINS` | Comma-separated browser origins allowed to call the public gateway. Required for split web/API domains. |
-| `SDKWORK_IM_PC_API_UPSTREAM` | Optional upstream for PC auxiliary `/api/agent/*` routes. |
+`pnpm server:dev` starts `scripts/im-server-dev.mjs`, which runs `sdkwork-im-server` with the
+default split-services development profile env and managed `sdkwork-api-gateway`.
 
-### Authentication Boundary
+## Packaged Server Deployment
+
+Production server installs use:
+
+- `deployments/templates/server.env.example`
+- `deployments/templates/chat.toml.example`
+- `/etc/sdkwork/chat/server.env`
+
+Do not use retired `local-minimal` / `local-default` profile names or `.runtime/local-*` config trees.
+
+## Authentication Boundary
 
 `sdkwork-appbase` owns login, IAM sessions, dual-token validation, users, tenants, organizations,
 and the authoritative IAM context. Public clients send `Authorization: Bearer <auth-token>` and
-`Access-Token: <access-token>` only. Tenant, user, session, device, actor, and permission context is
-resolved from those token claims.
+`Access-Token: <access-token>` only.
 
 For trusted gateway or service-to-service traffic, the gateway validates appbase dual tokens,
 drops any client-supplied identity projection, and signs the private forwarded AppContext projection
@@ -50,137 +51,8 @@ with `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET`. Protected service routes should 
 
 ## Security Hardening Variables
 
-For public or commercial deployments, keep these enabled and explicit:
-
 | Variable | Purpose |
 | --- | --- |
-| `SDKWORK_IM_BROWSER_ORIGINS` | Comma-separated explicit browser origins allowed to call the public app routes. Defaults to the local portal preview origins only when unset. |
-| `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE` | Set to `true` so standalone services reject unsigned or spoofed AppContext projection headers. |
-| `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET` | Non-public HMAC secret shared only between the trusted gateway and internal services. Use secret-manager injection outside local development. |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS` | Per-tenant request ceiling for `/im/v3/api/chat/conversations/shared_channel_links/sync` inside each process (clamped to `1..10000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS` | Sliding window used by the shared-channel sync per-tenant limiter (clamped to `1..3600`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS` | Maximum active tenant buckets retained by the in-process shared-channel sync limiter (default `10000`, clamped to `1..200000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS` | Outbound HTTP timeout (milliseconds) for control-plane shared-channel sync trigger dispatch. |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED` | Enables periodic stale-claim reclaim for pending shared-channel sync requests (`1/true/yes/on`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS` | Scheduler tick interval in milliseconds for stale-claim reclaim scans (clamped to `1000..600000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS` | Adds bounded per-tick jitter for stale-claim scheduler sleeps to reduce multi-node synchronized scan spikes (default `250`, clamped to `0..5000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT` | Number of background dispatch workers that execute shared-channel sync outbound HTTP requests (capped at 128). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY` | Bounded in-memory queue capacity for shared-channel sync dispatch tasks (capped at 65,536); full queue returns backpressure errors. |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS` | Retention window for delivered shared-channel sync ledger items before prune (default `2592000000`, capped at `31536000000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES` | Maximum delivered shared-channel sync ledger entries kept in durable state (default `200000`, capped at `2000000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS` | Defers auto-dispatch for recently failed pending requests until cooldown elapses (default `0`, capped at `60000`). |
-| `SDKWORK_IM_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP` | Emergency local-test override for non-HTTPS shared-channel sync targets. Keep `false` in non-local environments. |
-| `SDKWORK_IM_RUNTIME_PROFILE` | Runtime profile name (`local-minimal`/`local-default`/etc.). Remote `http://` override is only honored for local profiles. |
-
-### Shared-channel sync target variables
-
-These variables narrow the shared-channel sync behavior to an explicit remote target and its
-runtime guards.
-
-| Variable | Purpose |
-| --- | --- |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_TARGET_BASE_URL` | Enables standalone control-plane sync dispatch to comms-conversation-service public HTTP route. |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS` | Caps each tenant's in-process sync request budget per window (`1..10000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS` | Defines per-tenant sync limiter window size in seconds (`1..3600`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS` | Bounds active per-tenant limiter buckets to prevent in-memory amplification (`1..200000`, default `10000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS` | Caps outbound shared-channel sync request/response wait time to fail fast on transport stalls (max 60,000ms). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED` | Turns on automatic stale pending-claim reclaim scans without operator-triggered repair calls. |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS` | Controls how often the reclaim scheduler checks pending shared-channel sync leases (clamped to `1000..600000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS` | Adds bounded jitter to each scheduler sleep tick (`0..5000`, default `250`) to avoid synchronized reclaim spikes in multi-instance deployments. |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT` | Tunes shared-channel sync dispatch throughput by increasing worker parallelism (max 128). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY` | Caps dispatch backlog size and enforces backpressure when queue capacity is exhausted (max 65,536). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS` | Caps delivered-ledger retention duration used by pruning (`0 < value <= 31536000000`, default `2592000000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES` | Caps delivered-ledger durable entry count used by pruning (`0 < value <= 2000000`, default `200000`). |
-| `SDKWORK_IM_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS` | Delays automatic retry of recently failed pending items (`0 <= value <= 60000`, default `0`); use non-zero values to reduce failure-storm retry pressure. |
-| `SDKWORK_IM_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP` | Allows `http://` target only for controlled local testing; production should use HTTPS. |
-| `SDKWORK_IM_RUNTIME_PROFILE` | Must be an explicit local profile (`local-minimal`/`local-default`/`local`/`dev`/`test`/`ci`) before remote `http://` override is accepted. |
-
-## Optional Provider-related Variables
-
-The current repository also uses a principal-profile provider selection boundary:
-
-| Variable | Purpose |
-| --- | --- |
-| `SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER` | Selects the principal-profile provider mode |
-| `SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_CATALOG_PATH` | Catalog path for the external principal-profile provider |
-| `SDKWORK_IM_PRINCIPAL_PROFILE_EXTERNAL_SYSTEM` | External system identifier for that provider |
-
-When `SDKWORK_IM_PRINCIPAL_PROFILE_PROVIDER=external` is selected without the required external catalog
-path, the provider-health surface reports the external mode as unavailable.
-
-## Desktop Admin Sandbox Variables
-
-The desktop admin runtime has its own small environment surface when it is running in sandbox mode:
-
-| Variable | Purpose |
-| --- | --- |
-| `SDKWORK_ADMIN_PROXY_TARGET` | Proxies desktop `/backend/v3/api/admin/*` calls to a compatible backend when set |
-| `SDKWORK_ADMIN_SANDBOX` | Enables the built-in admin sandbox when no proxy target is configured |
-| `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE` | Optional JSON snapshot path used to persist generic storage-management state across sandbox restarts |
-
-### `SDKWORK_ADMIN_SANDBOX_STORAGE_FILE`
-
-When this variable is set together with sandbox mode, the desktop runtime uses the generic storage
-snapshot contract and a file-backed adapter instead of keeping storage configuration in memory only.
-
-That path currently covers:
-
-- global storage config writes
-- tenant storage config writes
-- tenant storage deletes
-- storage reload on the next sandbox startup
-
-## Template Contents
-
-### `local-minimal.env.example`
-
-```dotenv
-SDKWORK_IM_BIND_ADDR=127.0.0.1:18090
-SDKWORK_IM_RUNTIME_DIR=.runtime/local-minimal
-SDKWORK_IM_RUNTIME_PROFILE=local-minimal
-SDKWORK_IM_BROWSER_ORIGINS=http://127.0.0.1:4176,http://localhost:4176
-SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET=replace-with-local-minimal-friend-request-cursor-secret
-SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true
-SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET=replace-with-local-minimal-app-context-signature-secret
-SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=120
-SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=60
-SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS=10000
-SDKWORK_IM_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS=5000
-SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED=true
-SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS=30000
-SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS=250
-SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT=4
-SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY=1024
-SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS=2592000000
-SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES=200000
-SDKWORK_IM_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS=0
-SDKWORK_IM_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP=false
-```
-
-### `local-default.env.example`
-
-```dotenv
-SDKWORK_IM_BIND_ADDR=127.0.0.1:18090
-SDKWORK_IM_RUNTIME_DIR=.runtime/local-minimal
-SDKWORK_IM_RUNTIME_PROFILE=local-default
-SDKWORK_IM_BROWSER_ORIGINS=http://127.0.0.1:4176,http://localhost:4176
-SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET=replace-with-local-default-friend-request-cursor-secret
-SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true
-SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET=replace-with-local-default-app-context-signature-secret
-SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_REQUESTS=120
-SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_WINDOW_SECONDS=60
-SDKWORK_IM_SHARED_CHANNEL_SYNC_RATE_LIMIT_MAX_BUCKETS=10000
-SDKWORK_IM_SHARED_CHANNEL_SYNC_HTTP_TIMEOUT_MILLIS=5000
-SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_ENABLED=true
-SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_INTERVAL_MILLIS=30000
-SDKWORK_IM_SHARED_CHANNEL_SYNC_STALE_RECLAIM_SCHEDULER_JITTER_MILLIS=250
-SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_WORKER_COUNT=4
-SDKWORK_IM_SHARED_CHANNEL_SYNC_DISPATCH_QUEUE_CAPACITY=1024
-SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_RETENTION_MILLIS=2592000000
-SDKWORK_IM_SHARED_CHANNEL_SYNC_DELIVERED_LEDGER_MAX_ENTRIES=200000
-SDKWORK_IM_SHARED_CHANNEL_SYNC_PENDING_RETRY_COOLDOWN_MILLIS=0
-SDKWORK_IM_ALLOW_INSECURE_SHARED_CHANNEL_SYNC_HTTP=false
-```
-
-That second template is explicit evidence that the current `local-default` profile still reuses the
-`local-minimal` runtime contract.
+| `SDKWORK_IM_BROWSER_ORIGINS` | Comma-separated explicit browser origins allowed to call the public app routes. |
+| `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE` | Set to `true` so standalone services reject unsigned AppContext projection headers. |
+| `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET` | Non-public HMAC secret shared only between the trusted gateway and internal services. |

@@ -14,6 +14,8 @@ const rtcSdkRoot = path.join(
   'sdkwork-rtc-sdk-typescript',
 );
 const rtcSdkFamilyRoot = path.join(workspaceRoot, 'sdkwork-rtc', 'sdks', 'sdkwork-rtc-sdk');
+const rtcSignalingImportPattern =
+  /sdkwork_(?:rtc_core|communication_rtc_service)::\{[^}]*\b(?:RtcSession|RtcSessionState|RtcSignalEvent|RtcSignalSender|RtcStateRecord|RtcStateStore)\b|sdkwork_(?:rtc_core|communication_rtc_service)::(?:RtcSession|RtcSessionState|RtcSignalEvent|RtcSignalSender|RtcStateRecord|RtcStateStore)|sdkwork_rtc_state_store/u;
 
 function readFile(absolutePath) {
   return fs.readFileSync(absolutePath, 'utf8');
@@ -143,7 +145,7 @@ assert.doesNotMatch(
   'web-gateway must not classify call signaling as an sdkwork-rtc app-api target',
 );
 
-for (const relativePath of ['Cargo.toml', 'services/local-minimal-node/Cargo.toml']) {
+for (const relativePath of ['Cargo.toml', 'services/sdkwork-im-gateway/Cargo.toml']) {
   const source = read(relativePath);
   assert.doesNotMatch(
     source,
@@ -152,59 +154,24 @@ for (const relativePath of ['Cargo.toml', 'services/local-minimal-node/Cargo.tom
   );
 }
 
-const localMinimalNodeSource = read('services/local-minimal-node/src/node.rs');
-assert.doesNotMatch(
-  localMinimalNodeSource,
-  /sdkwork_rtc_signaling_service/u,
-  'local-minimal-node must use an IM-owned calls runtime instead of sdkwork_rtc_signaling_service',
+const webGatewayCallsSource = read('services/sdkwork-im-gateway/src/lib.rs');
+assert.match(
+  webGatewayCallsSource,
+  /im-calls-service/u,
+  'sdkwork-im-gateway must route IM-owned call signaling through im-calls-service upstream',
 );
-
-const localMinimalCallsSources = listFiles(
-  path.join(repoRoot, 'services', 'local-minimal-node', 'src', 'node', 'im_calls'),
-  (filePath) => filePath.endsWith('.rs'),
-);
-for (const filePath of localMinimalCallsSources) {
-  const relative = relativeToWorkspace(filePath);
-  const source = readFile(filePath);
-  assert.doesNotMatch(
-    source,
-    /sdkwork_rtc_signaling_service|build_default_app|build_app\(|\/app\/v3\/api\/rtc|openapi_json|render_docs_html/u,
-    `${relative} must stay an IM-owned calls runtime without retired RTC signaling service HTTP surface`,
-  );
-  assert.doesNotMatch(
-    source,
-    /sdkwork_rtc_core::\{[^}]*\b(?:RtcSession|RtcSessionState|RtcSignalEvent|RtcSignalSender|RtcStateRecord|RtcStateStore)\b|sdkwork_rtc_core::(?:RtcSession|RtcSessionState|RtcSignalEvent|RtcSignalSender|RtcStateRecord|RtcStateStore)|sdkwork_rtc_state_store/u,
-    `${relative} must not import IM call signaling DTOs or state stores from sdkwork-rtc`,
-  );
-}
 
 for (const relativePath of [
   'crates/im-domain-core/src/rtc.rs',
   'crates/im-platform-contracts/src/lib.rs',
-  'services/local-minimal-node/src/node.rs',
-  'services/local-minimal-node/src/node/calls.rs',
-  'services/local-minimal-node/src/node/effects.rs',
-  'services/local-minimal-node/src/node/runtime_dir/preview/diff.rs',
 ]) {
   const source = read(relativePath);
   assert.doesNotMatch(
     source,
-    /sdkwork_rtc_core::\{[^}]*\b(?:RtcSession|RtcSessionState|RtcSignalEvent|RtcSignalSender|RtcStateRecord|RtcStateStore)\b|sdkwork_rtc_core::(?:RtcSession|RtcSessionState|RtcSignalEvent|RtcSignalSender|RtcStateRecord|RtcStateStore)|sdkwork_rtc_state_store/u,
+    rtcSignalingImportPattern,
     `${relativePath} must source IM call signaling DTOs/state stores from im-domain-core or local IM adapters, not sdkwork-rtc`,
   );
 }
-
-const localMinimalBuildSource = read('services/local-minimal-node/src/node/build.rs');
-assert.doesNotMatch(
-  localMinimalBuildSource,
-  /\.nest\("\/app\/v3\/api\/rtc"|fn\s+rtc_app_api_routes/u,
-  'local-minimal-node must not mount RTC signaling as /app/v3/api/rtc',
-);
-assert.match(
-  localMinimalBuildSource,
-  /\.nest\("\/im\/v3\/api",\s*im_standard_api_routes\(\)\)[\s\S]*\.nest\("\/calls",\s*im_calls_routes\(\)\)/u,
-  'local-minimal-node must compose IM-owned call signaling under /im/v3/api/calls',
-);
 
 for (const relativePath of ['README.md', 'specs/database-prefix-registry.json', 'specs/database-table-registry.json']) {
   const source = read(relativePath);

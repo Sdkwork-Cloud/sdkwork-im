@@ -7,6 +7,8 @@
 //! - `ThreadSubscription`: User subscription to a thread
 //! - `ConversationSettings`: User settings for a conversation
 
+#![allow(clippy::should_implement_trait)]
+
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------

@@ -1,9 +1,11 @@
 //! Thread API handlers.
 
+#![allow(dead_code)]
+
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::http::AppState;
@@ -49,7 +51,10 @@ pub async fn create_thread(
     Path(_conversation_id): Path<String>,
     Json(_request): Json<CreateThreadRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    Ok((StatusCode::CREATED, Json(serde_json::json!({"status": "created"}))))
+    Ok((
+        StatusCode::CREATED,
+        Json(serde_json::json!({"status": "created"})),
+    ))
 }
 
 pub async fn list_threads(
@@ -72,7 +77,10 @@ pub async fn send_thread_message(
     Path((_conversation_id, _thread_id)): Path<(String, String)>,
     Json(_request): Json<SendMessageRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    Ok((StatusCode::CREATED, Json(serde_json::json!({"status": "sent"}))))
+    Ok((
+        StatusCode::CREATED,
+        Json(serde_json::json!({"status": "sent"})),
+    ))
 }
 
 pub async fn list_thread_messages(

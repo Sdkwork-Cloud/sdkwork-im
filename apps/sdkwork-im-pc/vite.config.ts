@@ -133,12 +133,9 @@ function sdkworkChatLocalApiPlugin(): Plugin {
 }
 
 export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
+  loadEnv(mode, '.', '');
   return {
     plugins: [sdkworkChatLocalApiPlugin(), react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
     resolve: {
       alias: [
         { find: '@', replacement: path.resolve(__dirname, '.') },
@@ -224,8 +221,6 @@ export default defineConfig(({mode}) => {
       dedupe: ['react', 'react-dom'],
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
     },
     optimizeDeps: {
@@ -263,13 +258,11 @@ export default defineConfig(({mode}) => {
             if (id.includes('/node_modules/@tiptap') || id.includes('/node_modules/prosemirror')) {
               return 'editor-vendor';
             }
-            if (id.includes('/node_modules/@google/genai')) {
-              return 'ai-vendor';
-            }
             return undefined;
           },
         },
       },
+      chunkSizeWarningLimit: 2000,
     },
   };
 });

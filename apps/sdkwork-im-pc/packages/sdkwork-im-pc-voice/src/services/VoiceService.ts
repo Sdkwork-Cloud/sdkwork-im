@@ -20,7 +20,7 @@ class VoiceService {
         categoryId: 'reading',
         iconName: 'Mic',
         color: 'bg-pink-500',
-        author: 'Voice AI Studio',
+        author: 'Sdkwork Voice',
         users: '12K',
       },
       {

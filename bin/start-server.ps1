@@ -233,7 +233,7 @@ if (-not (Test-Path $serverYamlPath)) {
     }
 }
 
-$standardBindAddress = Get-FirstEnvValue @("SDKWORK_IM_SERVER_BIND", "SDKWORK_IM_SERVER_BIND_ADDRESS")
+$standardBindAddress = Get-FirstEnvValue @("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND")
 $resolvedBindAddress = if (-not [string]::IsNullOrWhiteSpace($standardBindAddress)) {
     $standardBindAddress
 }
@@ -271,17 +271,8 @@ if ($null -ne $existing) {
     throw "sdkwork-im-server is already running with PID $($existing.Id)."
 }
 
-$env:SDKWORK_IM_SERVER_BIND = $resolvedBindAddress
+$env:SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND = $resolvedBindAddress
 $env:SDKWORK_IM_WEB_GATEWAY_BIND = $resolvedBindAddress
-if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_API_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_API_BASE_URL)) {
-    $env:SDKWORK_IM_SERVER_API_BASE_URL = $env:SDKWORK_IM_SERVER_API_BASE_URL
-}
-if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_BASE_URL)) {
-    $env:SDKWORK_IM_SERVER_BASE_URL = $env:SDKWORK_IM_SERVER_BASE_URL
-}
-if (-not [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL) -and [string]::IsNullOrWhiteSpace($env:SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL)) {
-    $env:SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL = $env:SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL
-}
 $serverArguments = @("--config", $serverYamlPath)
 
 if ($Foreground) {

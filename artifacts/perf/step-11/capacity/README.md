@@ -17,7 +17,7 @@
 - collected artifacts: `connection/capacity.json`, `message/capacity.json`, `stream/capacity.json`, `restore-recovery/recovery.json`, `failover/recovery.json`, `reports/capacity-report.md`, `reports/recovery-report.md`
 - required fields: runId, peakActiveConnections, connectP95Ms, connectP99Ms, messageTps, fanoutP95Ms, fanoutP99Ms, streamFramesPerSecond, frameP95Ms, frameP99Ms, restoreRtoSeconds, dataLossRpoEvents, previewDiffAccuracy, takeoverDurationMs, ownerSwitchAccuracy, staleSessionRejectionRate
 - required sections: input_scale, throughput_summary, tail_latency_summary, recovery_window, rto_rpo_summary, operator_follow_up
-- boundary: this root now carries all seven truthful local Capacity Tier artifacts. `Capacity Tier` is `evidence_collected_gate_passed` after doc-captured backfill from published CI Smoke Tier / local-minimal evidence.
+- boundary: this root now carries all seven truthful local Capacity Tier artifacts. `Capacity Tier` is `evidence_collected_gate_passed` after doc-captured backfill from published CI Smoke Tier / self-hosted.split-services.development evidence.
 - refresh command: `pnpm run perf:refresh-step-11-capacity-evidence-index`
 - exit 0: all required capacity evidence slots are collected and valid.
 - exit 1: the refresh command failed to load, parse, or write the evidence index.

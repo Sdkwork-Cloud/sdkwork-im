@@ -23,11 +23,11 @@ Without step 2, the popup path depended on a weaker fallback that was not reliab
 
 ## Verification
 
-- `cargo test -p local-minimal-node --offline test_open_chat_test_ps1_uses_detached_gui_launcher_for_default_windows_mode -- --exact --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline test_open_chat_test_ps1_uses_detached_gui_launcher_for_default_windows_mode -- --exact --nocapture`
 - `cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_open_chat_test_powershell_scripted_validation_emits_json_summary -- --exact --nocapture`
 - `cargo fmt --all --check`
 - same-session runtime proof:
-  - `bin/start-local.ps1`
+  - `pnpm server:dev`
   - `bin/open-chat-test.ps1 -SkipStart -ConversationId c_popup_20260409122030`
   - output included `ownerWindowPid: 3840` and `guestWindowPid: 74040`
   - GUI logs:

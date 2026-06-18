@@ -37,7 +37,7 @@ assert.match(
 );
 assert.match(
   messageListSource,
-  /catch\s*\{[\s\S]*?toast\(['"]\u5220\u9664\u6d88\u606f\u5931\u8d25['"],\s*['"]error['"]\)/u,
+  /toast\(t\(['"]chat\.messageList\.toast\.deleteFailed['"]\),\s*['"]error['"]\)/u,
   'MessageList delete must surface SDK deletion failures',
 );
 assert.match(
@@ -47,7 +47,7 @@ assert.match(
 );
 assert.match(
   messageListSource,
-  /toast\(['"]\u6536\u85cf\u5931\u8d25['"],\s*['"]error['"]\)/u,
+  /toast\(t\(['"]chat\.messageList\.toast\.favoriteFailed['"]\),\s*['"]error['"]\)/u,
   'MessageList favorite action must surface SDK favorite failures',
 );
 assert.match(
@@ -57,7 +57,7 @@ assert.match(
 );
 assert.match(
   messageListSource,
-  /toast\(['"]\u8868\u60c5\u56de\u5e94\u5931\u8d25['"],\s*['"]error['"]\)/u,
+  /toast\(t\(['"]chat\.messageList\.toast\.reactionFailed['"]\),\s*['"]error['"]\)/u,
   'MessageList reactions must surface SDK reaction failures',
 );
 
@@ -79,7 +79,7 @@ assert.match(
 );
 assert.match(
   chatHistoryModalSource,
-  /chatService\.getMessages\(chatId\)[\s\S]*?\.catch\s*\(\s*\(\)\s*=>\s*\{[\s\S]*?toast\(['"]\u52a0\u8f7d\u804a\u5929\u8bb0\u5f55\u5931\u8d25['"],\s*['"]error['"]\)/u,
+  /chatService\.getMessages\(resolvedChatId\)[\s\S]*?\.catch\s*\(\s*\(\)\s*=>\s*\{[\s\S]*?toast\(t\(['"]chat\.historySearch\.toast\.loadFailed['"]\),\s*['"]error['"]\)/u,
   'ChatHistoryModal must surface history load failures instead of logging only to console',
 );
 

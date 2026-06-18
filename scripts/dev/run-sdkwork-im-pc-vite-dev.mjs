@@ -10,7 +10,7 @@ import {
   SDKWORK_IM_PC_DEV_PORT_ENV,
   resolveAvailableSdkworkChatPcDevPort,
   resolveSdkworkChatPcDevServer,
-} from './run-sdkwork-im-pc-dev.mjs';
+} from '../lib/im-pc-dev.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const viteRunnerPath = path.join(scriptDir, 'run-vite-cli.mjs');

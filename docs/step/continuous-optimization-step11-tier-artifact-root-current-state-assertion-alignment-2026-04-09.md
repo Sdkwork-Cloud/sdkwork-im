@@ -6,7 +6,7 @@
 
 ## Scope
 
-- Touch only `services/local-minimal-node/tests/performance_drill_catalog_test.rs`.
+- Touch only `services/sdkwork-im-gateway/tests/performance_drill_catalog_test.rs`.
 - Keep historical partial-state backwrite docs unchanged.
 - Keep `Capacity Tier` expectations unchanged.
 

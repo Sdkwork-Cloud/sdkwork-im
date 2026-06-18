@@ -4,17 +4,17 @@
 - `services/ops-service/src/lib.rs`
 - `services/ops-service/tests/ops_runtime_test.rs`
 - `services/ops-service/tests/http_smoke_test.rs`
-- `services/local-minimal-node/src/node/build.rs`
-- `services/local-minimal-node/src/node/platform.rs`
-- `services/local-minimal-node/tests/domain_recovery_persistence_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/src/node/build.rs`
+- `services/sdkwork-im-gateway/src/node/platform.rs`
+- `services/sdkwork-im-gateway/tests/domain_recovery_persistence_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ## 审计结论
 - 本轮未发现阻塞当前增量交付的剩余缺陷。
 - 改动符合 `CP09-3` 当前最小正确方向：
   - `projection-service` 继续拥有 replay metrics
   - `ops-service` 继续只负责公开读面与 runtime 汇总
-  - `local-minimal-node` 继续只负责把真实 startup replay 证据映射到 ops 面
+  - `sdkwork-im-server` 继续只负责把真实 startup replay 证据映射到 ops 面
 - 本轮没有为补 `replay-status` 而新增旁路状态机，也没有再造一套与 `health / lag / diagnostics` 脱节的独立数据源。
 
 ## 正向结果
@@ -48,9 +48,9 @@
 - `cargo fmt --all`
 - `cargo test -p ops-service --offline --test ops_runtime_test test_runtime_exposes_projection_replay_status_with_derived_throughput`
 - `cargo test -p ops-service --offline --test http_smoke_test test_cluster_lag_health_runtime_dir_and_diagnostics_over_http`
-- `cargo test -p local-minimal-node --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
+- `cargo test -p sdkwork-im-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
 - `cargo test -p ops-service --offline`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 复盘结论

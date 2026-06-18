@@ -45,7 +45,7 @@
 - 本轮实现遵守了当前架构约束：
   - observability owner 继续内聚在 `projection-service`
   - `ops-service` 只负责公共 schema 与 runtime 暴露
-  - `local-minimal-node` 只做映射，不新增一套旁路状态机
+  - `sdkwork-im-server` 只做映射，不新增一套旁路状态机
 - 本轮也没有为了观测而绕开既有 snapshot/recovery 主路径，证据全部来自真实执行路径。
 
 ## 回写决议
@@ -61,18 +61,18 @@
   - `services/projection-service/src/observability.rs`
   - `services/projection-service/src/snapshot.rs`
   - `services/ops-service/src/lib.rs`
-  - `services/local-minimal-node/src/node/platform.rs`
+  - `services/sdkwork-im-gateway/src/node/platform.rs`
 - 测试：
   - `services/projection-service/tests/projection_snapshot_test.rs`
   - `services/ops-service/tests/http_smoke_test.rs`
-  - `services/local-minimal-node/tests/domain_recovery_persistence_test.rs`
+  - `services/sdkwork-im-gateway/tests/domain_recovery_persistence_test.rs`
 - 验证：
   - `cargo test -p projection-service --offline --test projection_snapshot_test test_projection_service_records_snapshot_observability_metrics_traces_and_logs`
   - `cargo test -p ops-service --offline --test http_smoke_test test_cluster_lag_health_runtime_dir_and_diagnostics_over_http`
-  - `cargo test -p local-minimal-node --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics`
+  - `cargo test -p sdkwork-im-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics`
   - `cargo test -p projection-service --offline`
   - `cargo test -p ops-service --offline`
-  - `cargo test -p local-minimal-node --offline`
+  - `cargo test -p sdkwork-im-gateway --offline`
   - `cargo fmt --all --check`
 
 ## 当前判断

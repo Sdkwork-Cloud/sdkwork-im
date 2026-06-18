@@ -432,7 +432,7 @@ fn test_stream_and_rtc_session_identity_kind_fields_are_required() {
     );
     assert!(
         rtc_source.contains("pub initiator_kind: String,")
-            && !rtc_source.contains("pub use sdkwork_rtc_core"),
+            && !rtc_source.contains("pub use sdkwork_communication_rtc_service"),
         "IM-owned rtc sessions must persist an explicit initiator kind without re-exporting sdkwork-rtc call signaling contracts"
     );
 

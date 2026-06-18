@@ -32,9 +32,8 @@ pub struct WebGatewayConfig {
 impl WebGatewayConfig {
     pub fn from_env() -> Self {
         let bind_addr = first_env_value(&[
-            "SDKWORK_IM_SERVER_BIND",
+            "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
             "SDKWORK_IM_WEB_GATEWAY_BIND",
-            "SDKWORK_IM_SERVER_BIND_ADDRESS",
         ])
         .unwrap_or_else(|| DEFAULT_GATEWAY_BIND_ADDR.to_owned());
         Self::with_bind_addr_and_runtime_mode(bind_addr, GatewayRuntimeMode::Split)
@@ -210,20 +209,20 @@ fn service_upstream_lookup<'a>(
 }
 
 fn default_appbase_app_api_upstream() -> String {
-    explicit_appbase_app_api_upstream().unwrap_or_else(default_foundation_api_gateway_base_url)
+    explicit_appbase_app_api_upstream().unwrap_or_else(default_platform_api_gateway_base_url)
 }
 
 fn default_drive_app_api_upstream() -> String {
-    explicit_drive_app_api_upstream().unwrap_or_else(default_foundation_api_gateway_base_url)
+    explicit_drive_app_api_upstream().unwrap_or_else(default_platform_api_gateway_base_url)
 }
 
 fn default_notary_app_api_upstream() -> String {
-    explicit_notary_app_api_upstream().unwrap_or_else(default_foundation_api_gateway_base_url)
+    explicit_notary_app_api_upstream().unwrap_or_else(default_platform_api_gateway_base_url)
 }
 
-fn default_foundation_api_gateway_base_url() -> String {
+fn default_platform_api_gateway_base_url() -> String {
     first_env_value(&[
-        "SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL",
+        "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
         "SDKWORK_API_GATEWAY_BASE_URL",
     ])
     .or_else(|| {
@@ -406,9 +405,12 @@ bind_address = "127.0.0.1:38080"
     }
 
     #[test]
-    fn test_standard_sdkwork_chat_server_bind_env_takes_precedence() {
+    fn test_application_public_ingress_bind_env_takes_precedence() {
         let _guard = gateway_config_env_guard();
-        let _standard_bind = ScopedEnvVar::set("SDKWORK_IM_SERVER_BIND", "127.0.0.1:39080");
+        let _standard_bind = ScopedEnvVar::set(
+            "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+            "127.0.0.1:39080",
+        );
         let _legacy_bind = ScopedEnvVar::set("SDKWORK_IM_WEB_GATEWAY_BIND", "127.0.0.1:18079");
 
         let config = WebGatewayConfig::from_env();
@@ -419,9 +421,7 @@ bind_address = "127.0.0.1:38080"
     #[test]
     fn test_web_gateway_config_defaults_to_split_upstreams() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::remove("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE");
-        let _foundation_gateway =
-            ScopedEnvVar::remove("SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL");
+        let _platform_gateway = ScopedEnvVar::remove("SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL");
         let _gateway_base_url = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BASE_URL");
         let _gateway_bind = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BIND");
         let _appbase_upstream = ScopedEnvVar::remove("SDKWORK_IM_APPBASE_APP_API_UPSTREAM");
@@ -472,11 +472,10 @@ bind_address = "127.0.0.1:38080"
     }
 
     #[test]
-    fn test_web_gateway_config_uses_shared_gateway_base_url_for_foundation_defaults() {
+    fn test_web_gateway_config_uses_shared_gateway_base_url_for_platform_defaults() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::remove("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE");
-        let _foundation_gateway = ScopedEnvVar::set(
-            "SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL",
+        let _platform_gateway = ScopedEnvVar::set(
+            "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
             "http://127.0.0.1:4900/",
         );
         let _gateway_base_url =
@@ -511,9 +510,7 @@ bind_address = "127.0.0.1:38080"
     #[test]
     fn test_web_gateway_config_derives_shared_gateway_base_url_from_gateway_bind() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::remove("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE");
-        let _foundation_gateway =
-            ScopedEnvVar::remove("SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL");
+        let _platform_gateway = ScopedEnvVar::remove("SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL");
         let _gateway_base_url = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BASE_URL");
         let _gateway_bind = ScopedEnvVar::set("SDKWORK_API_GATEWAY_BIND", "127.0.0.1:7900");
         let _appbase_upstream = ScopedEnvVar::remove("SDKWORK_IM_APPBASE_APP_API_UPSTREAM");
@@ -544,7 +541,6 @@ bind_address = "127.0.0.1:38080"
     #[test]
     fn test_web_gateway_config_allows_drive_app_api_upstream_override() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::remove("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE");
         let _drive_upstream = ScopedEnvVar::set(
             "SDKWORK_IM_DRIVE_APP_API_UPSTREAM",
             "http://127.0.0.1:28080/",
@@ -566,7 +562,6 @@ bind_address = "127.0.0.1:38080"
     #[test]
     fn test_web_gateway_config_allows_notary_app_api_upstream_override() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::remove("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE");
         let _notary_upstream = ScopedEnvVar::set(
             "SDKWORK_IM_NOTARY_APP_API_UPSTREAM",
             "http://127.0.0.1:28092/",
@@ -588,9 +583,7 @@ bind_address = "127.0.0.1:38080"
     #[test]
     fn test_web_gateway_local_mode_alias_is_normalized_to_split_gateway_defaults() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::set("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE", "local");
-        let _foundation_gateway =
-            ScopedEnvVar::remove("SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL");
+        let _platform_gateway = ScopedEnvVar::remove("SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL");
         let _gateway_base_url = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BASE_URL");
         let _gateway_bind = ScopedEnvVar::remove("SDKWORK_API_GATEWAY_BIND");
         let _appbase_upstream = ScopedEnvVar::remove("SDKWORK_IM_APPBASE_APP_API_UPSTREAM");
@@ -622,7 +615,6 @@ bind_address = "127.0.0.1:38080"
     #[test]
     fn test_web_gateway_local_mode_alias_allows_explicit_drive_app_api_upstream() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::set("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE", "local");
         let _appbase_upstream = ScopedEnvVar::set(
             "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
             "http://127.0.0.1:19090/",
@@ -653,7 +645,6 @@ bind_address = "127.0.0.1:38080"
     #[test]
     fn test_web_gateway_local_mode_alias_allows_explicit_notary_app_api_upstream() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::set("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE", "local");
         let _appbase_upstream = ScopedEnvVar::set(
             "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
             "http://127.0.0.1:19090/",
@@ -684,7 +675,6 @@ bind_address = "127.0.0.1:38080"
     #[test]
     fn test_web_gateway_local_mode_alias_still_uses_appbase_split_override() {
         let _guard = gateway_config_env_guard();
-        let _runtime_mode = ScopedEnvVar::set("SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE", "local");
         let _appbase_upstream = ScopedEnvVar::remove("SDKWORK_IM_APPBASE_APP_API_UPSTREAM");
         let _appbase_bind_addr =
             ScopedEnvVar::set("SDKWORK_APPBASE_APP_API_BIND_ADDR", "127.0.0.1:28090");

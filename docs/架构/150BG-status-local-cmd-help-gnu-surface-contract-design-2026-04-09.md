@@ -2,7 +2,7 @@
 
 ## Problem
 
-The Windows `status-local.cmd` wrapper is a documented local operator entrypoint, but its local `--help` output only surfaced PowerShell-style arguments.
+The Windows `retired-lifecycle-status.cmd` wrapper is a documented local operator entrypoint, but its local `--help` output only surfaced PowerShell-style arguments.
 That created a discoverability mismatch:
 
 - docs taught `--profile` and `--runtime-dir`
@@ -12,7 +12,7 @@ That created a discoverability mismatch:
 
 - Keep the current runtime status flow unchanged.
 - Define GNU-style help discoverability as part of the visible Windows `.cmd` operator contract.
-- Add one explicit `.cmd` usage line to `bin/status-local.ps1` help output.
+- Add one explicit `.cmd` usage line to `bin/retired-lifecycle-status.ps1` help output.
 
 ## Rationale
 
@@ -22,5 +22,5 @@ That created a discoverability mismatch:
 
 ## Boundary
 
-- This design only covers `status-local.cmd --help` discoverability on Windows.
+- This design only covers `retired-lifecycle-status.cmd --help` discoverability on Windows.
 - It does not redefine the generic strategy for unrelated wrappers.

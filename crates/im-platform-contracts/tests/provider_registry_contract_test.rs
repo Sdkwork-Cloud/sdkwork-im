@@ -10,11 +10,11 @@ use im_platform_contracts::{
     RtcRecordingArtifact, RtcSessionHandle, RuntimeProviderRegistry, StaticProviderRegistry,
     rtc_provider_payload_hash,
 };
-use sdkwork_im_contract_core::ContractError;
-use sdkwork_rtc_core::{
+use sdkwork_communication_rtc_service::{
     ProviderDomain as RtcProviderDomain, ProviderHealthSnapshot as RtcProviderHealthSnapshot,
     ProviderPluginDescriptor as RtcProviderPluginDescriptor, RtcContractError,
 };
+use sdkwork_im_contract_core::ContractError;
 
 #[derive(Clone)]
 struct StubRtcProvider;
@@ -62,6 +62,7 @@ impl RtcProviderPort for StubRtcProvider {
         tenant_id: &str,
         rtc_session_id: &str,
         participant_id: &str,
+        _context: Option<&sdkwork_communication_rtc_service::RtcParticipantCredentialContext>,
     ) -> Result<RtcParticipantCredential, RtcContractError> {
         Ok(RtcParticipantCredential {
             tenant_id: tenant_id.into(),
@@ -77,8 +78,9 @@ impl RtcProviderPort for StubRtcProvider {
         tenant_id: &str,
         rtc_session_id: &str,
         participant_id: &str,
+        _context: Option<&sdkwork_communication_rtc_service::RtcParticipantCredentialContext>,
     ) -> Result<RtcParticipantCredential, RtcContractError> {
-        self.issue_participant_credential(tenant_id, rtc_session_id, participant_id)
+        self.issue_participant_credential(tenant_id, rtc_session_id, participant_id, None)
     }
 
     fn parse_provider_webhook(

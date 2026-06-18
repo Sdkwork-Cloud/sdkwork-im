@@ -4,14 +4,14 @@
 
 - 上一轮已经冻结了 `artifactFileListPath`，让 bundle 级 artifact 名单入口不再漂移。
 - 但如果每次都要靠遍历 `evidenceSlots[*].status` 才能知道当前 bundle 采集完成度，operator 和后续自动化仍缺少一个稳定的机器可读摘要入口。
-- 当前环境依然没有真实 `local-default` 发布后执行窗口，因此本轮继续不伪造真实归档结果，只把 bundle 级 `collectionSummary` 合同冻结下来。
+- 当前环境依然没有真实 `self-hosted.split-services.development` 发布后执行窗口，因此本轮继续不伪造真实归档结果，只把 bundle 级 `collectionSummary` 合同冻结下来。
 
 ## 2. 实际落地
 
 ### 2.1 evidence index 顶层已新增 `collectionSummary`
 
 - 更新：`artifacts/releases/schemas/post-release-evidence-index.schema.json`
-- 更新：`artifacts/releases/wave-d-2026-04-08/local-default-post-release-evidence-index.json`
+- 更新：`artifacts/releases/wave-d-2026-04-08/self-hosted.split-services.development-post-release-evidence-index.json`
 - 当前 `collectionSummary` 已固定字段：
   - `totalSlots`
   - `requiredSlots`
@@ -30,9 +30,9 @@
 ### 2.2 operator / release 文档已同步 completeness 摘要口径
 
 - 更新：`artifacts/releases/README.md`
-- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/local-default/README.md`
-- 更新：`docs/部署/local-default发布后验证样本.md`
-- 更新：`docs/部署/local-default发布后验证执行记录模板.md`
+- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development/README.md`
+- 更新：`docs/部署/性能与灾备演练场景.md`
+- 更新：`docs/部署/性能与灾备演练场景.md`
 - 当前文档已明确：
   - `collectionSummary` 是 bundle 级机器可读完成度摘要
   - 模板态 bundle 的默认计数
@@ -40,7 +40,7 @@
 
 ### 2.3 contract gate 已冻结
 
-- 更新：`services/local-minimal-node/tests/deployment_profile_test.rs`
+- 更新：`services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 - 新增：
   - `test_local_default_release_bundle_freezes_collection_summary_contract`
 - 当前门禁已锁定：
@@ -61,6 +61,6 @@
 
 ## 4. fresh evidence
 
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test test_local_default_release_bundle_freezes_collection_summary_contract -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_local_default_release_bundle_freezes_collection_summary_contract -- --nocapture`
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test -- --nocapture`

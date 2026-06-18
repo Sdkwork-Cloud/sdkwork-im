@@ -15,7 +15,7 @@
   - unlike other hardened mutation paths, it never checked whether ingress auth `actor_kind` matched the resolved member `principal_kind`.
   - both public adapters still called the id-only runtime method:
     - `conversation-runtime` HTTP handler
-    - `local-minimal-node` read-cursor handler
+    - `sdkwork-im-server` read-cursor handler
 - Impact:
   - a caller could authenticate as:
     - actor id = `u_owner`
@@ -34,7 +34,7 @@ Three regression tests were added first:
   - `test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind`
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_read_cursor_over_http_rejects_actor_kind_mismatch`
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
   - `test_read_cursor_rejects_bearer_actor_kind_mismatch`
 
 Red evidence:
@@ -64,7 +64,7 @@ Chosen design:
    - delegate into the actor-kind-aware method
 4. update all untrusted adapters to pass raw ingress actor kind:
    - `conversation-runtime` HTTP route
-   - `local-minimal-node` HTTP route
+   - `sdkwork-im-server` HTTP route
 
 ## 4. Implementation
 
@@ -75,13 +75,13 @@ Chosen design:
     - `resolve_active_member(...)`
     - `ensure_actor_kind_matches_member(...)`
   - updated HTTP read-cursor write handler to pass `auth.actor_kind`
-- `services/local-minimal-node/src/lib.rs`
+- `services/sdkwork-im-gateway/src/lib.rs`
   - updated read-cursor write handler to call `update_read_cursor_with_actor_kind(...)`
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
   - added runtime-level mismatch regression test
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - added HTTP mismatch regression test
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
   - added local bearer mismatch regression test
 
 ## 5. Verification
@@ -90,14 +90,14 @@ Chosen design:
 
 - `cargo test -p conversation-runtime --offline test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind -- --exact`
   - failed because `update_read_cursor_with_actor_kind(...)` did not exist
-- `cargo test -p local-minimal-node --offline test_read_cursor_rejects_bearer_actor_kind_mismatch -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_read_cursor_rejects_bearer_actor_kind_mismatch -- --exact`
   - failed with status `200` instead of `403`
 
 ### Green
 
 - `cargo test -p conversation-runtime --offline test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind -- --exact`
 - `cargo test -p conversation-runtime --offline test_read_cursor_over_http_rejects_actor_kind_mismatch -- --exact`
-- `cargo test -p local-minimal-node --offline test_read_cursor_rejects_bearer_actor_kind_mismatch -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_read_cursor_rejects_bearer_actor_kind_mismatch -- --exact`
 
 ## 6. Remaining Risks
 

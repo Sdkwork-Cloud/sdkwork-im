@@ -4,26 +4,26 @@
 
 - `services/conversation-runtime/src/runtime.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/local-minimal-node/src/node.rs`
-- `services/local-minimal-node/src/node/effects.rs`
-- `services/local-minimal-node/src/node/message.rs`
+- `services/sdkwork-im-gateway/src/node.rs`
+- `services/sdkwork-im-gateway/src/node/effects.rs`
+- `services/sdkwork-im-gateway/src/node/message.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
 - `services/conversation-runtime/tests/authority_command_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ## 2. 本轮主要质量判断
 
 ### 2.1 已消除的风险
 
-- 已消除 HTTP 入口和 local-minimal-node 对 `Sender` 的重复手工组装。
+- 已消除 HTTP 入口和 sdkwork-im-server 对 `Sender` 的重复手工组装。
 - 已消除 system-channel publish 与普通消息变更命令在 sender snapshot 生成处的分叉实现。
 - 已把 `device_id / session_id / actor id / actor kind` 的快照来源收口到同一套构造逻辑。
 
 ### 2.2 本轮未发现的回归
 
 - 未发现 message mutation 入口因构造器替换导致的结构性回归。
-- 未发现 local-minimal-node 因删除 `build_sender(...)` 造成的调用缺口。
-- 未发现 `conversation-runtime` 与 `local-minimal-node` 之间 authority snapshot 字段名不一致的问题。
+- 未发现 sdkwork-im-server 因删除 `build_sender(...)` 造成的调用缺口。
+- 未发现 `conversation-runtime` 与 `sdkwork-im-server` 之间 authority snapshot 字段名不一致的问题。
 
 ## 3. 仍然存在的真实风险
 
@@ -51,13 +51,13 @@
 
 - `cargo test -p conversation-runtime --test conversation_domain_structure_test test_message_mutation_commands_offer_auth_context_constructors --offline`
 - `cargo test -p conversation-runtime --test authority_command_test --offline`
-- `cargo test -p local-minimal-node --test lib_structure_test test_local_minimal_node_message_paths_use_auth_context_command_constructors --offline`
+- `cargo test -p sdkwork-im-gateway --test lib_structure_test test_local_minimal_node_message_paths_use_auth_context_command_constructors --offline`
 
 ### 4.2 全量受影响服务验证
 
-- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/conversation-runtime/tests/authority_command_test.rs services/local-minimal-node/src/node.rs services/local-minimal-node/src/node/effects.rs services/local-minimal-node/src/node/message.rs services/local-minimal-node/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/conversation-runtime/tests/authority_command_test.rs services/sdkwork-im-gateway/src/node.rs services/sdkwork-im-gateway/src/node/effects.rs services/sdkwork-im-gateway/src/node/message.rs services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 - `cargo test -p conversation-runtime --offline`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 5. 审计结论

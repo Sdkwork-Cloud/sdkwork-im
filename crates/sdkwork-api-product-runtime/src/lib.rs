@@ -50,6 +50,16 @@ const LOCAL_APP_MODULES: &[&str] = &[
     "course",
     "contacts",
     "favorites",
+    "mail",
+    "approval",
+    "report",
+    "attendance",
+    "drive",
+    "videogen",
+    "imagegen",
+    "voicegen",
+    "musicgen",
+    "writing",
 ];
 const PORTAL_SNAPSHOT_SECTIONS: &[&str] = &[
     "access",
@@ -867,7 +877,7 @@ mod tests {
             StandaloneConfig {
                 runtime_bind_addr: "127.0.0.1:0".into(),
                 admin_proxy_target: String::new(),
-                portal_api_base_url: "http://127.0.0.1:18090".into(),
+                portal_api_base_url: "http://127.0.0.1:18079".into(),
                 admin_sandbox_enabled: false,
                 admin_sandbox_storage_file: None,
             },
@@ -914,7 +924,7 @@ mod tests {
                 admin_proxy_target: String::new(),
                 admin_sandbox: None,
                 pc_product_api_upstream: String::new(),
-                portal_api_base_url: "http://127.0.0.1:18090".into(),
+                portal_api_base_url: "http://127.0.0.1:18079".into(),
                 site_dirs: ProductSiteDirs::new(".", "."),
             }),
             Method::GET,
@@ -1192,7 +1202,7 @@ mod tests {
             StandaloneConfig {
                 runtime_bind_addr: "127.0.0.1:0".into(),
                 admin_proxy_target: String::new(),
-                portal_api_base_url: "http://127.0.0.1:18090".into(),
+                portal_api_base_url: "http://127.0.0.1:18079".into(),
                 admin_sandbox_enabled: false,
                 admin_sandbox_storage_file: None,
             },
@@ -1219,7 +1229,7 @@ mod tests {
             StandaloneConfig {
                 runtime_bind_addr: "127.0.0.1:0".into(),
                 admin_proxy_target: String::new(),
-                portal_api_base_url: "http://127.0.0.1:18090".into(),
+                portal_api_base_url: "http://127.0.0.1:18079".into(),
                 admin_sandbox_enabled: false,
                 admin_sandbox_storage_file: None,
             },
@@ -1383,7 +1393,7 @@ mod tests {
                 reqwest::Method::POST,
                 "/app/v3/api/auth/sessions",
                 serde_json::json!({
-                    "username": "local-default@sdkwork-iam.local",
+                    "username": "dev-bootstrap@sdkwork-iam.local",
                     "password": "wrong-password",
                 }),
             ),
@@ -1409,7 +1419,7 @@ mod tests {
                 reqwest::Method::POST,
                 "/app/v3/api/oauth/device_authorizations/session-1/password_completions",
                 serde_json::json!({
-                    "username": "local-default@sdkwork-iam.local",
+                    "username": "dev-bootstrap@sdkwork-iam.local",
                     "password": "wrong-password",
                 }),
             ),
@@ -1472,7 +1482,7 @@ mod tests {
             "/app/v3/api/iam/departments/tree?organizationId=sdkwork-local-org",
             "/app/v3/api/iam/department_assignments?departmentId=dept-product",
             "/app/v3/api/iam/positions?departmentId=dept-product",
-            "/app/v3/api/iam/position_assignments?departmentAssignmentId=assignment-local-default-product",
+            "/app/v3/api/iam/position_assignments?departmentAssignmentId=assignment-dev-product",
             "/app/v3/api/iam/role_bindings?scopeKind=department&scopeId=dept-product",
         ] {
             let response = fetch_response(base_url.as_str(), path).await;

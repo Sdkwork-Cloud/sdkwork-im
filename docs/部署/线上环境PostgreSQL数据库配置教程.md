@@ -128,10 +128,10 @@ SDKWORK_IM_CONFIG_FILE=/etc/sdkwork/chat/chat.toml
 SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat
 SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat
 SDKWORK_IM_RUN_DIR=/run/sdkwork/chat
-SDKWORK_IM_SERVER_BIND=0.0.0.0:18080
-SDKWORK_IM_SERVER_BASE_URL=https://chat.example.com/sdkwork/chat
-SDKWORK_IM_SERVER_API_BASE_URL=https://chat.example.com/sdkwork/chat
-SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=wss://chat.example.com
+SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18080
+SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com
+SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com
+SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com
 SDKWORK_IM_DATABASE_ENGINE=postgresql
 SDKWORK_IM_DATABASE_HOST=postgres.internal.example.com
 SDKWORK_IM_DATABASE_PORT=5432
@@ -142,7 +142,7 @@ SDKWORK_IM_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret
 SDKWORK_IM_DATABASE_SSL_MODE=require
 SDKWORK_IM_DATABASE_MAX_CONNECTIONS=20
 SDKWORK_IM_LOG_LEVEL=info
-sdkwork_im_BROWSER_ORIGINS=https://chat.example.com
+SDKWORK_IM_BROWSER_ORIGINS=https://im.sdkwork.com
 ```
 
 ## 6. postgresql.yaml

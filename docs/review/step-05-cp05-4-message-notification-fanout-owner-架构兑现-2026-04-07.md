@@ -11,12 +11,12 @@
 - `docs/架构/139-权限能力模型与协议演进设计-2026-04-06.md`
   - recipient fanout / self-filter / notification id 规则应由单一 owner 维护
 - `docs/架构/147-CCP到Crate与接口模块落地映射设计-2026-04-06.md`
-  - message notification fanout seam 应映射到 `notification-service`，而不是由 `local-minimal-node` 本地编排
+  - message notification fanout seam 应映射到 `notification-service`，而不是由 `sdkwork-im-server` 本地编排
 
 ## 2. 已兑现
 
 - `notification-service` 现在拥有 `RequestNotificationFanout` 与 `request_notification_fanout(...)`
-- `local-minimal-node` message side-effect 路径已经改为消费 notification owner seam
+- `sdkwork-im-server` message side-effect 路径已经改为消费 notification owner seam
 - notification side-effect fanout drift 已开始收口
 
 ## 3. 未兑现
@@ -28,7 +28,7 @@
 ## 4. 偏离判断
 
 - 无新的架构偏离
-- 本轮没有在 `local-minimal-node` 再造第二套 fanout/self-filter/id 规则
+- 本轮没有在 `sdkwork-im-server` 再造第二套 fanout/self-filter/id 规则
 - 本轮严格属于 `CP05-4` 的 notification side-effect orchestration 收口增量
 
 ## 5. 回写决议

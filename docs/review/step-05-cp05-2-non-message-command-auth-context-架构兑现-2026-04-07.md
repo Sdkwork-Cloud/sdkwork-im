@@ -32,7 +32,7 @@
 
 - `conversation-runtime/http`
   - 不再手工内联组装 non-message command 的 `tenant_id / actor_id`
-- `local-minimal-node`
+- `sdkwork-im-server`
   - conversation / handoff / membership / projection 写路径不再各自重复组装同类 authority 字段
 
 ## 3. 本轮未兑现的能力
@@ -56,24 +56,24 @@
 
 - `services/conversation-runtime/src/runtime.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/local-minimal-node/src/node/conversation.rs`
-- `services/local-minimal-node/src/node/handoff.rs`
-- `services/local-minimal-node/src/node/membership.rs`
-- `services/local-minimal-node/src/node/projection.rs`
+- `services/sdkwork-im-gateway/src/node/conversation.rs`
+- `services/sdkwork-im-gateway/src/node/handoff.rs`
+- `services/sdkwork-im-gateway/src/node/membership.rs`
+- `services/sdkwork-im-gateway/src/node/projection.rs`
 
 ### 5.2 测试证据
 
 - `services/conversation-runtime/tests/authority_command_test.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ### 5.3 fresh verification 证据
 
 - `cargo test -p conversation-runtime --test conversation_domain_structure_test test_non_message_commands_offer_auth_context_constructors --offline`
 - `cargo test -p conversation-runtime --test authority_command_test test_non_message_commands_from_auth_context_preserve_authority_identity --offline`
-- `cargo test -p local-minimal-node --test lib_structure_test test_local_minimal_node_non_message_paths_use_auth_context_command_constructors --offline`
+- `cargo test -p sdkwork-im-gateway --test lib_structure_test test_local_minimal_node_non_message_paths_use_auth_context_command_constructors --offline`
 - `cargo test -p conversation-runtime --offline`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 6. 架构结论

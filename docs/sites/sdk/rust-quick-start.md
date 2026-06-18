@@ -26,7 +26,7 @@ im-sdk = { path = "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-rust/composed" }
 ```rust
 use im_sdk::ImSdkClient;
 
-let client = ImSdkClient::new_with_base_url("http://127.0.0.1:18090")?;
+let client = ImSdkClient::new_with_base_url("http://127.0.0.1:18079")?;
 client.set_auth_token(token);
 ```
 

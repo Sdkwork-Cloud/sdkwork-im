@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Avatar } from '@sdkwork/im-pc-commons';
 import { cn } from '@sdkwork/im-pc-commons';
 import { toast } from '../Toast';
-import { contactService } from '../../services/ContactService';
+import { contactService, SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT } from '../../services/ContactService';
 import type { User as UserType } from '@sdkwork/im-pc-types';
 
 export const AllContactsContainer: React.FC<{
@@ -12,20 +13,46 @@ export const AllContactsContainer: React.FC<{
   searchQuery: string;
   selectedUserId: string | null;
 }> = ({ onAddFriend, onUserSelect, selectedUserId, searchQuery }) => {
+  const { t } = useTranslation();
   const [contacts, setContacts] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    contactService.getContacts()
-      .then(data => {
-        setContacts(data);
-      })
-      .catch(() => {
-        setContacts([]);
-        toast('加载联系人失败', 'error');
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    let isMounted = true;
+
+    const loadContacts = () => {
+      setLoading(true);
+      return contactService.getContacts()
+        .then((data) => {
+          if (isMounted) {
+            setContacts(data);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setContacts([]);
+            toast(t('contacts.allContacts.toast.loadFailed'), 'error');
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setLoading(false);
+          }
+        });
+    };
+
+    void loadContacts();
+
+    const refreshContacts = () => {
+      void loadContacts();
+    };
+    window.addEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshContacts);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshContacts);
+    };
+  }, [t]);
 
   const filteredContacts = contacts.filter(user => {
     if (!searchQuery.trim()) return true;
@@ -56,20 +83,20 @@ export const AllContactsContainer: React.FC<{
      <div className="flex-1 flex flex-col bg-[#1e1e1e] min-w-0 border-r border-white/5 relative">
         <div className="px-6 py-5 border-b border-white/5 shrink-0 flex items-center justify-between bg-[#1e1e1e] z-10">
            <div>
-             <h2 className="text-xl font-medium text-gray-200">全部好友</h2>
-             <p className="text-sm text-gray-500 mt-1">共 {filteredContacts.length} 个联系人</p>
+             <h2 className="text-xl font-medium text-gray-200">{t('contacts.allContacts.title')}</h2>
+             <p className="text-sm text-gray-500 mt-1">{t('contacts.allContacts.count', { count: filteredContacts.length })}</p>
            </div>
            <button 
              onClick={() => onAddFriend?.()}
              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-sm font-medium rounded-lg transition-colors border border-indigo-500/20 shadow-sm"
            >
-             <UserPlus size={16} /> 增加联系人
+             <UserPlus size={16} /> {t('contacts.allContacts.addContact')}
            </button>
         </div>
         
         <div className="flex-1 overflow-y-auto custom-scrollbar relative" id="all-contacts-scroll-container">
            {loading ? (
-             <div className="p-8 text-center text-gray-500 text-sm">加载中...</div>
+             <div className="p-8 text-center text-gray-500 text-sm">{t('contacts.allContacts.loading')}</div>
            ) : (
              letters.map(letter => (
                 <div key={letter} id={`letter-${letter}`}>
@@ -80,7 +107,7 @@ export const AllContactsContainer: React.FC<{
                       {groupedContacts[letter].map(user => (
                          <div 
                            key={user.id}
-                           onClick={() => onUserSelect(user, '全部好友')}
+                           onClick={() => onUserSelect(user, t('contacts.allContacts.groupLabel'))}
                            className={cn(
                              "flex items-center px-6 py-3 cursor-pointer transition-colors hover:bg-white/5 gap-3",
                              selectedUserId === user.id && "bg-white/10 hover:bg-white/10"
@@ -99,14 +126,13 @@ export const AllContactsContainer: React.FC<{
            )}
         </div>
 
-        {/* A-Z Index Scrubber */}
         <div className="absolute right-1 top-1/2 -translate-y-1/2 flex flex-col gap-[2px] z-20">
            {['↑', ...letters, '#'].map(l => (
               <button 
                  key={l}
                  onClick={() => l === '↑' ? document.getElementById('all-contacts-scroll-container')?.scrollTo({top:0, behavior:'smooth'}) : scrollToLetter(l)}
                  className="w-5 h-5 flex items-center justify-center text-[10px] text-gray-400 hover:bg-indigo-500 hover:text-white rounded-md transition-colors"
-                 title={l === '↑' ? '顶部' : l}
+                 title={l === '↑' ? t('contacts.allContacts.scrollTop') : l}
               >
                  {l}
               </button>

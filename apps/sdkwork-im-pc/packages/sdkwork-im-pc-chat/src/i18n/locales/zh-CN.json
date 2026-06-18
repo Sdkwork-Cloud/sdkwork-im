@@ -70,7 +70,9 @@
       "toast": {
         "requestFailed": "好友申请发送失败",
         "requestSent": "已向 {{name}} 发送好友申请",
-        "searchFailed": "搜索失败"
+        "searchFailed": "搜索失败",
+        "alreadyFriend": "对方已经是你的好友",
+        "requestPending": "好友申请已在处理中"
       }
     },
     "groups": {
@@ -84,6 +86,41 @@
         "loadFailed": "加载群组失败",
         "createSucceeded": "创建群组成功",
         "createFailed": "创建群组失败"
+      }
+    },
+    "newFriends": {
+      "title": "新的朋友",
+      "description": "查看和处理好友申请",
+      "addFriend": "添加朋友",
+      "loading": "加载中...",
+      "incomingDefaultMsg": "请求添加你为好友",
+      "outgoingDefaultMsg": "等待对方验证",
+      "accept": "同意",
+      "reject": "拒绝",
+      "cancel": "撤回",
+      "statusAdded": "已添加",
+      "statusCancelled": "已撤回",
+      "statusRejected": "已拒绝",
+      "toast": {
+        "loadFailed": "加载好友申请失败",
+        "acceptSucceeded": "已通过申请",
+        "rejectSucceeded": "已拒绝申请",
+        "cancelSucceeded": "已撤回申请",
+        "handleFailed": "处理好友申请失败",
+        "cancelFailed": "撤回好友申请失败",
+        "incomingSingle": "收到新的好友申请",
+        "incomingMultiple": "收到 {{count}} 条新的好友申请"
+      }
+    },
+    "allContacts": {
+      "title": "全部好友",
+      "count": "共 {{count}} 个联系人",
+      "addContact": "增加联系人",
+      "loading": "加载中...",
+      "groupLabel": "全部好友",
+      "scrollTop": "顶部",
+      "toast": {
+        "loadFailed": "加载联系人失败"
       }
     },
     "detail": {
@@ -180,6 +217,72 @@
         "memberSubmitFailed": "成员管理提交失败",
         "chatUnavailable": "聊天能力未接入，无法发起会话"
       }
+    }
+  },
+  "favorites": {
+    "filters": {
+      "all": "全部收藏",
+      "links": "链接",
+      "images": "图片与视频",
+      "files": "文件",
+      "chat": "聊天记录"
+    },
+    "title": "全部收藏",
+    "description": "跨端同步你的关键链接、重要图片和工作文件",
+    "searchPlaceholder": "在收藏中搜索...",
+    "loading": "加载中...",
+    "empty": "暂无收藏内容",
+    "viewList": "列表视图",
+    "viewGrid": "网格视图",
+    "fromSource": "来自 {{source}}",
+    "remove": "取消收藏",
+    "toast": {
+      "loadFailed": "加载收藏失败",
+      "opening": "正在打开: {{title}}",
+      "removeSucceeded": "已取消收藏",
+      "removeFailed": "取消收藏失败"
+    }
+  },
+  "settingsModal": {
+    "title": "设置",
+    "tabs": {
+      "general": "通用设置",
+      "modules": "功能模块",
+      "notifications": "消息通知",
+      "privacy": "隐私安全",
+      "appearance": "外观设置",
+      "devices": "设备管理"
+    },
+    "logout": "退出登录",
+    "general": {
+      "language": "语言",
+      "languageZh": "简体中文",
+      "languageEn": "English",
+      "autoStartTitle": "系统开机启动",
+      "autoStartDescription": "开机时自动启动 Sdkwork IM"
+    },
+    "modules": {
+      "description": "勾选需要在侧边栏显示的功能模块：",
+      "moveUp": "上移",
+      "moveDown": "下移"
+    },
+    "privacy": {
+      "requireAuth": "加我为朋友时需要验证",
+      "showOnline": "向朋友展示在线状态",
+      "clearCache": "清理本地数据",
+      "cacheCleared": "本地缓存数据已清理"
+    },
+    "appearance": {
+      "themeTitle": "主题配色",
+      "light": "浅色",
+      "dark": "深色",
+      "system": "跟随系统"
+    },
+    "devices": {
+      "currentDevice": "当前设备 ({{name}})",
+      "online": "在线",
+      "signOut": "下线",
+      "signedOut": "已退出 {{name}}"
     }
   },
   "chat": {
@@ -328,6 +431,112 @@
       "ariaLabel": "搜索会话",
       "title": "搜索会话"
     },
+    "forwardModal": {
+      "title": "转发 {{count}} 条消息",
+      "searchPlaceholder": "搜索会话",
+      "empty": "未找到会话",
+      "send": "发送 ({{count}})",
+      "forwarding": "转发中...",
+      "toast": {
+        "loadFailed": "加载会话失败",
+        "success": "成功转发给 {{count}} 个会话",
+        "failed": "转发失败"
+      }
+    },
+    "messageList": {
+      "loading": "加载中...",
+      "unknownUser": "未知用户",
+      "contextMenu": {
+        "copy": "复制",
+        "reply": "回复",
+        "reaction": "表情回应",
+        "forward": "转发",
+        "favorite": "收藏",
+        "multiSelect": "多选",
+        "delete": "删除"
+      },
+      "multiSelect": {
+        "selected": "已选择 {{count}} 条",
+        "forward": "转发",
+        "delete": "删除"
+      },
+      "media": {
+        "image": "图片",
+        "video": "视频"
+      },
+      "rtcCall": {
+        "videoMode": "视频通话",
+        "voiceMode": "语音通话",
+        "initiatorFallback": "发起方",
+        "actorFallback": "对方",
+        "subjectWithReceiver": "{{initiator}} 向 {{receiver}} 发起的{{mode}}",
+        "subjectWithoutReceiver": "{{initiator}} 发起的{{mode}}",
+        "accepted": "{{callSubject}}，{{actor}} 已接通",
+        "rejected": "{{callSubject}}，{{actor}} 已拒绝",
+        "ended": "{{callSubject}}，{{actor}} 已挂断",
+        "startedWithReceiver": "{{initiator}} 向 {{receiver}} 发起了{{mode}}",
+        "startedWithoutReceiver": "{{initiator}} 发起了{{mode}}",
+        "syncing": "{{callSubject}}正在同步"
+      },
+      "toast": {
+        "loadFailed": "加载消息失败",
+        "deleteSuccess": "消息已删除",
+        "deleteManySuccess": "已删除 {{count}} 条消息",
+        "deleteFailed": "删除消息失败",
+        "openGroupFailed": "打开群聊失败",
+        "copySuccess": "已复制",
+        "favoriteSuccess": "已收藏",
+        "favoriteFailed": "收藏失败",
+        "reactionFailed": "表情回应失败"
+      }
+    },
+    "messageItems": {
+      "voice": {
+        "playFailed": "播放失败"
+      },
+      "videoCall": {
+        "endedFallback": "通话已结束"
+      },
+      "applet": {
+        "label": "小程序",
+        "loading": "正在加载小程序环境: {{name}}"
+      },
+      "card": {
+        "personalLabel": "个人名片",
+        "groupInviteLabel": "群邀请",
+        "addedToContacts": "已添加 {{name}} 到通讯录",
+        "openGroupChat": "打开群聊"
+      },
+      "file": {
+        "downloadStarted": "开始下载文件: {{name}}",
+        "resourceNotFound": "未找到文件资源: {{name}}"
+      }
+    },
+    "messageInput": {
+      "defaultPlaceholder": "发送消息...",
+      "agentTypingPlaceholder": "智能体正在回复...",
+      "replyPrefix": "回复 {{name}}:",
+      "dropToSend": "松开鼠标发送文件",
+      "actions": {
+        "sendFile": "发送文件",
+        "screenshot": "截图 (Alt+A)",
+        "emoji": "表情",
+        "history": "聊天记录",
+        "stopRecording": "停止录音并发送",
+        "recordVoice": "录制语音消息",
+        "stopGenerating": "停止生成",
+        "send": "发送 (Enter)"
+      },
+      "toast": {
+        "stickerNeedsFile": "表情图片需要本地文件或 Drive 资源后才能发送",
+        "voiceTooShort": "说话时间太短",
+        "voiceGenerationFailed": "语音文件生成失败，请重试",
+        "microphoneDenied": "无法访问麦克风，请检查权限后重试",
+        "screenshotUnsupported": "当前浏览器不支持网页截图",
+        "screenshotDenied": "无权限进行截图（或在新标签页中打开应用重试）",
+        "screenshotCancelled": "取消截图"
+      }
+    },
     "systemAssistant": {
       "displayName": "系统助手",
       "welcomeMessage": "你好，我是系统助手。可以帮你查找会话、配置联系人、创建群聊，也可以处理工作台相关问题。直接告诉我你想先做什么。",
@@ -362,6 +571,55 @@
     },
     "call": {
       "incoming": "来电"
+    },
+    "callOverlay": {
+      "videoCall": "视频通话",
+      "voiceCall": "语音通话",
+      "status": {
+        "connecting": "正在连接...",
+        "connectionFailed": "通话连接失败",
+        "rejected": "已拒绝",
+        "ended": "通话已结束",
+        "waitingAnswer": "等待对方接听...",
+        "inviting": "邀请你通话..."
+      },
+      "media": {
+        "micOff": "麦克风已关闭",
+        "micOn": "麦克风已开启",
+        "cameraOff": "摄像头已关闭",
+        "cameraOn": "摄像头已开启",
+        "remoteVideo": "对方视频画面",
+        "self": "我"
+      },
+      "view": {
+        "switchToDesktop": "切换至桌面模式",
+        "switchToMobile": "切换至手机模式",
+        "enterFullscreen": "全屏",
+        "exitFullscreen": "退出全屏"
+      },
+      "actions": {
+        "accept": "接听",
+        "reject": "拒绝",
+        "cancel": "取消",
+        "hangup": "挂断",
+        "close": "关闭",
+        "mute": "静音",
+        "unmute": "取消静音",
+        "enableVideo": "开启视频",
+        "disableVideo": "关闭视频",
+        "shareScreen": "共享屏幕"
+      },
+      "toast": {
+        "localVideoBindFailed": "本地视频预览绑定失败",
+        "acceptFailed": "接听失败",
+        "muteFailed": "静音设置失败",
+        "videoFailed": "视频设置失败",
+        "screenShareStarted": "屏幕共享已启动",
+        "screenShareEnded": "屏幕共享已结束",
+        "screenShareDenied": "无权限进行共享（或在新标签页中打开应用重试）",
+        "screenShareCancelled": "取消屏幕共享",
+        "screenShareUnsupported": "当前浏览器不支持屏幕共享"
+      }
     },
     "notification": {
       "call": {

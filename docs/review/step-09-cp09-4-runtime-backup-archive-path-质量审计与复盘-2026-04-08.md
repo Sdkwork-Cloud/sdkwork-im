@@ -1,15 +1,15 @@
 # Step 09 / CP09-4 runtime backup archive path 质量审计与复盘 - 2026-04-08
 
 ## 审计范围
-- `services/local-minimal-node/src/node/runtime_dir.rs`
-- `services/local-minimal-node/src/node.rs`
-- `services/local-minimal-node/src/main.rs`
-- `services/local-minimal-node/tests/runtime_dir_backup_catalog_test.rs`
+- `services/sdkwork-im-gateway/src/node/runtime_dir.rs`
+- `services/sdkwork-im-gateway/src/node.rs`
+- `services/sdkwork-im-gateway/src/main.rs`
+- `services/sdkwork-im-gateway/tests/runtime_dir_backup_catalog_test.rs`
 - `bin/archive-runtime-backup-local.ps1`
 - `bin/archive-runtime-backup-local.sh`
 - `bin/archive-runtime-backup-local.cmd`
-- `bin/status-local.ps1`
-- `bin/status-local.sh`
+- `bin/retired-lifecycle-status.ps1`
+- `bin/retired-lifecycle-status.sh`
 
 ## 审计结论
 - 本轮未发现阻塞当前增量交付的剩余缺陷。
@@ -49,7 +49,7 @@
 
 ## 验证证据
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/archive-runtime-backup-local.ps1 -Help`
 
 ## 复盘结论

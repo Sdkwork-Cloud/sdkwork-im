@@ -40,7 +40,7 @@ the root `@sdkwork/im-sdk` package.
 import { ImSdkClient } from "@sdkwork/im-sdk";
 
 const sdk = new ImSdkClient({
-  baseUrl: "http://127.0.0.1:18090",
+  baseUrl: "http://127.0.0.1:18079",
   authToken: process.env.SDKWORK_IM_TOKEN,
 });
 
@@ -58,7 +58,7 @@ const live = await sdk.connect({
 import 'package:im_sdk/im_sdk.dart';
 
 final client = ImSdkClient.create(
-  baseUrl: 'http://127.0.0.1:18090',
+  baseUrl: 'http://127.0.0.1:18079',
   authToken: token,
 );
 
@@ -77,7 +77,7 @@ final live = await client.connect(
 ```rust
 use im_sdk::ImSdkClient;
 
-let client = ImSdkClient::new_with_base_url("http://127.0.0.1:18090")?;
+let client = ImSdkClient::new_with_base_url("http://127.0.0.1:18079")?;
 client.set_auth_token(token);
 
 let presence = client.presence().current().await?;

@@ -7,7 +7,7 @@ Turn the published Step 11 high-tier `artifactRoot` paths into real repository p
 ## Red
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
 ```
 
 - The repo did not contain `artifacts/perf/step-11/pre-release`.
@@ -21,10 +21,10 @@ cargo test -p local-minimal-node --offline --test performance_drill_catalog_test
 ## Verify
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test -- --nocapture
-cargo test -p local-minimal-node --offline -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline -- --nocapture
 ```
 
 ## Next

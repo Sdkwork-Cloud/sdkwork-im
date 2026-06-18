@@ -1,115 +1,55 @@
 # Production Domain Binding
 
-This page freezes the Sdkwork IM production domain contract for the unified gateway, the `sdkwork-im-pc` Vite build, and browser CORS.
+Use topology v2 surface keys for every production deployment. Do not use legacy `SDKWORK_IM_SERVER_*`
+URL keys or mixed `/sdkwork/chat` mount roots.
 
-Canonical application identity:
+## SaaS canonical hosts
 
-- app code: `chat`
-- public mount root: `/sdkwork/chat`
-- standard server env prefix: `SDKWORK_IM_*`
-
-## Supported Shapes
-
-### Same-origin Web And API
-
-Use this shape when the browser app, HTTP APIs, OpenAPI docs, and realtime WebSocket gateway are served from the same public origin and mounted under `/sdkwork/chat`.
-
-```dotenv
-SDKWORK_IM_SERVER_BASE_URL=https://chat.example.com/sdkwork/chat
-SDKWORK_IM_SERVER_API_BASE_URL=https://chat.example.com/sdkwork/chat
-SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=wss://chat.example.com/sdkwork/chat
-SDKWORK_IM_BROWSER_ORIGINS=https://chat.example.com
-```
-
-When no explicit Vite API base URLs are configured for a web release build, the PC app resolves:
-
-- App SDK HTTP base URL from `window.location.origin`
-- IM SDK HTTP base URL from `window.location.origin`
-- IM SDK WebSocket base URL from `ws://` or `wss://` plus `window.location.host`
-
-For installed server packages, prefer the explicit `SDKWORK_IM_SERVER_*` values above so generated server config, logs, docs, and release manifests all point at the SDKWork mount root.
-
-### Split Web, API, And Realtime Domains
-
-Use this shape when the web app is served from one origin and the API gateway is exposed on a separate domain.
-
-```dotenv
-SDKWORK_IM_SERVER_BASE_URL=https://chat.example.com/sdkwork/chat
-SDKWORK_IM_SERVER_API_BASE_URL=https://api.chat.example.com/sdkwork/chat
-SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=wss://realtime.chat.example.com/sdkwork/chat
-SDKWORK_IM_BROWSER_ORIGINS=https://chat.example.com
-```
-
-`SDKWORK_IM_BROWSER_ORIGINS` must contain every browser origin that is allowed to call the public gateway. Do not put API paths in this value; it is a comma-separated list of origins.
-
-## SDK Base URL Semantics
-
-The generated SDKs own their API prefixes:
-
-| SDK | Env source | SDK-owned prefix |
+| Surface | Host | Env keys |
 | --- | --- | --- |
-| `sdkwork-im-app-sdk` / `@sdkwork-internal/im-app-api-generated` | `SDKWORK_IM_SERVER_API_BASE_URL` or `SDKWORK_IM_APP_API_BASE_URL` | `/app/v3/api` |
-| `@sdkwork/im-sdk` | `SDKWORK_IM_SERVER_API_BASE_URL` or `SDKWORK_IM_IM_API_BASE_URL` | `/im/v3/api` |
-| `@sdkwork/im-sdk` realtime | `SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL` or `SDKWORK_IM_IM_WEBSOCKET_BASE_URL` | `/im/v3/api/realtime/ws` |
+| IM application HTTP/WebSocket | `im.sdkwork.com` | `SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL`, `SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL` |
+| Platform API gateway | `api.sdkwork.com` | `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` |
 
-Set the environment variables to the gateway mount root. Do not set them to the full generated SDK endpoint.
+`chat.sdkwork.com` is reserved for LLM conversational apps, not IM.
 
-Correct:
+## Single-host production example
 
-```dotenv
-SDKWORK_IM_SERVER_API_BASE_URL=https://api.chat.example.com/sdkwork/chat
-SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=wss://realtime.chat.example.com/sdkwork/chat
+```env
+SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18080
+SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com
+SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com
+SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com
+SDKWORK_IM_BROWSER_ORIGINS=https://im.sdkwork.com
 ```
 
-Wrong:
+## SDK base URL mapping
 
-```dotenv
-SDKWORK_IM_SERVER_API_BASE_URL=https://api.chat.example.com/sdkwork/chat/im/v3/api
-SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=wss://realtime.chat.example.com/sdkwork/chat/im/v3/api/realtime/ws
-```
+| SDK family | Server env | Browser env | SDK path suffix |
+| --- | --- | --- | --- |
+| IAM / platform modules | `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` | `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` | module-specific `/app/v3/api` or service route |
+| IM app API | `SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL` | `VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL` | `/app/v3/api` |
+| IM realtime | `SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL` | `VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL` | `/im/v3/api/realtime/ws` |
 
-The release resolver and frontend SDK wrappers strip known SDK-owned suffixes as a defensive compatibility layer, but deployment templates should keep the base URL semantics above.
+Document base URLs without SDK-owned path suffixes. The generated SDK clients append their own
+`/app/v3/api`, `/im/v3/api`, and `/im/v3/api/realtime/ws` segments.
 
-Legacy `SDKWORK_IM_SERVER_API_BASE_URL`, `SDKWORK_IM_SERVER_BASE_URL`, and `SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL` are compatibility inputs for older scripts. New production config should use `SDKWORK_IM_SERVER_*`.
+## Release build propagation
 
-## Vite Release Build Contract
+`scripts/release/run-sdkwork-im-pc-release-build.mjs` resolves IAM/release env through
+`sdkwork-im-iam-env.mjs`, which materializes:
 
-The canonical release command is:
+- `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
+- `VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL`
+- `VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL`
 
-```bash
-pnpm release:build
-```
+If `SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL` is omitted but
+`SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL` is set, the resolver derives WebSocket base URL by
+converting `https://` to `wss://` and `http://` to `ws://`.
 
-It runs `scripts/release/run-sdkwork-im-pc-release-build.mjs`, which:
+## Installed server packages
 
-- prepares git-backed shared SDK sources via `prepare:shared-sdk`
-- forces `SDKWORK_SHARED_SDK_MODE=git`
-- resolves IAM mode as `server-private`
-- converts `SDKWORK_IM_SERVER_API_BASE_URL` and `SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL` into the matching `VITE_SDKWORK_IM_*` variables for Vite
-- fails early if an explicitly configured release URL is not an absolute `http(s)` or `ws(s)` URL
+For installed server packages, prefer the explicit `SDKWORK_IM_APPLICATION_PUBLIC_*` and
+`SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` values in `/etc/sdkwork/chat/server.env` so generated
+server config, logs, docs, and release manifests all point at the same public surface contract.
 
-If `SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL` is omitted but `SDKWORK_IM_SERVER_API_BASE_URL` is set, the resolver derives the WebSocket base URL by converting `https://` to `wss://` and `http://` to `ws://`.
-
-## Runtime Gateway Binding
-
-The Rust gateway/runtime recognizes these public base URL envs:
-
-- `SDKWORK_IM_PORTAL_API_BASE_URL`
-- `SDKWORK_PORTAL_API_BASE_URL`
-- `SDKWORK_IM_SERVER_API_BASE_URL`
-- `SDKWORK_IM_SERVER_BASE_URL`
-- `SDKWORK_IM_SERVER_API_BASE_URL` as a compatibility fallback
-- `SDKWORK_IM_SERVER_BASE_URL` as a compatibility fallback
-- `SDKWORK_IM_BIND_ADDR` as a local fallback only
-
-Explicit public URLs must not use bind-only hosts such as `0.0.0.0` or `::`. Use a browser-reachable URL instead.
-
-## PC Auxiliary API
-
-The PC app has auxiliary `/api/...` routes for non-IM product features. In the Rust product runtime:
-
-- `GET /api/config/modules` is served locally
-- `/api/agent/*` is proxied only when `SDKWORK_IM_PC_API_UPSTREAM` is configured
-- missing auxiliary upstreams return structured `503` responses instead of silently falling back to the SPA shell
-
-Set `SDKWORK_IM_PC_API_UPSTREAM` when a production AI/agent backend is deployed.
+Copy from `deployments/templates/server.env.example` and adjust hostnames for your deployment profile.

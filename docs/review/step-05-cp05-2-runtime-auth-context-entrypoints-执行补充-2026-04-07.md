@@ -14,7 +14,7 @@
 ## 2. 本轮为什么继续做这一步
 
 - 上一轮已经把非 message command 的 `tenant_id / actor_id` 采集收口到 `conversation-runtime` command constructor。
-- 但 HTTP 与 local-minimal-node 入口仍然在大量调用:
+- 但 HTTP 与 sdkwork-im-server 入口仍然在大量调用:
   - `*_with_actor_kind(...)`
   - `*_with_creator_kind(...)`
   - `*_with_requester_kind(...)`
@@ -23,7 +23,7 @@
 - 因此本轮继续做 `CP05-2` 的最小真实收口:
   - 给 `conversation-runtime` 增加 non-message mutation 的 `*_from_auth_context(...)` 入口
   - 让 runtime 同时承接 command field capture 和 `actor_kind` capture
-  - 删除 HTTP/local-minimal-node 对旧 `*with_*kind` 入口的依赖
+  - 删除 HTTP/sdkwork-im-server 对旧 `*with_*kind` 入口的依赖
 
 ## 3. 本轮实际完成
 
@@ -46,8 +46,8 @@
   - `resolve_agent_handoff_from_auth_context(...)`
   - `close_agent_handoff_from_auth_context(...)`
 - 在 `services/conversation-runtime/src/runtime/http.rs` 所有 non-message mutation 路径改为调用上述 runtime auth-context entrypoint。
-- 在 `services/local-minimal-node/src/node/conversation.rs`、`handoff.rs`、`membership.rs`、`projection.rs` 全部改为调用上述 runtime auth-context entrypoint。
-- 在 `services/local-minimal-node/src/node.rs` 清理了这次边界前移后不再使用的 conversation command imports。
+- 在 `services/sdkwork-im-gateway/src/node/conversation.rs`、`handoff.rs`、`membership.rs`、`projection.rs` 全部改为调用上述 runtime auth-context entrypoint。
+- 在 `services/sdkwork-im-gateway/src/node.rs` 清理了这次边界前移后不再使用的 conversation command imports。
 
 ### 3.2 测试补齐
 
@@ -55,9 +55,9 @@
   - 新增 `test_runtime_exposes_non_message_auth_context_entrypoints`
   - 新增 `test_http_non_message_surface_uses_runtime_auth_context_entrypoints`
   - 同步升级旧的 non-message boundary 断言，禁止 HTTP 继续走旧 `*with_*kind` 入口
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
   - 新增 `test_local_minimal_node_non_message_paths_use_runtime_auth_context_entrypoints`
-  - 同步升级旧的 non-message boundary 断言，禁止 local-minimal-node 继续走旧 `*with_*kind` 入口
+  - 同步升级旧的 non-message boundary 断言，禁止 sdkwork-im-server 继续走旧 `*with_*kind` 入口
 
 ## 4. 涉及文件
 
@@ -67,16 +67,16 @@
 - `services/conversation-runtime/src/runtime/membership.rs`
 - `services/conversation-runtime/src/runtime/handoff.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/local-minimal-node/src/node.rs`
-- `services/local-minimal-node/src/node/conversation.rs`
-- `services/local-minimal-node/src/node/handoff.rs`
-- `services/local-minimal-node/src/node/membership.rs`
-- `services/local-minimal-node/src/node/projection.rs`
+- `services/sdkwork-im-gateway/src/node.rs`
+- `services/sdkwork-im-gateway/src/node/conversation.rs`
+- `services/sdkwork-im-gateway/src/node/handoff.rs`
+- `services/sdkwork-im-gateway/src/node/membership.rs`
+- `services/sdkwork-im-gateway/src/node/projection.rs`
 
 ### 4.2 测试
 
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 - `services/conversation-runtime/tests/authority_command_test.rs`
 
 ## 5. 验证证据
@@ -89,20 +89,20 @@
 - Green
   - `cargo test -p conversation-runtime --test conversation_domain_structure_test --offline`
   - `cargo test -p conversation-runtime --test authority_command_test --offline`
-  - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node'; cargo test -p local-minimal-node --test lib_structure_test --offline`
+  - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node'; cargo test -p sdkwork-im-gateway --test lib_structure_test --offline`
 
 ### 5.2 完整回归证据
 
-- `rustfmt --edition 2024 services/conversation-runtime/src/runtime/creation.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/local-minimal-node/src/node.rs services/local-minimal-node/src/node/conversation.rs services/local-minimal-node/src/node/membership.rs services/local-minimal-node/src/node/handoff.rs services/local-minimal-node/src/node/projection.rs services/local-minimal-node/tests/lib_structure_test.rs`
-- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime/creation.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/local-minimal-node/src/node.rs services/local-minimal-node/src/node/conversation.rs services/local-minimal-node/src/node/membership.rs services/local-minimal-node/src/node/handoff.rs services/local-minimal-node/src/node/projection.rs services/local-minimal-node/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 services/conversation-runtime/src/runtime/creation.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/sdkwork-im-gateway/src/node.rs services/sdkwork-im-gateway/src/node/conversation.rs services/sdkwork-im-gateway/src/node/membership.rs services/sdkwork-im-gateway/src/node/handoff.rs services/sdkwork-im-gateway/src/node/projection.rs services/sdkwork-im-gateway/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime/creation.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/sdkwork-im-gateway/src/node.rs services/sdkwork-im-gateway/src/node/conversation.rs services/sdkwork-im-gateway/src/node/membership.rs services/sdkwork-im-gateway/src/node/handoff.rs services/sdkwork-im-gateway/src/node/projection.rs services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 - `cargo test -p conversation-runtime --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node-full'; cargo test -p local-minimal-node --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node-full'; cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ### 5.3 验证结论
 
-- 本轮代码、结构测试、conversation-runtime 全量测试、local-minimal-node 全量测试、projection-service 全量测试均已形成 fresh evidence。
-- `local-minimal-node` 全量测试中仍会出现预期的启动失败/health timeout 示例日志，但该 suite 退出码为 `0`，不构成本轮阻塞。
+- 本轮代码、结构测试、conversation-runtime 全量测试、sdkwork-im-server 全量测试、projection-service 全量测试均已形成 fresh evidence。
+- `sdkwork-im-server` 全量测试中仍会出现预期的启动失败/health timeout 示例日志，但该 suite 退出码为 `0`，不构成本轮阻塞。
 
 ## 6. 对应架构能力与兑现判断
 
@@ -121,7 +121,7 @@
 
 ### 6.2 已兑现
 
-- HTTP 和 local-minimal-node 的 non-message mutation 路径不再直接调用旧 `*with_*kind` runtime 入口。
+- HTTP 和 sdkwork-im-server 的 non-message mutation 路径不再直接调用旧 `*with_*kind` runtime 入口。
 - `conversation-runtime` 自身开始同时承接:
   - command field capture
   - `actor_kind` capture

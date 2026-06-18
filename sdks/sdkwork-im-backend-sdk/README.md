@@ -91,7 +91,7 @@ Bash:
 
 Defaults:
 
-- base URL: `http://127.0.0.1:18090`
+- base URL: `http://127.0.0.1:18079`
 - schema URL: `/backend/v3/openapi.json`
 - API prefix: `/backend/v3/api`
 - SDK name: `sdkwork-im-backend-sdk`

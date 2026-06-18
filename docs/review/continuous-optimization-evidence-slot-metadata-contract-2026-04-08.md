@@ -2,7 +2,7 @@
 
 ## 1. 本轮背景
 
-- 上一轮已经把 `local-default` 的 release bundle evidence index 冻结成 machine-readable JSON 与 schema contract。
+- 上一轮已经把 `self-hosted.split-services.development` 的 release bundle evidence index 冻结成 machine-readable JSON 与 schema contract。
 - 但 slot 级别仍然只有：
   - `id`
   - `kind`
@@ -13,7 +13,7 @@
   - 证据文件放在哪里
   - 何时采集
   - 当前归档物的校验和是什么
-- 当前环境依然没有真实 `local-default` 发布后执行窗口，因此本轮继续不伪造采集结果，只冻结 slot metadata contract。
+- 当前环境依然没有真实 `self-hosted.split-services.development` 发布后执行窗口，因此本轮继续不伪造采集结果，只冻结 slot metadata contract。
 
 ## 2. 实际落地
 
@@ -30,7 +30,7 @@
 
 ### 2.2 当前 evidence index 已显式保留模板态占位
 
-- 更新：`artifacts/releases/wave-d-2026-04-08/local-default-post-release-evidence-index.json`
+- 更新：`artifacts/releases/wave-d-2026-04-08/self-hosted.split-services.development-post-release-evidence-index.json`
 - 当前每个 slot 都已显式携带：
   - `artifactPath: null`
   - `collectedAt: null`
@@ -39,15 +39,15 @@
 
 ### 2.3 operator 文档已同步说明如何回填
 
-- 更新：`docs/部署/local-default发布后验证样本.md`
-- 更新：`docs/部署/local-default发布后验证执行记录模板.md`
+- 更新：`docs/部署/性能与灾备演练场景.md`
+- 更新：`docs/部署/性能与灾备演练场景.md`
 - 当前文档已经明确：
   - 建议采集证据时同步补 `artifactPath / collectedAt / checksumSha256`
   - 执行记录模板里也有同名字段可直接记录
 
 ### 2.4 contract gate 已冻结
 
-- 更新：`services/local-minimal-node/tests/deployment_profile_test.rs`
+- 更新：`services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 - 新增：
   - `test_local_default_release_bundle_freezes_evidence_slot_collection_metadata_contract`
 - 当前回归门禁已经锁定：
@@ -67,6 +67,6 @@
 
 ## 4. fresh evidence
 
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test test_local_default_release_bundle_freezes_evidence_slot_collection_metadata_contract -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_local_default_release_bundle_freezes_evidence_slot_collection_metadata_contract -- --nocapture`
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test -- --nocapture`

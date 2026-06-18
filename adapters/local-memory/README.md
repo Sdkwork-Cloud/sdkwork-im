@@ -1,7 +1,6 @@
 # local-memory
 
-`local-memory` is the default in-memory adapter package used by the current `local-minimal`
-profile.
+`local-memory` is the default in-memory adapter package used by `self-hosted.split-services.development`.
 
 ## What It Provides
 

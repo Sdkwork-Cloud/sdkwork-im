@@ -48,7 +48,7 @@
 - 本轮实现继续遵守既有架构边界：
   - `projection-service` 继续拥有 projection observability owner
   - `ops-service` 继续只做公开 lag 聚合与 replay 读面
-  - `local-minimal-node` 继续只做映射
+  - `sdkwork-im-server` 继续只做映射
 - 同时，本轮也再次修复了因 helper 逻辑进入 `projection-service/src/lib.rs` 而触发的 Step 02 结构红线回归，保持既有代码治理要求不被破坏。
 
 ## 回写决议
@@ -65,15 +65,15 @@
   - `services/projection-service/src/lib.rs`
   - `services/projection-service/src/scope.rs`
   - `services/ops-service/src/lib.rs`
-  - `services/local-minimal-node/src/node/platform.rs`
+  - `services/sdkwork-im-gateway/src/node/platform.rs`
 - 测试：
   - `services/projection-service/tests/projection_snapshot_test.rs`
-  - `services/local-minimal-node/tests/domain_recovery_persistence_test.rs`
+  - `services/sdkwork-im-gateway/tests/domain_recovery_persistence_test.rs`
 - 验证：
   - `cargo fmt --all --check`
   - `cargo test -p projection-service --offline`
   - `cargo test -p ops-service --offline`
-  - `cargo test -p local-minimal-node --offline`
+  - `cargo test -p sdkwork-im-gateway --offline`
 
 ## 当前判断
 - 这是 `CP09-3` 的真实增量，不是 `Step 09` 的整步通过。

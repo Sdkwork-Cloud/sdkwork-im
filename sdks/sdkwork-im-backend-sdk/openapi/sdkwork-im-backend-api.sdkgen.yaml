@@ -4,7 +4,7 @@ info:
   version: 0.1.0
   description: Backend management OpenAPI contract for operator, governance, control, and admin APIs under one SDK family.
 servers:
-  - url: http://127.0.0.1:18090
+  - url: http://127.0.0.1:18079
 security:
   - AuthToken: []
     AccessToken: []

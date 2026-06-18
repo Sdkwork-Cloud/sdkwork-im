@@ -27,7 +27,7 @@
 
 - `conversation-runtime/http`
   - handoff state / members / read-cursor 路径已切到 runtime auth-context wrapper
-- `local-minimal-node`
+- `sdkwork-im-server`
   - membership / handoff / access 路径已切到 runtime auth-context wrapper
 
 这意味着:
@@ -38,7 +38,7 @@
 ## 3. 本轮未兑现的能力
 
 - projection-service 读查询 authority 仍未收口。
-- `local-minimal-node/src/node/projection.rs` 仍直接线程化 `tenant_id / actor_id`。
+- `sdkwork-im-server/src/node/projection.rs` 仍直接线程化 `tenant_id / actor_id`。
 - `actor_kind` 仍未升级成更稳定的统一 authority snapshot owner。
 - downstream side-effects 对 raw `AuthContext` 的剩余依赖仍未清空。
 - 因此:
@@ -59,20 +59,20 @@
 - `services/conversation-runtime/src/runtime/membership.rs`
 - `services/conversation-runtime/src/runtime/handoff.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/local-minimal-node/src/node/membership.rs`
-- `services/local-minimal-node/src/node/handoff.rs`
-- `services/local-minimal-node/src/node/access.rs`
+- `services/sdkwork-im-gateway/src/node/membership.rs`
+- `services/sdkwork-im-gateway/src/node/handoff.rs`
+- `services/sdkwork-im-gateway/src/node/access.rs`
 
 ### 5.2 测试证据
 
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
 - `services/conversation-runtime/tests/authority_command_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ### 5.3 Fresh verification
 
 - `cargo test -p conversation-runtime --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-full'; cargo test -p local-minimal-node --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-full'; cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 6. 架构结论

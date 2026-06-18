@@ -47,7 +47,7 @@
 - `docs/架构/150F-control-plane-provider-policy写接口与审计设计-2026-04-08.md`
 - `docs/架构/142-控制面与配置治理设计-2026-04-06.md`
 - `docs/架构/09-实施计划.md`
-- `services/local-minimal-node/tests/provider_plugin_docs_test.rs`
+- `services/sdkwork-im-gateway/tests/provider_plugin_docs_test.rs`
 
 ## 5. 验证
 

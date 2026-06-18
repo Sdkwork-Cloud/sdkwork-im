@@ -10,7 +10,7 @@
   - `CP10-2` 已冻结多环境 profile/template 边界并通过 fresh verification
   - 但 `CP10-3` 在本轮之前仍有一个真实缺口：
     - `tools/smoke/local_stack_smoke.*` 已具备 `BaseUrl` / `--base-url`
-    - 统一 `deploy-local` 入口却没有把这个能力暴露给 operator
+    - 统一 `retired-lifecycle-deploy` 入口却没有把这个能力暴露给 operator
     - 因而“可重复执行的 smoke”仍停留在底层脚本级，而不是标准交付入口
 
 ## 本轮为什么做这个增量
@@ -19,15 +19,15 @@
   - 任何平台脚本都必须通过同一 smoke 口径验证
 - `docs/step/95-架构能力闭环验收标准.md` 对 `Step 10` 的伪完成警告是：
   - 只有脚本文件，没有真实 smoke 验证
-- 因此本轮最优动作不是再造新 smoke 脚本，而是把现有 smoke 的 `base-url` 能力上抬到统一 `deploy-local` 入口，形成跨平台 operator contract。
+- 因此本轮最优动作不是再造新 smoke 脚本，而是把现有 smoke 的 `base-url` 能力上抬到统一 `retired-lifecycle-deploy` 入口，形成跨平台 operator contract。
 
 ## 本轮实际完成
 
-### 1. `deploy-local` 已公开可重复 smoke 的目标地址合同
-- `bin/deploy-local.ps1`
+### 1. `retired-lifecycle-deploy` 已公开可重复 smoke 的目标地址合同
+- `pnpm im:dev`
   - 新增 `-SmokeBaseUrl <url>`
   - `-Help` 现已公开该参数
-- `bin/deploy-local.sh`
+- `pnpm im:dev`
   - 新增 `--smoke-base-url <url>`
   - help 文案同步公开该参数
 - `bin/_cmd-forward-powershell.cmd`
@@ -42,14 +42,14 @@
 
 ### 3. 文档已追平新的 smoke 入口
 - `docs/部署/快速启动脚本.md`
-  - 已在 `deploy-local` 条目、常用参数和命令示例中公开：
+  - 已在 `retired-lifecycle-deploy` 条目、常用参数和命令示例中公开：
     - `-SmokeBaseUrl <url>`
     - `--smoke-base-url <url>`
 - `README.md`
-  - 根文档 Docker 入口说明已升级为统一 `deploy-local.*` 的 smoke-base-url 示例
+  - 根文档 Docker 入口说明已升级为统一 `retired-lifecycle-deploy.*` 的 smoke-base-url 示例
 
 ### 4. 回归门禁已补齐
-- `services/local-minimal-node/tests/deployment_profile_test.rs`
+- `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
   - 新增：
     - `test_deploy_local_scripts_expose_repeatable_smoke_base_url_contract`
     - `test_deploy_local_ps1_forwards_smoke_base_url_to_bootstrap_script`
@@ -60,18 +60,18 @@
 ## TDD 证据
 
 ### Red
-- `cargo test -p local-minimal-node --offline test_deploy_local_scripts_expose_repeatable_smoke_base_url_contract -- --exact`
-  - 初始失败，证明 `deploy-local.ps1` 尚未公开 smoke base-url override
+- `cargo test -p sdkwork-im-gateway --offline test_deploy_local_scripts_expose_repeatable_smoke_base_url_contract -- --exact`
+  - 初始失败，证明 `retired-lifecycle-deploy.ps1` 尚未公开 smoke base-url override
 
 ### Green
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
   - 现已通过，说明脚本、文档与参数兼容层合同一致
 
 ## Fresh 验证
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/deploy-local.ps1 -Help`
-- `cmd /c bin\\deploy-local.cmd --help`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+- `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 
 ## 当前判断
 - 这是 `CP10-3` 的第一个真实代码增量，不是整个 `CP10-3` 的最终闭环。

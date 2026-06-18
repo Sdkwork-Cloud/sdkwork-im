@@ -1,5 +1,0 @@
-services:
-  local-minimal-node:
-    extends:
-      file: local-minimal.yml
-      service: local-minimal-node

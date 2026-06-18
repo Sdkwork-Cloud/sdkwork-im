@@ -12,7 +12,7 @@
 | 代码格式 | 通过 | `cargo fmt --all --check` 通过 |
 | 静态质量门禁 | 通过 | `cargo clippy --workspace --all-targets --all-features --offline -- -D warnings` 通过 |
 | 全量回归 | 通过 | `cargo test --workspace --offline` 通过 |
-| 发布入口 | 通过 | `deploy-local/start-local/status-local` 帮助面可执行 |
+| 发布入口 | 通过 | `retired-lifecycle-deploy/retired-lifecycle-start/retired-lifecycle-status` 帮助面可执行 |
 | 恢复入口 | 通过 | `restore-runtime-local` 帮助面可执行 |
 | 聊天验证入口 | 通过 | `open-chat-test` 帮助面可执行 |
 | CLI / SDK / compatibility 证据 | 通过 | `Step 12` 已形成 fresh review 与测试链 |
@@ -23,16 +23,16 @@
 - `cargo fmt --all --check`
 - `cargo clippy --workspace --all-targets --all-features --offline -- -D warnings`
 - `cargo test --workspace --offline`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/deploy-local.ps1 -Help`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/start-local.ps1 -Help`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/status-local.ps1 -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm server:dev -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/retired-lifecycle-status.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/restore-runtime-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/open-chat-test.ps1 -Help`
 
 ## 当前发布边界
 - 当前版本已经具备：
   - 本地最小交付链路
-  - `local-minimal` / `local-default` profile 入口
+  - `self-hosted.split-services.development` / `self-hosted.split-services.development` profile 入口
   - 运行时检查、修复、备份、恢复、归档与裁剪入口
   - CLI 主链路验证
   - CCP compatibility / governance / control-plane baseline
@@ -43,13 +43,13 @@
   - 更高 tier 的持续容量回归
 
 ## 风险说明
-- `cargo test --workspace --offline` 期间，`local-minimal-node` 的少数部署测试会故意捕获脚本 stderr 文本作为回归样本，因此测试日志中可能出现 PowerShell `throw` 文本；本轮测试命令整体退出码为 `0`，不构成发布阻塞。
+- `cargo test --workspace --offline` 期间，`sdkwork-im-server` 的少数部署测试会故意捕获脚本 stderr 文本作为回归样本，因此测试日志中可能出现 PowerShell `throw` 文本；本轮测试命令整体退出码为 `0`，不构成发布阻塞。
 - 本轮大量收口集中在 clippy / 测试夹具 / operator 入口稳定性，属于发布前质量与交付面清理，不改变已经通过 Step 10-12 验证的业务基线。
 
 ## 升级与回滚说明
 - 升级路径：
-  - 使用 `bin/deploy-local.ps1` 作为本地部署统一入口
-  - 使用 `bin/start-local.ps1` / `bin/status-local.ps1` 做发布后启动与状态核对
+  - 使用 `pnpm im:dev` 作为本地部署统一入口
+  - 使用 `pnpm server:dev` / `bin/retired-lifecycle-status.ps1` 做发布后启动与状态核对
   - 如需脚本化聊天验证，使用 `bin/open-chat-test.ps1 -ScriptedValidation`
 - 回滚/恢复路径：
   - 使用 `bin/restore-runtime-local.ps1` 通过显式 backup snapshot 恢复 runtime-dir

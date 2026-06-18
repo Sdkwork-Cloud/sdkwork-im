@@ -41,8 +41,8 @@ already published.
 - `docs/review/continuous-optimization-artifact-file-list-contract-2026-04-08.md`
 - `docs/review/continuous-optimization-collection-summary-contract-2026-04-08.md`
 - `docs/review/continuous-optimization-collection-summary-slot-consistency-contract-2026-04-08.md`
-- `docs/部署/local-default发布后验证样本.md`
-- `docs/部署/local-default发布后验证执行记录模板.md`
+- `docs/部署/性能与灾备演练场景.md`
+- `docs/部署/性能与灾备演练场景.md`
 
 ## Frozen Bundle Artifact Inventory
 
@@ -54,10 +54,10 @@ already published.
 
 ### Evidence Artifacts
 
-- `artifacts/releases/wave-d-2026-04-08/local-default-post-release-evidence-index.json`
-- `artifacts/releases/wave-d-2026-04-08/evidence/local-default/README.md`
-- `artifacts/releases/wave-d-2026-04-08/evidence/local-default/checksum-manifest.txt`
-- `artifacts/releases/wave-d-2026-04-08/evidence/local-default/artifact-file-list.txt`
+- `artifacts/releases/wave-d-2026-04-08/self-hosted.split-services.development-post-release-evidence-index.json`
+- `artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development/README.md`
+- `artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development/checksum-manifest.txt`
+- `artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development/artifact-file-list.txt`
 - `artifacts/releases/schemas/post-release-evidence-index.schema.json`
 
 ### Server Release Artifacts
@@ -98,11 +98,11 @@ already published.
 - `cargo fmt --all --check`
 - `cargo clippy --workspace --all-targets --all-features --offline -- -D warnings`
 - `cargo test --workspace --offline`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/deploy-local.ps1 -Help`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/deploy-local.ps1 -ProfileName local-default -SmokeBaseUrl http://127.0.0.1:28090`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/start-local.ps1 -Help`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/status-local.ps1 -Help`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/status-local.ps1 -ProfileName local-default`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+- `pnpm im:dev`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm server:dev -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/retired-lifecycle-status.ps1 -Help`
+- `pnpm server:dev (topology v2)`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/restore-runtime-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/open-chat-test.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/plan-release-server.ps1 -ReleaseGatePath artifacts/releases/wave-d-2026-04-08/server/release-gate.json`
@@ -117,9 +117,9 @@ already published.
 
 ### Local Rollout
 
-- `bin/deploy-local.ps1`
-- `bin/start-local.ps1`
-- `bin/status-local.ps1`
+- `pnpm im:dev`
+- `pnpm server:dev`
+- `bin/retired-lifecycle-status.ps1`
 
 ### Recovery
 
@@ -135,7 +135,7 @@ already published.
 ### Bundle Scope
 
 - the bundle is a release archive baseline, not a complete end-to-end publication pipeline
-- `local-default` still reuses the current `local-minimal` service contract shape
+- `self-hosted.split-services.development` still uses topology v2 `self-hosted.split-services.development` service contract shape
 - the archive is already sufficient for audit, rollback planning, and traceability
 
 ### SDK State

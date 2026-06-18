@@ -8,7 +8,7 @@
 - `services/conversation-runtime/src/runtime/policy.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
 
 ## 2. 审计结论
 
@@ -31,7 +31,7 @@
   - `cargo test -p conversation-runtime --test conversation_flow_test test_group_owner_can_transfer_ownership_and_then_leave --offline`
   - `cargo test -p conversation-runtime --test conversation_flow_test test_system_channel_requires_dedicated_publish_command_and_allows_only_publisher --offline`
 - local profile e2e 证据
-  - 使用 `$env:CARGO_TARGET_DIR='target-cp053'` 规避被常驻 `local-minimal-node.exe` 锁住的默认 target
+  - 使用 `$env:CARGO_TARGET_DIR='target-cp053'` 规避被常驻 `sdkwork-im-server.exe` 锁住的默认 target
   - 三条 access-control e2e 均已通过
 
 ## 4. 风险与后续

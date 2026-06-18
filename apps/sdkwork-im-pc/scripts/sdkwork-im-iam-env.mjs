@@ -12,10 +12,10 @@ export const SDKWORK_IM_IAM_MODES = Object.freeze([
   'cloud',
 ]);
 
-export const DEFAULT_SDKWORK_IM_LOCAL_APP_API_BASE_URL = 'http://127.0.0.1:18079';
-export const DEFAULT_SDKWORK_IM_LOCAL_IM_API_BASE_URL = 'http://127.0.0.1:18079';
-export const DEFAULT_SDKWORK_IM_LOCAL_IM_WEBSOCKET_BASE_URL = 'ws://127.0.0.1:18079';
-export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL = 'local-default@sdkwork-iam.local';
+export const DEFAULT_SDKWORK_IM_LOCAL_PLATFORM_API_GATEWAY_HTTP_URL = 'http://127.0.0.1:3900';
+export const DEFAULT_SDKWORK_IM_LOCAL_APPLICATION_PUBLIC_HTTP_URL = 'http://127.0.0.1:18079';
+export const DEFAULT_SDKWORK_IM_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL = 'ws://127.0.0.1:18079';
+export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL = 'dev-bootstrap@sdkwork-iam.local';
 export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE = '13800000000';
 export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD = 'dev123456';
 export const DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE = '123456';
@@ -30,15 +30,12 @@ const SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV = 'SDKWORK_IAM_LOCAL_BOOTSTRAP_PA
 const SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV = 'SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED';
 const SDKWORK_IAM_APP_API_BASE_URL_ENV = 'SDKWORK_IAM_APP_API_BASE_URL';
 const VITE_SDKWORK_IAM_APP_API_BASE_URL_ENV = 'VITE_SDKWORK_IAM_APP_API_BASE_URL';
-const SDKWORK_IM_APP_API_BASE_URL_ENV = 'SDKWORK_IM_APP_API_BASE_URL';
-const VITE_SDKWORK_IM_APP_API_BASE_URL_ENV = 'VITE_SDKWORK_IM_APP_API_BASE_URL';
-const SDKWORK_IM_IM_API_BASE_URL_ENV = 'SDKWORK_IM_IM_API_BASE_URL';
-const VITE_SDKWORK_IM_IM_API_BASE_URL_ENV = 'VITE_SDKWORK_IM_IM_API_BASE_URL';
-const SDKWORK_IM_IM_WEBSOCKET_BASE_URL_ENV = 'SDKWORK_IM_IM_WEBSOCKET_BASE_URL';
-const VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL_ENV = 'VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL';
-const SDKWORK_IM_SERVER_BASE_URL_ENV = 'SDKWORK_IM_SERVER_BASE_URL';
-const SDKWORK_IM_SERVER_API_BASE_URL_ENV = 'SDKWORK_IM_SERVER_API_BASE_URL';
-const SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL_ENV = 'SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL';
+const SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL_ENV = 'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL';
+const VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL_ENV = 'VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL';
+const SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL_ENV = 'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL';
+const VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL_ENV = 'VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL';
+const SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV = 'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL';
+const VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV = 'VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL';
 const SDKWORK_APP_API_PREFIX = '/app/v3/api';
 const SDKWORK_IM_API_PREFIX = '/im/v3/api';
 const SDKWORK_IM_REALTIME_WEBSOCKET_PATH = '/im/v3/api/realtime/ws';
@@ -213,38 +210,28 @@ function shouldUseLocalEndpointDefaults(target, resolvedDeploymentMode) {
   return target === 'desktop-dev' || target === 'desktop-build' || target === 'browser-dev';
 }
 
-function resolveConfiguredApiBaseUrl(env) {
+function resolveConfiguredPlatformApiBaseUrl(env) {
   return normalizeHttpBaseUrl(
-    env[VITE_SDKWORK_IM_APP_API_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_APP_API_BASE_URL_ENV]
+    env[VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL_ENV]
+      ?? env[SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL_ENV]
       ?? env[VITE_SDKWORK_IAM_APP_API_BASE_URL_ENV]
-      ?? env[SDKWORK_IAM_APP_API_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_SERVER_API_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_SERVER_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_SERVER_API_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_SERVER_BASE_URL_ENV],
+      ?? env[SDKWORK_IAM_APP_API_BASE_URL_ENV],
     [SDKWORK_APP_API_PREFIX, SDKWORK_IM_API_PREFIX],
   );
 }
 
-function resolveConfiguredImApiBaseUrl(env) {
+function resolveConfiguredApplicationHttpUrl(env) {
   return normalizeHttpBaseUrl(
-    env[VITE_SDKWORK_IM_IM_API_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_IM_API_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_SERVER_API_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_SERVER_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_SERVER_API_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_SERVER_BASE_URL_ENV],
+    env[VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL_ENV]
+      ?? env[SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL_ENV],
     [SDKWORK_APP_API_PREFIX, SDKWORK_IM_API_PREFIX],
   );
 }
 
-function resolveConfiguredImWebSocketBaseUrl(env) {
+function resolveConfiguredApplicationWebSocketUrl(env) {
   return normalizeWebSocketBaseUrl(
-    env[VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_IM_WEBSOCKET_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL_ENV]
-      ?? env[SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL_ENV],
+    env[VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV]
+      ?? env[SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV],
     [SDKWORK_IM_REALTIME_WEBSOCKET_PATH, SDKWORK_IM_API_PREFIX],
   );
 }
@@ -262,53 +249,43 @@ export function resolveSdkworkChatIamCommandEnv({
   const errors = [];
   const sdkworkIamMode = resolveSdkworkIamMode(resolvedDeploymentMode);
   validateConfiguredHttpEnv(nextEnv, [
-    VITE_SDKWORK_IM_APP_API_BASE_URL_ENV,
-    SDKWORK_IM_APP_API_BASE_URL_ENV,
+    VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL_ENV,
+    SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL_ENV,
     VITE_SDKWORK_IAM_APP_API_BASE_URL_ENV,
     SDKWORK_IAM_APP_API_BASE_URL_ENV,
-    SDKWORK_IM_SERVER_API_BASE_URL_ENV,
-    SDKWORK_IM_SERVER_BASE_URL_ENV,
-    SDKWORK_IM_SERVER_API_BASE_URL_ENV,
-    SDKWORK_IM_SERVER_BASE_URL_ENV,
   ], errors);
   validateConfiguredHttpEnv(nextEnv, [
-    VITE_SDKWORK_IM_IM_API_BASE_URL_ENV,
-    SDKWORK_IM_IM_API_BASE_URL_ENV,
-    SDKWORK_IM_SERVER_API_BASE_URL_ENV,
-    SDKWORK_IM_SERVER_BASE_URL_ENV,
-    SDKWORK_IM_SERVER_API_BASE_URL_ENV,
-    SDKWORK_IM_SERVER_BASE_URL_ENV,
+    VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL_ENV,
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL_ENV,
   ], errors);
   validateConfiguredWebSocketEnv(nextEnv, [
-    VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL_ENV,
-    SDKWORK_IM_IM_WEBSOCKET_BASE_URL_ENV,
-    SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL_ENV,
-    SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL_ENV,
+    VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV,
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV,
   ], errors);
   const useLocalEndpointDefaults = shouldUseLocalEndpointDefaults(target, resolvedDeploymentMode);
-  const configuredApiBaseUrl = resolveConfiguredApiBaseUrl(nextEnv);
-  const configuredImApiBaseUrl = resolveConfiguredImApiBaseUrl(nextEnv);
-  const apiBaseUrl = configuredApiBaseUrl
-    ?? (useLocalEndpointDefaults ? DEFAULT_SDKWORK_IM_LOCAL_APP_API_BASE_URL : undefined);
-  const imApiBaseUrl = configuredImApiBaseUrl
-    ?? (useLocalEndpointDefaults ? DEFAULT_SDKWORK_IM_LOCAL_IM_API_BASE_URL : undefined);
-  const websocketBaseUrl = resolveConfiguredImWebSocketBaseUrl(nextEnv)
-    ?? deriveWebSocketBaseUrlFromHttpBaseUrl(configuredImApiBaseUrl)
-    ?? (useLocalEndpointDefaults ? DEFAULT_SDKWORK_IM_LOCAL_IM_WEBSOCKET_BASE_URL : undefined);
+  const configuredPlatformApiBaseUrl = resolveConfiguredPlatformApiBaseUrl(nextEnv);
+  const configuredApplicationHttpUrl = resolveConfiguredApplicationHttpUrl(nextEnv);
+  const platformApiBaseUrl = configuredPlatformApiBaseUrl
+    ?? (useLocalEndpointDefaults ? DEFAULT_SDKWORK_IM_LOCAL_PLATFORM_API_GATEWAY_HTTP_URL : undefined);
+  const applicationHttpUrl = configuredApplicationHttpUrl
+    ?? (useLocalEndpointDefaults ? DEFAULT_SDKWORK_IM_LOCAL_APPLICATION_PUBLIC_HTTP_URL : undefined);
+  const applicationWebSocketUrl = resolveConfiguredApplicationWebSocketUrl(nextEnv)
+    ?? deriveWebSocketBaseUrlFromHttpBaseUrl(configuredApplicationHttpUrl)
+    ?? (useLocalEndpointDefaults ? DEFAULT_SDKWORK_IM_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL : undefined);
 
   setEnvValue(nextEnv, SDKWORK_IM_IAM_DEPLOYMENT_MODE_ENV, resolvedDeploymentMode);
   setEnvValue(nextEnv, VITE_SDKWORK_IM_IAM_DEPLOYMENT_MODE_ENV, resolvedDeploymentMode);
   setEnvValue(nextEnv, VITE_SDKWORK_DEPLOYMENT_MODE_ENV, resolvePublicDeploymentMode(resolvedDeploymentMode));
   setEnvValue(nextEnv, SDKWORK_IAM_MODE_ENV, sdkworkIamMode);
 
-  setEnvValue(nextEnv, SDKWORK_IAM_APP_API_BASE_URL_ENV, apiBaseUrl);
-  setEnvValue(nextEnv, VITE_SDKWORK_IAM_APP_API_BASE_URL_ENV, apiBaseUrl);
-  setEnvValue(nextEnv, SDKWORK_IM_APP_API_BASE_URL_ENV, apiBaseUrl);
-  setEnvValue(nextEnv, VITE_SDKWORK_IM_APP_API_BASE_URL_ENV, apiBaseUrl);
-  setEnvValue(nextEnv, SDKWORK_IM_IM_API_BASE_URL_ENV, imApiBaseUrl);
-  setEnvValue(nextEnv, VITE_SDKWORK_IM_IM_API_BASE_URL_ENV, imApiBaseUrl);
-  setEnvValue(nextEnv, SDKWORK_IM_IM_WEBSOCKET_BASE_URL_ENV, websocketBaseUrl);
-  setEnvValue(nextEnv, VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL_ENV, websocketBaseUrl);
+  setEnvValue(nextEnv, SDKWORK_IAM_APP_API_BASE_URL_ENV, platformApiBaseUrl);
+  setEnvValue(nextEnv, VITE_SDKWORK_IAM_APP_API_BASE_URL_ENV, platformApiBaseUrl);
+  setEnvValue(nextEnv, SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL_ENV, platformApiBaseUrl);
+  setEnvValue(nextEnv, VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL_ENV, platformApiBaseUrl);
+  setEnvValue(nextEnv, SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL_ENV, applicationHttpUrl);
+  setEnvValue(nextEnv, VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL_ENV, applicationHttpUrl);
+  setEnvValue(nextEnv, SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV, applicationWebSocketUrl);
+  setEnvValue(nextEnv, VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV, applicationWebSocketUrl);
 
   if (sdkworkIamMode === 'local' || sdkworkIamMode === 'private') {
     setEnvDefault(nextEnv, SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV, DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL);
@@ -320,14 +297,14 @@ export function resolveSdkworkChatIamCommandEnv({
   if (!SDKWORK_IM_IAM_MODES.includes(sdkworkIamMode)) {
     errors.push(`${SDKWORK_IAM_MODE_ENV} must be one of: ${SDKWORK_IM_IAM_MODES.join(', ')}.`);
   }
-  if (apiBaseUrl && !normalizeHttpBaseUrl(apiBaseUrl)) {
-    errors.push(`${VITE_SDKWORK_IM_APP_API_BASE_URL_ENV} must be a valid http(s) URL.`);
+  if (platformApiBaseUrl && !normalizeHttpBaseUrl(platformApiBaseUrl)) {
+    errors.push(`${VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL_ENV} must be a valid http(s) URL.`);
   }
-  if (imApiBaseUrl && !normalizeHttpBaseUrl(imApiBaseUrl)) {
-    errors.push(`${VITE_SDKWORK_IM_IM_API_BASE_URL_ENV} must be a valid http(s) URL.`);
+  if (applicationHttpUrl && !normalizeHttpBaseUrl(applicationHttpUrl)) {
+    errors.push(`${VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL_ENV} must be a valid http(s) URL.`);
   }
-  if (websocketBaseUrl && !normalizeWebSocketBaseUrl(websocketBaseUrl)) {
-    errors.push(`${VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL_ENV} must be a valid ws(s) URL.`);
+  if (applicationWebSocketUrl && !normalizeWebSocketBaseUrl(applicationWebSocketUrl)) {
+    errors.push(`${VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV} must be a valid ws(s) URL.`);
   }
 
   return {

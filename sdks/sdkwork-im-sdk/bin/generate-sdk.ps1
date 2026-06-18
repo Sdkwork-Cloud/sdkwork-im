@@ -1,7 +1,7 @@
 param(
   [string[]]$Languages = @("typescript", "flutter", "rust", "java", "csharp", "swift", "kotlin", "go", "python"),
   [string]$FixedSdkVersion,
-  [string]$BaseUrl = "http://127.0.0.1:18090",
+  [string]$BaseUrl = "http://127.0.0.1:18079",
   [string]$SchemaUrl,
   [switch]$RefreshLive
 )

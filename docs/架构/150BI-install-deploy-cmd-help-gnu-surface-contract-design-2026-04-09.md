@@ -2,7 +2,7 @@
 
 ## Problem
 
-The Windows `install-local.cmd` and `deploy-local.cmd` wrappers are documented operator entrypoints, but their local `--help` output only surfaced PowerShell-style arguments.
+The Windows `retired-lifecycle-install.cmd` and `retired-lifecycle-deploy.cmd` wrappers are documented operator entrypoints, but their local `--help` output only surfaced PowerShell-style arguments.
 That created a discoverability mismatch:
 
 - docs taught GNU-style Windows flags
@@ -12,7 +12,7 @@ That created a discoverability mismatch:
 
 - Keep the current forwarding flow unchanged.
 - Define GNU-style help discoverability as part of the visible Windows `.cmd` operator contract.
-- Add one explicit `.cmd` usage line to each help branch in `bin/install-local.ps1` and `bin/deploy-local.ps1`.
+- Add one explicit `.cmd` usage line to each help branch in `(retired lifecycle script)` and `pnpm im:dev`.
 
 ## Rationale
 
@@ -22,5 +22,5 @@ That created a discoverability mismatch:
 
 ## Boundary
 
-- This design only covers `install-local.cmd --help` and `deploy-local.cmd --help` discoverability on Windows.
+- This design only covers `retired-lifecycle-install.cmd --help` and `retired-lifecycle-deploy.cmd --help` discoverability on Windows.
 - It does not redefine the global help strategy for every remaining wrapper.

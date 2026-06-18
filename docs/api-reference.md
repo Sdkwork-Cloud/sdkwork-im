@@ -39,9 +39,9 @@ Reactions, pins, threads, and conversation settings are **`chat` resources** und
 
 ## Gateway
 
-- Edge: `web-gateway` (target rename: `sdkwork-im-gateway`)
+- Edge: `sdkwork-im-gateway` / `sdkwork-im-server`
 - Aggregated docs: `/docs`, `/openapi.json`, `/openapi/services/<service-id>.openapi.json`
-- Default local monolith: `local-minimal-node` on port `18090`
+- Default dev application ingress: `http://127.0.0.1:18079` (`pnpm im:dev`)
 
 ## Regenerate derived SDK inputs
 

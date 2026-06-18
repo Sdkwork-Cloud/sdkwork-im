@@ -17,7 +17,7 @@
 
 - `projection-service` 现在自己持有 projection/read-model auth-context access boundary。
 - `projection-service/http` 不再直接维护 device/query authority 校验。
-- `local-minimal-node` 的 projection/session consumer 已切到 projection-service 的 auth-context seam。
+- `sdkwork-im-server` 的 projection/session consumer 已切到 projection-service 的 auth-context seam。
 - `ProjectionAccessError` 成为 projection-service authority owner 下沉后的统一错误出口。
 
 ## 3. 本轮未兑现
@@ -25,7 +25,7 @@
 - `CP05-2` 还未整体闭环。
 - downstream Step 05 authority consumer 仍未全部切到统一 owner。
 - 已知剩余热点：
-  - `services/local-minimal-node/src/node/effects.rs`
+  - `services/sdkwork-im-gateway/src/node/effects.rs`
 
 ## 4. 是否偏离架构
 
@@ -48,13 +48,13 @@
 - 代码
   - `services/projection-service/src/access.rs`
   - `services/projection-service/src/http.rs`
-  - `services/local-minimal-node/src/node/projection.rs`
-  - `services/local-minimal-node/src/node/session.rs`
-  - `services/local-minimal-node/src/node.rs`
+  - `services/sdkwork-im-gateway/src/node/projection.rs`
+  - `services/sdkwork-im-gateway/src/node/session.rs`
+  - `services/sdkwork-im-gateway/src/node.rs`
 - 测试
   - `services/projection-service/tests/lib_structure_test.rs`
-  - `services/local-minimal-node/tests/lib_structure_test.rs`
+  - `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 - fresh verification
   - `cargo test -p projection-service --offline`
-  - `cargo test -p local-minimal-node --offline`
+  - `cargo test -p sdkwork-im-gateway --offline`
   - `rustfmt --edition 2024 --check ...`

@@ -19,10 +19,11 @@ This README is the SDKWork module entrypoint for `sdkwork-im-gateway-config`. Th
 
 Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
 
-Split mode defaults Appbase, Drive, and Notary foundation upstreams to the shared
-`sdkwork-api-gateway` root. `SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL` and
+Split mode defaults Appbase, Drive, and Notary platform upstreams to the shared
+`sdkwork-api-gateway` root. `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` and
 `SDKWORK_API_GATEWAY_BASE_URL` override that root; `SDKWORK_API_GATEWAY_BIND` derives a local
-`http://<bind>` root when no base URL is set. Per-surface upstream keys such as
+`http://<bind>` root when no base URL is set. Application ingress bind uses
+`SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND`. Per-surface upstream keys such as
 `SDKWORK_IM_APPBASE_APP_API_UPSTREAM`, `SDKWORK_IM_DRIVE_APP_API_UPSTREAM`, and
 `SDKWORK_IM_NOTARY_APP_API_UPSTREAM` are explicit split-deployment overrides.
 

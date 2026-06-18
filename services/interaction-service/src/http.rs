@@ -3,7 +3,7 @@
 
 use axum::Router;
 use axum::middleware;
-use axum::routing::{delete, get, patch, post, put};
+use axum::routing::{delete, get, post, put};
 use im_app_context::inject_app_request_context_middleware;
 
 use crate::conversation_settings;

@@ -149,7 +149,7 @@
   - `CreateAgentDialogCommand`
   - `create_agent_dialog_with_requester_kind(...)`
   - `/im/v3/api/chat/conversations/agent_dialogs`
-- `services/local-minimal-node/src/lib.rs`
+- `services/sdkwork-im-gateway/src/lib.rs`
   - `/im/v3/api/chat/conversations/agent_dialogs`
   - auth context -> runtime dedicated create 映射
 
@@ -157,4 +157,4 @@
 
 - `cargo test -p conversation-runtime --test conversation_flow_test --offline`
 - `cargo test -p conversation-runtime --test http_smoke_test --offline`
-- `cargo test -p local-minimal-node --test access_control_e2e_test --offline`
+- `cargo test -p sdkwork-im-gateway --test access_control_e2e_test --offline`

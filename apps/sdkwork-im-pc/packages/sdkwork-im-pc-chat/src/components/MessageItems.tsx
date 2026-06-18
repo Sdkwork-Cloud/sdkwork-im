@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@sdkwork/im-pc-commons';
 import type { Message } from '@sdkwork/im-pc-types';
 import { Play, FileText, LayoutTemplate, Volume2, Phone, X, Music } from 'lucide-react';
@@ -55,6 +56,7 @@ export const VideoMessageItem: React.FC<BaseProps> = ({ msg, onMediaClick }) => 
 };
 
 export const VoiceMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => {
+  const { t } = useTranslation();
   const [isPlaying, setIsPlaying] = useState(false);
   const [playPhase, setPlayPhase] = useState(2);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -87,9 +89,8 @@ export const VoiceMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => {
         setIsPlaying(false);
       } else {
         audioRef.current.play().catch(() => {
-           // Handle autoplay block or unsupported format
            setIsPlaying(false);
-           toast('播放失败', 'error');
+           toast(t('chat.messageItems.voice.playFailed'), 'error');
         });
         setIsPlaying(true);
       }
@@ -127,15 +128,18 @@ export const VoiceMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => {
   );
 };
 
-export const VideoCallMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => (
+export const VideoCallMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => {
+  const { t } = useTranslation();
+  return (
   <div className={cn(
     "flex items-center gap-2 px-4 py-2 mt-1 rounded-2xl shadow-sm",
     isMe ? "bg-[#00b42a] text-white rounded-tr-sm" : "bg-[#2b2b2d] text-gray-200 rounded-tl-sm border border-white/5"
   )}>
     <Phone size={16} />
-    <span className="text-[14px]">{msg.content || '通话已结束'} {msg.duration ? `${Math.floor(msg.duration/60)}:${(msg.duration%60).toString().padStart(2, '0')}` : ''}</span>
+    <span className="text-[14px]">{msg.content || t('chat.messageItems.videoCall.endedFallback')} {msg.duration ? `${Math.floor(msg.duration/60)}:${(msg.duration%60).toString().padStart(2, '0')}` : ''}</span>
   </div>
-);
+  );
+};
 
 export const LinkMessageItem: React.FC<BaseProps> = ({ msg }) => (
   <a href={msg.content || '#'} target="_blank" rel="noopener noreferrer" className="block w-[280px] bg-[#2b2b2d] rounded-xl border border-white/10 p-3 mt-1 cursor-pointer hover:bg-white/5 transition-colors">
@@ -147,11 +151,13 @@ export const LinkMessageItem: React.FC<BaseProps> = ({ msg }) => (
   </a>
 );
 
-export const AppletMessageItem: React.FC<BaseProps> = ({ msg }) => (
-  <div className="w-[280px] bg-[#2b2b2d] rounded-xl border border-white/10 p-4 mt-1 cursor-pointer hover:bg-white/5 transition-colors flex flex-col gap-3" onClick={() => toast(`正在加载小程序环境: ${msg.fileName}`, 'success')}>
+export const AppletMessageItem: React.FC<BaseProps> = ({ msg }) => {
+  const { t } = useTranslation();
+  return (
+  <div className="w-[280px] bg-[#2b2b2d] rounded-xl border border-white/10 p-4 mt-1 cursor-pointer hover:bg-white/5 transition-colors flex flex-col gap-3" onClick={() => toast(t('chat.messageItems.applet.loading', { name: msg.fileName }), 'success')}>
     <div className="flex items-center gap-2 text-gray-400">
       <LayoutTemplate size={16} />
-      <span className="text-[12px] font-medium uppercase tracking-widest leading-none mt-0.5">小程序</span>
+      <span className="text-[12px] font-medium uppercase tracking-widest leading-none mt-0.5">{t('chat.messageItems.applet.label')}</span>
     </div>
     <div className="flex items-center gap-2 mb-1">
       {msg.appIcon && <img src={msg.appIcon} className="w-5 h-5 rounded-full" />}
@@ -160,11 +166,14 @@ export const AppletMessageItem: React.FC<BaseProps> = ({ msg }) => (
     <div className="text-[16px] text-gray-100 font-medium line-clamp-2 pb-1">{msg.desc}</div>
     <img src={msg.coverUrl} className="w-full h-36 rounded-lg object-cover" referrerPolicy="no-referrer" />
   </div>
-);
+  );
+};
 
-const LegacyCardMessageItem: React.FC<BaseProps> = ({ msg }) => (
+const LegacyCardMessageItem: React.FC<BaseProps> = ({ msg }) => {
+  const { t } = useTranslation();
+  return (
   <div className="w-[260px] bg-[#2b2b2d] border border-white/10 rounded-xl overflow-hidden mt-1 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => {
-     toast(`已添加 ${msg.fileName} 到通讯录`, 'success');
+     toast(t('chat.messageItems.card.addedToContacts', { name: msg.fileName }), 'success');
   }}>
     <div className="p-4 flex gap-4 border-b border-white/10">
       <Avatar src={msg.appIcon} className="w-12 h-12 rounded-lg bg-[#3b3b3d]" />
@@ -173,18 +182,20 @@ const LegacyCardMessageItem: React.FC<BaseProps> = ({ msg }) => (
         <div className="text-[12px] text-gray-500 truncate mt-0.5">{msg.desc}</div>
       </div>
     </div>
-    <div className="px-4 py-1.5 text-[10px] text-gray-500 uppercase tracking-widest bg-black/20">个人名片</div>
+    <div className="px-4 py-1.5 text-[10px] text-gray-500 uppercase tracking-widest bg-black/20">{t('chat.messageItems.card.personalLabel')}</div>
   </div>
-);
+  );
+};
 
-function formatCardDescription(message: Message): string | undefined {
+function formatCardDescription(message: Message, translate: (key: string) => string): string | undefined {
   if (message.desc?.startsWith('group-invite:')) {
-    return 'Open group chat';
+    return translate('chat.messageItems.card.openGroupChat');
   }
   return message.desc;
 }
 
 export const CardMessageItem: React.FC<BaseProps> = ({ msg, onClick }) => {
+  const { t } = useTranslation();
   if (!onClick) {
     return <LegacyCardMessageItem msg={msg} isMe={false} />;
   }
@@ -199,15 +210,17 @@ export const CardMessageItem: React.FC<BaseProps> = ({ msg, onClick }) => {
         <Avatar src={msg.appIcon} className="w-12 h-12 rounded-lg bg-[#3b3b3d]" />
         <div className="flex flex-col justify-center min-w-0">
           <div className="text-[15px] text-gray-200 truncate">{msg.fileName}</div>
-          <div className="text-[12px] text-gray-500 truncate mt-0.5">{formatCardDescription(msg)}</div>
+          <div className="text-[12px] text-gray-500 truncate mt-0.5">{formatCardDescription(msg, t)}</div>
         </div>
       </div>
-      <div className="px-4 py-1.5 text-[10px] text-gray-500 uppercase tracking-widest bg-black/20">Group Invite</div>
+      <div className="px-4 py-1.5 text-[10px] text-gray-500 uppercase tracking-widest bg-black/20">{t('chat.messageItems.card.groupInviteLabel')}</div>
     </button>
   );
 };
 
-export const FileMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => (
+export const FileMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => {
+  const { t } = useTranslation();
+  return (
   <div className={cn(
     "flex w-[260px] items-center gap-4 px-4 py-3 mt-1 rounded-xl shadow-sm cursor-pointer hover:brightness-110 transition-all",
     isMe ? "bg-[#00b42a] text-white" : "bg-[#2b2b2d] text-gray-200 border border-white/5 hover:bg-white/5"
@@ -219,9 +232,9 @@ export const FileMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => (
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        toast(`开始下载文件: ${msg.fileName}`, 'success');
+        toast(t('chat.messageItems.file.downloadStarted', { name: msg.fileName }), 'success');
     } else {
-        toast(`未找到文件资源: ${msg.fileName}`, 'error');
+        toast(t('chat.messageItems.file.resourceNotFound', { name: msg.fileName }), 'error');
     }
   }}>
     <div className="flex-1 min-w-0">
@@ -232,7 +245,8 @@ export const FileMessageItem: React.FC<BaseProps> = ({ msg, isMe }) => (
       <FileText size={20} className={isMe ? "text-white" : "text-indigo-400"} />
     </div>
   </div>
-);
+  );
+};
 
 export const MusicMessageItem: React.FC<BaseProps & { allMessages?: Message[] }> = ({ msg, isMe, allMessages = [] }) => {
   const [playerState, setPlayerState] = useState<PlayerState>(musicService.getState());

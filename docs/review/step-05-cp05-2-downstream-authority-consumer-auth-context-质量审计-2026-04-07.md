@@ -2,13 +2,13 @@
 
 ## 1. 审计范围
 
-- `services/local-minimal-node/src/node/effects.rs`
-- `services/local-minimal-node/src/node/membership.rs`
-- `services/local-minimal-node/src/node/message.rs`
-- `services/local-minimal-node/src/node/access.rs`
+- `services/sdkwork-im-gateway/src/node/effects.rs`
+- `services/sdkwork-im-gateway/src/node/membership.rs`
+- `services/sdkwork-im-gateway/src/node/message.rs`
+- `services/sdkwork-im-gateway/src/node/access.rs`
 - `services/conversation-runtime/src/runtime.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ## 2. 审计结论
 
@@ -34,7 +34,7 @@
   - stream actor_kind mismatch
 - fresh full verification 已覆盖：
   - `conversation-runtime`
-  - `local-minimal-node`
+  - `sdkwork-im-server`
 
 ## 4. 风险与后续
 

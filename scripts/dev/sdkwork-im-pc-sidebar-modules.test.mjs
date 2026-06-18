@@ -125,8 +125,8 @@ assert.match(
 );
 assert.match(
   settingsServiceSource,
-  /from\s+["']@sdkwork\/im-pc-shell["']/u,
-  'SettingsService must import the module catalog from shell',
+  /from\s+["']@sdkwork\/im-pc-shell\/moduleRegistry["']/u,
+  'SettingsService must import the module catalog from shell moduleRegistry',
 );
 assert.match(
   settingsServiceSource,
@@ -145,8 +145,18 @@ assert.match(
 );
 assert.match(
   devServerSource,
-  /app\.get\(["']\/api\/config\/modules["'][\s\S]*modules:\s*\[[\s\S]*["']notary["'][\s\S]*\]/u,
-  'Dev server configuration center simulation must retain notary in the module catalog',
+  /handleSdkworkChatLocalApiRequest/u,
+  'Dev server must delegate shell endpoints to local-api instead of duplicating AI Studio routes',
+);
+assert.doesNotMatch(
+  localApiSource,
+  /GEMINI_API_KEY|AI Studio|@google\/genai/u,
+  'local-api must not retain AI Studio or Gemini scaffold dependencies',
+);
+assert.doesNotMatch(
+  devServerSource,
+  /GEMINI_API_KEY|AI Studio|@google\/genai/u,
+  'dev server must not retain AI Studio or Gemini scaffold dependencies',
 );
 assert.doesNotMatch(
   notaryAccessServiceSource,
@@ -323,8 +333,8 @@ assert.match(
 );
 assert.match(
   workspaceServiceSource,
-  /resolve\(\[\.\.\.workspaceAppCatalog\]\)/u,
-  'Workspace app catalog must return a copy so callers cannot mutate the required notary entry out of the catalog',
+  /return mergeApps\(buildCatalogApps\(enabledModules\), readStoredApps\(\)\)/u,
+  'Workspace getApps must merge enabled catalog apps with stored optional entries',
 );
 assert.match(
   workspaceServiceSource,
@@ -338,8 +348,8 @@ assert.match(
 );
 assert.match(
   workspaceServiceSource,
-  /existingIndex[\s\S]*workspaceAppCatalog\.findIndex\([\s\S]*?\.id\s*===\s*app\.id[\s\S]*existingIndex\s*>\s*-1/u,
-  'Workspace addApp must update existing optional app entries instead of duplicating app ids',
+  /async addApp\(app: AppItem\)[\s\S]*storedApps = readStoredApps\(\)\.filter\([\s\S]*item\.id !== app\.id[\s\S]*storedApps\.push\(app\)/u,
+  'Workspace addApp must persist optional app entries in local storage without duplicating app ids',
 );
 assert.match(
   workspaceViewSource,

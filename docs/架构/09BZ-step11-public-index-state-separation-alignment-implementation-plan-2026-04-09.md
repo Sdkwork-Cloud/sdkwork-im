@@ -8,7 +8,7 @@
 
 - Reproduce the missing split-state wording with a failing public-index regression test.
 - Add the same current-state summary to repository, deployment, review, architecture, and step index docs.
-- Re-run the targeted test, the full Step 11 catalog test file, formatting, and the `local-minimal-node` offline suite.
+- Re-run the targeted test, the full Step 11 catalog test file, formatting, and the `sdkwork-im-server` offline suite.
 
 ## Boundary
 

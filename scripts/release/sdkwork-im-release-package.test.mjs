@@ -314,7 +314,7 @@ try {
   const outputDir = path.join(validatorTempRoot, 'out');
   writeFixture(serverStage, 'bin/sdkwork-im-server.exe', 'server');
   writeFixture(serverStage, 'config/chat.toml.example', '[server]\nbind_address = "127.0.0.1:18080"\n');
-  writeFixture(serverStage, 'config/server.env.example', 'SDKWORK_IM_SERVER_BIND=127.0.0.1:18080\n');
+  writeFixture(serverStage, 'config/server.env.example', 'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=127.0.0.1:18080\n');
   writeFixture(serverStage, 'config/postgresql.yaml.example', 'engine: postgresql');
   writeFixture(serverStage, 'INSTALL.md', '# install');
   writeFixture(serverStage, 'install-manifest.json', '{"product":"chat"}');
@@ -430,9 +430,9 @@ for (const expectedText of [
   'SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat',
   'SDKWORK_IM_RUN_DIR=/run/sdkwork/chat',
   'SDKWORK_IM_ID_NODE_ID=1',
-  'SDKWORK_IM_SERVER_BASE_URL=https://chat.example.com/sdkwork/chat',
-  'SDKWORK_IM_SERVER_API_BASE_URL=https://chat.example.com/sdkwork/chat',
-  'SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=wss://chat.example.com/sdkwork/chat',
+  'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com',
+  'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
+  'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com',
   'SDKWORK_IM_ADMIN_SITE_DIR=/opt/sdkwork/chat/web/sdkwork-im-pc/dist',
 ]) {
   assert.match(linuxGeneratedEnv, new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
@@ -442,10 +442,10 @@ assert.doesNotMatch(linuxGeneratedEnv, /\/etc\/sdkwork-im\/default|\/opt\/sdkwor
 const serverYamlTemplate = readText('deployments', 'templates', 'chat.toml.example');
 for (const expectedText of [
   'config_file = "/etc/sdkwork/chat/chat.toml"',
-  'base_url = "https://chat.example.com/sdkwork/chat"',
-  'api_base_url = "https://chat.example.com/sdkwork/chat"',
-  'websocket_base_url = "wss://realtime.example.com/sdkwork/chat"',
-  'docs_base_url = "https://chat.example.com/sdkwork/chat/docs"',
+  'base_url = "https://im.sdkwork.com"',
+  'api_base_url = "https://im.sdkwork.com"',
+  'websocket_base_url = "wss://im.sdkwork.com"',
+  'docs_base_url = "https://im.sdkwork.com/docs"',
   'data_directory = "/var/lib/sdkwork/chat"',
   'log_directory = "/var/log/sdkwork/chat"',
   'runtime_directory = "/run/sdkwork/chat"',

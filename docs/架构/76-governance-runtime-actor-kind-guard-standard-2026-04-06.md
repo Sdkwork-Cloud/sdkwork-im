@@ -85,7 +85,7 @@ All public or semi-public adapters must pass raw ingress actor kind into runtime
 This includes:
 
 - `services/conversation-runtime` HTTP handlers
-- `services/local-minimal-node` governance handlers
+- `services/sdkwork-im-gateway` governance handlers
 - future gateway or cluster-facing governance adapters
 
 Adapters must not normalize or rewrite actor kind before runtime authorization.

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const expectedDependencyIds = [
+  'sdkwork-app-topology',
   'sdkwork-appbase',
   'sdkwork-core',
   'sdkwork-database',
@@ -17,9 +18,7 @@ const expectedDependencyIds = [
   'sdkwork-sdk-commons',
   'sdkwork-sdk-generator',
 ];
-const siblingDependencyAliases = {
-  'sdkwork-rtc-im-compat': 'sdkwork-rtc',
-};
+const siblingDependencyAliases = {};
 const sourceDependencyFiles = [
   'package.json',
   'Cargo.toml',
@@ -33,11 +32,7 @@ const sourceDependencyFiles = [
   'apps/sdkwork-im-pc/vite.config.ts',
   'crates/im-domain-core/Cargo.toml',
   'crates/im-platform-contracts/Cargo.toml',
-  'services/local-minimal-node/Cargo.toml',
-  'services/local-minimal-node/tests/commercial_gate_contract_test.rs',
-  'services/local-minimal-node/tests/openapi_im_v3_contract_test.rs',
-  'scripts/prepare-ci-dependencies.mjs',
-  'scripts/run-local-minimal.mjs',
+  'services/sdkwork-im-gateway/Cargo.toml',
   'artifacts/releases/sync-sdk-release-catalog.mjs',
   'sdks/sdkwork-im-app-sdk/bin/verify-flutter-composed-workspace.mjs',
   'sdks/sdkwork-im-app-sdk/sdkwork-im-app-sdk-flutter/composed/pubspec_overrides.yaml',
@@ -246,12 +241,12 @@ function assertSharedGatewayFoundationIntegration() {
     'specs/component.spec.json foundationApiGateway.targetMode must be shared-gateway',
   );
   assert(
-    foundationGateway?.commonSdkRootEnv === 'SDKWORK_IM_SERVER_API_BASE_URL',
-    'specs/component.spec.json must use SDKWORK_IM_SERVER_API_BASE_URL as the server common SDK root',
+    foundationGateway?.commonSdkRootEnv === 'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
+    'specs/component.spec.json must use SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL as the server platform SDK root',
   );
   assert(
-    foundationGateway?.browserSdkRootEnv === 'VITE_SDKWORK_IM_APP_API_BASE_URL',
-    'specs/component.spec.json must use VITE_SDKWORK_IM_APP_API_BASE_URL as the browser app-api gateway root',
+    foundationGateway?.browserSdkRootEnv === 'VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
+    'specs/component.spec.json must use VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL as the browser platform SDK root',
   );
   assert(
     foundationGateway?.authority === 'cargo-workspace',
@@ -302,10 +297,8 @@ function assertSharedGatewayFoundationIntegration() {
   }
 
   const rootCargoSource = readText('Cargo.toml');
-  const localMinimalCargoSource = readText('services/local-minimal-node/Cargo.toml');
   for (const [relativePath, source] of [
     ['Cargo.toml', rootCargoSource],
-    ['services/local-minimal-node/Cargo.toml', localMinimalCargoSource],
   ]) {
     for (const dependencyName of [
       'sdkwork-agent-business',
@@ -320,41 +313,6 @@ function assertSharedGatewayFoundationIntegration() {
       );
     }
   }
-
-  const localMinimalNodeSource = readText('services/local-minimal-node/src/node.rs');
-  for (const marker of [
-    'mod aiot_bridge;',
-    'sdkwork_aiot_http_api',
-    'aiot_app_api_server',
-    'aiot_backend_api_server',
-  ]) {
-    assert(
-      !localMinimalNodeSource.includes(marker),
-      `services/local-minimal-node/src/node.rs must not keep product-local foundation API runtime marker ${marker}`,
-    );
-  }
-
-  const localMinimalBuildSource = readText('services/local-minimal-node/src/node/build.rs');
-  for (const marker of [
-    'sdkwork_agent_business',
-    'build_local_agent_app_router',
-    'standard_app_api_server',
-    'standard_admin_api_server',
-    'aiot_bridge::',
-    '/app/v3/api/ai',
-    '/backend/v3/api/ai',
-    '/app/v3/api/iot',
-    '/backend/v3/api/iot',
-  ]) {
-    assert(
-      !localMinimalBuildSource.includes(marker),
-      `services/local-minimal-node/src/node/build.rs must not keep product-local foundation API runtime marker ${marker}`,
-    );
-  }
-  assert(
-    !fs.existsSync(path.join(repoRoot, 'services/local-minimal-node/src/node/aiot_bridge.rs')),
-    'services/local-minimal-node/src/node/aiot_bridge.rs must be removed; AIoT API traffic belongs to sdkwork-api-gateway',
-  );
 
   const dependencyApiSurfaces = componentSpec.contracts?.dependencyApiSurfaces ?? [];
   const sharedGatewaySurfaceIds = dependencyApiSurfaces

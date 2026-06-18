@@ -1,10 +1,10 @@
 //! Reaction API handlers.
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::http::AppState;
 
@@ -23,7 +23,9 @@ pub async fn add_reaction(
     // For now, return success
     tracing::info!(
         "Adding reaction {} to message {} in conversation {}",
-        emoji, message_id, conversation_id
+        emoji,
+        message_id,
+        conversation_id
     );
     Ok(StatusCode::NO_CONTENT)
 }
@@ -35,7 +37,9 @@ pub async fn remove_reaction(
     // TODO: Implement database delete
     tracing::info!(
         "Removing reaction {} from message {} in conversation {}",
-        emoji, message_id, conversation_id
+        emoji,
+        message_id,
+        conversation_id
     );
     Ok(StatusCode::NO_CONTENT)
 }
@@ -47,7 +51,8 @@ pub async fn list_reactions(
     // TODO: Implement database query
     tracing::info!(
         "Listing reactions for message {} in conversation {}",
-        message_id, conversation_id
+        message_id,
+        conversation_id
     );
     Ok(Json(Vec::<ReactionResponse>::new()))
 }

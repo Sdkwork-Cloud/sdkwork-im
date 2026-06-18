@@ -148,7 +148,7 @@ function parseGenerateArgs(prefix, argv) {
   const parsed = {
     languages: [],
     fixedSdkVersion: '',
-    baseUrl: 'http://127.0.0.1:18090',
+    baseUrl: 'http://127.0.0.1:18079',
     schemaUrl: '',
     refreshLive: false,
   };

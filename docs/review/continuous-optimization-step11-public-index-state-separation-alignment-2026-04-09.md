@@ -33,16 +33,16 @@
 Red:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_separates_pre_release_and_capacity_current_states_in_public_indexes -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_separates_pre_release_and_capacity_current_states_in_public_indexes -- --exact --nocapture
 ```
 
 Green:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_separates_pre_release_and_capacity_current_states_in_public_indexes -- --exact --nocapture
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_separates_pre_release_and_capacity_current_states_in_public_indexes -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test -- --nocapture
 cargo fmt --all --check
-cargo test -p local-minimal-node --offline -- --nocapture
+cargo test -p sdkwork-im-gateway --offline -- --nocapture
 ```
 
 ## Result

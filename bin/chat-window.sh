@@ -86,7 +86,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 read_config_value() {
   local key="$1"
-  local config_file="$script_dir/../.runtime/local-minimal/config/local-minimal.env"
+  local config_file="$script_dir/../configs/topology/self-hosted.split-services.development.env"
   [[ -f "$config_file" ]] || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
     line="${line%$'\r'}"
@@ -106,10 +106,17 @@ resolve_base_url() {
     return 0
   fi
 
+  local http_url
+  http_url="$(read_config_value SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL || true)"
+  if [[ -n "$http_url" ]]; then
+    base_url="${http_url%/}"
+    return 0
+  fi
+
   local bind_address
-  bind_address="$(read_config_value SDKWORK_IM_BIND_ADDR || true)"
+  bind_address="$(read_config_value SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND || true)"
   if [[ -z "$bind_address" ]]; then
-    base_url="http://127.0.0.1:18090"
+    base_url="http://127.0.0.1:18079"
     return 0
   fi
 

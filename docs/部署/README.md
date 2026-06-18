@@ -1,86 +1,62 @@
 # 部署文档
 
-- [快速启动脚本](./快速启动脚�?md)
-  - 面向当前 `bin/` 统一入口
-  - 适合本地快速安装、Docker 部署、后台启�?
-- [多环境Profile与配置模板](./多环境Profile与配置模�?md)
-  - 冻结当前已存在的 profile 边界与模板资�?
-  - 区分 `local-minimal`、`local-default` 与后续规划中的多环境 profile
-- [本地最小安装与运行](./本地最小安装与运行.md)
-  - 面向 `local-minimal` profile 的完整说�?
-  - 包含接口验证、示例调用、能力边界与 HS256 cursor signing 合同
-- [local-default发布后验证样本](./local-default发布后验证样�?md)
-  - 冻结 `local-default` profile 的最�?post-release 验证口径
-  - 覆盖 deploy/status/smoke/chat/runtime ops 的对称样�?
-- [local-default发布后验证执行记录模板](./local-default发布后验证执行记录模�?md)
-  - 面向 operator 的可填写记录模板
-  - 用于归档 `local-default` post-release 验证证据
-- [兼容矩阵与SDK-CLI-operator验证索引](./兼容矩阵与SDK-CLI-operator验证索引.md)
-  - �?`compatibility matrix`、SDK facade、CLI/operator 与验证入口收敛到一个索引页
-- [性能与灾备演练场景](./性能与灾备演练场�?md)
-  - 公开 `CI Smoke Tier / Pre-Release Tier / Capacity Tier` 三层演练矩阵
-  - 包含 `tools/perf/step-11-pre-release-tier-gate.json` �?`tools/perf/step-11-capacity-tier-gate.json`
-  - Step 11 catalog 入口�?`tools/perf/step-11-scenario-catalog.json`，高�?`artifactRoot` �?`artifacts/perf/step-11/pre-release` �?`artifacts/perf/step-11/capacity`，当前仅冻结未来归档根目�?
-  - 对应 schema �?`tools/perf/schemas/step-11-scenario-catalog.schema.json` �?`tools/perf/schemas/step-11-tier-gate.schema.json`
-  - 高阶 gate 还冻�?`collectionSummary`、`evidenceSlots`、`pending_collection`、`checksumSha256` �?evidence-slot 契约字段，当前仍待真实采集回�?
-  - `collectionSummary` 公开 `totalSlots`、`requiredSlots`、`optionalSlots`、`collectedSlots`、`pendingSlots`、`skippedOptionalSlots` 六个统计字段
-  - 当前冻结值为 `totalSlots = 7`、`requiredSlots = 7`、`optionalSlots = 0`、`collectedSlots = 0`、`pendingSlots = 7`、`skippedOptionalSlots = 0`
-  - evidence slot 元数据还包含 `artifactPath`、`suggestedRelativePath`、`collectedAt`、`sizeBytes` 等回填字段，用于后续真实证据采集
-  - evidence slot 语义字段还包�?`scenarioFamily`、`required`、`reportId`，用于区分场景槽位与报告槽位
-  - 最小示例值统一冻结�?`scenarioFamily = connection` / `scenarioFamily = failover`、`required = true`、`reportId = capacity_report` / `reportId = recovery_report`
-  - `reportId` �?`artifactKind` 的对应关系包�?`capacity_report -> report_markdown`、`recovery_report -> report_markdown`
-  - `reportId` 与建议路径的对应关系包括 `capacity_report -> reports/capacity-report.md`、`recovery_report -> reports/recovery-report.md`
-  - `reportId` �?`requiredSections` 的对应关系包�?`capacity_report -> input_scale / throughput_summary / tail_latency_summary`、`recovery_report -> recovery_window / rto_rpo_summary / operator_follow_up`
-  - `suggestedRelativePath` 示例包括 `connection/metrics.json`、`failover/drill.json`、`reports/capacity-report.md`、`reports/recovery-report.md`
-  - Capacity Tier 额外示例路径包括 `connection/capacity.json`、`restore-recovery/recovery.json`、`failover/recovery.json`
-  - Capacity Tier 剩余 capacity 路径示例包括 `message/capacity.json`、`stream/capacity.json`
-  - evidence slot 还冻结主�?`id`，代表值包�?`connection_metrics`、`connection_capacity`、`failover_recovery`
-  - Capacity Tier 其余代表�?slot id 还包�?`message_capacity`、`stream_capacity`、`restore_recovery_recovery`
-  - Pre-Release Tier collected slot examples now include `message_metrics` and `stream_metrics`
-  - Pre-Release Tier collected path examples now include `message/metrics.json` and `stream/metrics.json`
-  - Pre-Release Tier current state is now `evidence_collected_gate_blocked`
-  - Capacity Tier current state is now `evidence_collected_gate_passed`
-  - Both Step 11 tier artifact roots now carry truthful local evidence; dedicated topology runs still gate full commercial sign-off.
-  - evidence slot 还公开 `artifactKind`，代表值包�?`metrics_json`、`drill_json`、`capacity_json`、`recovery_json`、`report_markdown`
-  - 机器契约还冻�?`requiredFields` / `requiredSections`，示例值包�?`runId`、`connectP95Ms`、`input_scale`、`operator_follow_up`
-  - 额外字段示例包括 `messageTps`、`frameP95Ms`、`recovery_window`、`rto_rpo_summary`
-  - report section 代表值还包括 `throughput_summary`、`tail_latency_summary`、`recovery_window`、`operator_follow_up`
-  - 更细一级字段示例还包括 `fanoutP95Ms`、`streamFramesPerSecond`、`previewDiffAccuracy`、`rollbackActivationSeconds`
-  - drill / rollback 字段示例还包�?`drainCompletionSeconds`、`restoreRtoSeconds`、`compatibilityMatrixPassRate`、`postRollbackProtocolErrorRate`
-  - `artifactKind` 与代表字�?section 的对应关系包�?`metrics_json -> connectP95Ms / messageTps / frameP95Ms`、`drill_json -> drainCompletionSeconds / rollbackActivationSeconds`、`capacity_json -> fanoutP95Ms / streamFramesPerSecond`、`recovery_json -> restoreRtoSeconds / previewDiffAccuracy`、`report_markdown -> throughput_summary / rto_rpo_summary`
-  - `artifactKind` 与建议路径的对应关系包括 `metrics_json -> connection/metrics.json / message/metrics.json`、`drill_json -> failover/drill.json / restore-recovery/drill.json`、`capacity_json -> connection/capacity.json / message/capacity.json`、`recovery_json -> failover/recovery.json / restore-recovery/recovery.json`、`report_markdown -> reports/capacity-report.md / reports/recovery-report.md`
-  - `artifactKind` 与代表�?`slot id` 的对应关系包�?`metrics_json -> connection_metrics / message_metrics`、`drill_json -> failover_drill / restore_recovery_drill`、`capacity_json -> connection_capacity / message_capacity`、`recovery_json -> failover_recovery / restore_recovery_recovery`、`report_markdown -> capacity_report / recovery_report`
-  - `artifactKind` �?`requiredFields / requiredSections` 的对应关系包�?`metrics_json -> runId / connectionCount / successCount`、`drill_json -> runId / drainCompletionSeconds / takeoverDurationMs`、`capacity_json -> runId / peakActiveConnections / messageTps`、`recovery_json -> runId / restoreRtoSeconds / staleSessionRejectionRate`、`report_markdown -> input_scale / throughput_summary / operator_follow_up`
-  - `requiredScenarioFamilies = connection / message / stream / drain-rebalance / restore-recovery / failover / upgrade-rollback`
-  - `requiredScenarioFamilies = connection / message / stream / restore-recovery / failover`
-  - `requiredReports = capacity_report / recovery_report`
-  - `requiredOutputs` �?`scenarioFamily -> artifactKind -> requiredFields` tuple 冻结最小输出契约，代表项包�?`connection -> metrics_json -> runId / connectionCount / successCount`、`restore-recovery -> recovery_json -> runId / restoreRtoSeconds / dataLossRpoEvents / previewDiffAccuracy`
-  - `operatorDocPath = docs/部署/性能与灾备演练场景.md`，`scenarioCatalogPath = tools/perf/step-11-scenario-catalog.json`
-  - `profile = local-default / capacity-dedicated`
-  - `reviewBackwrite = docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md / docs/review/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md / docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md / docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md`
-  - `scenarioFamily` �?`artifactKind` 的对应关系包�?`connection -> metrics_json / capacity_json`、`failover -> drill_json / recovery_json`、`restore-recovery -> drill_json / recovery_json`
-  - `scenarioFamily` �?`requiredFields / requiredSections` 的对应关系包�?`connection -> runId / connectP95Ms`、`failover -> runId / takeoverDurationMs`、`restore-recovery -> runId / restoreRtoSeconds / previewDiffAccuracy`
-  - `scenarioFamily` �?slot id 的对应关系包�?`connection -> connection_metrics / connection_capacity`、`failover -> failover_drill / failover_recovery`、`restore-recovery -> restore_recovery_drill / restore_recovery_recovery`
-  - 代表�?`slot id` �?`artifactKind` 的对应关系包�?`connection_metrics -> metrics_json`、`failover_drill -> drill_json`、`restore_recovery_recovery -> recovery_json`
-  - 代表�?`slot id` �?`requiredFields / requiredSections` 的对应关系包�?`connection_metrics -> runId / connectP95Ms`、`failover_drill -> runId / takeoverDurationMs`、`capacity_report -> input_scale / throughput_summary / tail_latency_summary`
-  - `scenarioFamily` 与建议路径的对应关系包括 `connection -> connection/metrics.json / connection/capacity.json`、`failover -> failover/drill.json / failover/recovery.json`、`restore-recovery -> restore-recovery/drill.json / restore-recovery/recovery.json`
-  - 代表�?`slot id` 与建议路径的对应关系包括 `connection_metrics -> connection/metrics.json`、`failover_drill -> failover/drill.json`、`restore_recovery_recovery -> restore-recovery/recovery.json`
-  - 默认命名关系�?`artifactPath = artifactRoot + "/" + suggestedRelativePath`
-  - 在真实采集前，`artifactPath`、`collectedAt`、`sizeBytes`、`checksumSha256` 继续保持 `null`
-  - 当前状态为 `template_only_pending_execution`，默认预发布 profile �?`local-default`，目标容量环境为 `capacity-dedicated`
-- [Release bundle 归档约定](../../artifacts/releases/README.md)
-  - 冻结发布物目录、版本归档与最小可审计 manifest 结构
-## Server Edition
+Topology v2 是唯一的部署标准。权威来源：
 
-- [server版本安装与初始化](./server版本安装与初始化.md)
-  - formal `sdkwork-im-server` install entry
-  - covers `install-server`, `init-config-server`, `init-storage-server`, `verify-server`, `plan-release-server`
-  - explains why `sdkwork-im-gateway` is the default external entrypoint
-- [server版本配置与PostgreSQL接入](./server版本配置与PostgreSQL接入.md)
-  - explains the external PostgreSQL configuration file workflow
-  - covers `verify-only`, `bootstrap-schema`, and `create-db-and-schema`
-- [server版本service托管标准](./server版本service托管标准.md)
-  - freezes `systemd`, `launchd`, and Windows Service targets
-  - standard service identity is `sdkwork-im-server`
+- `specs/topology.spec.json`
+- `configs/topology/*.env`
+- [docs/topology-greenfield.md](../topology-greenfield.md)
+
+## 开发入口
+
+```bash
+pnpm install
+pnpm im:dev              # self-hosted.split-services.development
+pnpm im:dev:unified      # 单进程 smoke
+pnpm server:dev          # 仅服务端
+```
+
+默认 application ingress：`http://127.0.0.1:18079`
+
+## 生产安装
+
 - [源码部署](./源码部署.md)
-  - source checkout build and start workflow via `pnpm run server:source:build` and `server:source:start`
+- [server版本安装与初始化](./server版本安装与初始化.md)
+- [server版本配置与PostgreSQL接入](./server版本配置与PostgreSQL接入.md)
+- [server版本service托管标准](./server版本service托管标准.md)
+
+## 数据库
+
+- [开发环境PostgreSQL数据库配置教程](./开发环境PostgreSQL数据库配置教程.md)
+- [线上环境PostgreSQL数据库配置教程](./线上环境PostgreSQL数据库配置教程.md)
+
+## 验证与矩阵
+
+- [CLI聊天验证与兼容矩阵](./CLI聊天验证与兼容矩阵.md)
+- [兼容矩阵与SDK-CLI-operator验证索引](./兼容矩阵与SDK-CLI-operator验证索引.md)
+
+## 性能与灾备
+
+- [性能与灾备演练场景](./性能与灾备演练场景.md)
+- Step 11 catalog：`tools/perf/step-11-scenario-catalog.json`
+
+## Release
+
+- [Release bundle 归档约定](../../artifacts/releases/README.md)
+
+## 已退役
+
+旧版 profile、compose 与本地 lifecycle 脚本已删除，详见 [topology-greenfield.md](../topology-greenfield.md)。
+
+## 验证命令
+
+与根 [README.md](../../README.md) 一致：
+
+```bash
+pnpm test:topology-baggage
+pnpm test:runtime-standard
+pnpm test:workflow-commercial-gates
+pnpm test:sdkwork-im-pc-dev-command
+cargo test -p sdkwork-im-cli --test chat_cli_contract_test
+node sdks/test/verify-im-v3-sdk-family-contract.test.mjs
+node scripts/dev/sdkwork-im-rtc-signaling-boundary.test.mjs
+```

@@ -6,7 +6,7 @@
 
 - Affected services:
   - `services/session-gateway`
-  - `services/local-minimal-node`
+  - `services/sdkwork-im-gateway`
 - Root cause:
   - the previous review wave made `bind_client_route(...)` perform runtime state handoff for cross-node `latest bind wins`
   - that implementation required the previous owner runtime to still exist
@@ -14,7 +14,7 @@
     - `409 node_runtime_missing`
   - both gateway stacks call route bind during client route registration / resume-related flows:
     - `services/session-gateway/src/lib.rs`
-    - `services/local-minimal-node/src/lib.rs`
+    - `services/sdkwork-im-gateway/src/lib.rs`
 
 ## 2. Impact
 

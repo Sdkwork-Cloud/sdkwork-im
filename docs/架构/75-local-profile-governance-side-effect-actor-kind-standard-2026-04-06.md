@@ -8,7 +8,7 @@ Local side effects must not trust `auth.actor_kind` when the runtime can resolve
 
 ## 2. Scope
 
-This standard applies to `local-minimal-node` side effects for:
+This standard applies to `sdkwork-im-server` side effects for:
 
 - `conversation.member_joined`
 - `conversation.member_removed`

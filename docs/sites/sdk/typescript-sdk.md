@@ -665,7 +665,7 @@ for presence, realtime coordination, inbox, or stream transport.
 import { ImSdkClient } from '@sdkwork/im-sdk';
 
 const sdk = new ImSdkClient({
-  baseUrl: 'http://127.0.0.1:18090',
+  baseUrl: 'http://127.0.0.1:18079',
   authToken: 'token',
 });
 

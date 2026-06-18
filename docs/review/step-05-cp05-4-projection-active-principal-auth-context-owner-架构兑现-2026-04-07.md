@@ -11,7 +11,7 @@
 ## 2. 本轮架构兑现
 
 - `projection-service::access` 新增 `active_conversation_principal_ids_from_auth_context(...)`
-- `local-minimal-node/effects.rs` 的 `conversation_member_principal_ids_from_auth_context(...)` 统一消费这条 seam
+- `sdkwork-im-server/effects.rs` 的 `conversation_member_principal_ids_from_auth_context(...)` 统一消费这条 seam
 - conversation-scoped notification / realtime side-effect 不再直接依赖 runtime member roster 解析 recipient principals
 
 ## 3. 当前决议

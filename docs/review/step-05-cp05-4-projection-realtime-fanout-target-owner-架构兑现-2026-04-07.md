@@ -11,12 +11,12 @@
 - `docs/架构/139-权限能力模型与协议演进设计-2026-04-06.md`
   - principal / client route fanout target 的权威字段边界应由单一 owner 提供
 - `docs/架构/147-CCP到Crate与接口模块落地映射设计-2026-04-06.md`
-  - projection realtime fanout target seam 应映射到 `projection-service`，而不是由 `local-minimal-node` 本地重建
+  - projection realtime fanout target seam 应映射到 `projection-service`，而不是由 `sdkwork-im-server` 本地重建
 
 ## 2. 已兑现
 
 - `projection-service` 现在拥有 `RealtimeFanoutTarget` 与 `realtime_fanout_targets_for_principals(...)`
-- `local-minimal-node` realtime side-effect 路径已经改为消费 projection owner seam
+- `sdkwork-im-server` realtime side-effect 路径已经改为消费 projection owner seam
 - projection-side principal -> device realtime fanout target drift 已开始收口
 
 ## 3. 未兑现
@@ -28,7 +28,7 @@
 ## 4. 偏离判断
 
 - 无新的架构偏离
-- 本轮没有在 `local-minimal-node` 再造第二套 principal -> device realtime fanout target 规则
+- 本轮没有在 `sdkwork-im-server` 再造第二套 principal -> device realtime fanout target 规则
 - 本轮严格属于 `CP05-4` 的 projection/client route fanout owner 收口增量
 
 ## 5. 回写决议

@@ -1,10 +1,19 @@
+import {
+  DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL,
+  DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  DEFAULT_LOCAL_PLATFORM_API_GATEWAY_HTTP_URL,
+  VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
+} from './topologyEnvKeys';
+
 const SDKWORK_APP_API_PREFIX = '/app/v3/api';
 const SDKWORK_BACKEND_API_PREFIX = '/backend/v3/api';
 const SDKWORK_IM_API_PREFIX = '/im/v3/api';
 const SDKWORK_IM_REALTIME_WEBSOCKET_PATH = '/im/v3/api/realtime/ws';
 
 type RuntimeImportMetaEnv = Record<string, string | boolean | undefined> & {
-  DEV?: boolean | string;
+  DEV?: boolean | 'true' | 'false';
 };
 
 function readRuntimeImportMetaEnv(): RuntimeImportMetaEnv {
@@ -130,7 +139,7 @@ export function resolveSameOriginWebSocketBaseUrl(): string | undefined {
   return `${protocol === 'https:' ? 'wss' : 'ws'}://${host}`;
 }
 
-function resolveLocalDevBaseUrl(value: string): string | undefined {
+function resolveLocalDevPlatformBaseUrl(): string | undefined {
   if (hasViteImportMetaEnv()) {
     if (!import.meta.env.DEV) {
       return undefined;
@@ -138,7 +147,18 @@ function resolveLocalDevBaseUrl(value: string): string | undefined {
   } else if (!isSdkRuntimeDev()) {
     return undefined;
   }
-  return value;
+  return DEFAULT_LOCAL_PLATFORM_API_GATEWAY_HTTP_URL;
+}
+
+function resolveLocalDevApplicationHttpBaseUrl(): string | undefined {
+  if (hasViteImportMetaEnv()) {
+    if (!import.meta.env.DEV) {
+      return undefined;
+    }
+  } else if (!isSdkRuntimeDev()) {
+    return undefined;
+  }
+  return DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL;
 }
 
 export function deriveWebSocketBaseUrlFromHttpBaseUrl(value: string | undefined): string | undefined {
@@ -157,46 +177,52 @@ export function deriveWebSocketBaseUrlFromHttpBaseUrl(value: string | undefined)
 
 export function resolveAppbaseAppApiBaseUrl(): string | undefined {
   return readSdkBaseUrlEnvValue('VITE_SDKWORK_IAM_APP_API_BASE_URL')
+    ?? readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL)
     ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_APPBASE_APP_API_BASE_URL')
     ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_SDK_BASE_URL')
-    ?? resolveLocalDevBaseUrl('http://127.0.0.1:3900')
+    ?? resolveLocalDevPlatformBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
 }
 
 export function resolveProductAppApiBaseUrl(): string | undefined {
-  return readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_APP_API_BASE_URL')
+  return readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL)
     ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_SDK_BASE_URL')
-    ?? resolveLocalDevBaseUrl('http://127.0.0.1:3900')
+    ?? resolveLocalDevPlatformBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
 }
 
 export function resolveImApiBaseUrl(): string | undefined {
-  return readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_IM_API_BASE_URL')
+  return readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL)
     ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_SDK_BASE_URL')
-    ?? resolveLocalDevBaseUrl('http://127.0.0.1:3900')
+    ?? resolveLocalDevApplicationHttpBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
 }
 
 export function resolveProductBackendApiBaseUrl(): string | undefined {
   return readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_BACKEND_API_BASE_URL')
-    ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_SDK_BASE_URL')
-    ?? resolveLocalDevBaseUrl('http://127.0.0.1:3900')
+    ?? readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL)
+    ?? resolveLocalDevPlatformBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
 }
 
 export function resolveAppbaseBackendApiBaseUrl(): string | undefined {
   return readSdkBaseUrlEnvValue('VITE_SDKWORK_IAM_BACKEND_API_BASE_URL')
+    ?? readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL)
     ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_APPBASE_BACKEND_API_BASE_URL')
-    ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_SDK_BASE_URL')
-    ?? resolveLocalDevBaseUrl('http://127.0.0.1:3900')
+    ?? resolveLocalDevPlatformBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
 }
 
 export function resolveImWebSocketBaseUrl(): string | undefined {
-  const explicitBaseUrl = readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL');
-  return explicitBaseUrl
-    ?? deriveWebSocketBaseUrlFromHttpBaseUrl(readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_IM_API_BASE_URL'))
-    ?? resolveLocalDevBaseUrl('ws://127.0.0.1:18079')
+  const explicitBaseUrl = readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL);
+  if (explicitBaseUrl) {
+    return normalizeWebSocketSdkBaseUrl(explicitBaseUrl);
+  }
+  return deriveWebSocketBaseUrlFromHttpBaseUrl(
+    readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL),
+  )
+    ?? (resolveLocalDevApplicationHttpBaseUrl()
+      ? DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL
+      : undefined)
     ?? resolveSameOriginWebSocketBaseUrl();
 }
-

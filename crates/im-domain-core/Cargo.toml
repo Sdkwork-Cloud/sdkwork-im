@@ -7,4 +7,4 @@ version.workspace = true
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
-sdkwork-rtc-core.workspace = true
+sdkwork-communication-rtc-service.workspace = true

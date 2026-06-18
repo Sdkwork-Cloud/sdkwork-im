@@ -12,8 +12,6 @@ import type {
 import { getDriveAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/driveAppSdkClient';
 import {
   readAppSdkSessionTokens,
-  resolveAppSdkOrganizationId,
-  resolveAppSdkTenantId,
   resolveAppSdkUserId,
 } from '@sdkwork/im-pc-core/sdk/session';
 
@@ -54,9 +52,7 @@ interface DriveServiceOptions {
   appId?: string;
   appResourceId?: string;
   client?: SdkworkDriveAppClient;
-  organizationId?: string;
   parentNodeId?: string;
-  tenantId?: string;
   uploadProfileCode?: DriveUploaderProfile;
   userId?: string;
 }
@@ -198,16 +194,8 @@ function requireValue(value: unknown, label: string): string {
   return normalized;
 }
 
-function pickTenantId(explicit?: string): string {
-  return requireValue(explicit ?? resolveAppSdkTenantId(readAppSdkSessionTokens()), 'Drive tenant id');
-}
-
 function pickUserId(explicit?: string): string {
   return requireValue(explicit ?? resolveAppSdkUserId(readAppSdkSessionTokens()), 'Drive user id');
-}
-
-function pickOrganizationId(explicit?: string): string | undefined {
-  return explicit ?? resolveAppSdkOrganizationId(readAppSdkSessionTokens());
 }
 
 class SdkworkDriveService implements DriveService {
@@ -218,7 +206,6 @@ class SdkworkDriveService implements DriveService {
     const response = await this.client().drive.nodes.list(space.id, {
       pageSize: DEFAULT_PAGE_SIZE,
       parentNodeId: this.options.parentNodeId,
-      tenantId: this.tenantId(),
     });
     return extractNodes(response)
       .filter((node) => isActiveNode(node) && node.nodeType === 'folder')
@@ -234,7 +221,6 @@ class SdkworkDriveService implements DriveService {
       operatorId: this.userId(),
       parentNodeId: this.options.parentNodeId,
       spaceId: space.id,
-      tenantId: this.tenantId(),
     });
     return mapFolder(node);
   }
@@ -250,7 +236,6 @@ class SdkworkDriveService implements DriveService {
   async getRecentFiles(): Promise<DriveFileItem[]> {
     const response = await this.client().drive.recent.list({
       pageSize: DEFAULT_PAGE_SIZE,
-      tenantId: this.tenantId(),
     });
     return extractNodes(response)
       .filter((node) => isActiveNode(node) && node.nodeType === 'file')
@@ -276,12 +261,10 @@ class SdkworkDriveService implements DriveService {
         appResourceId: this.options.appResourceId ?? DEFAULT_APP_RESOURCE_ID,
         appResourceType: DEFAULT_APP_RESOURCE_TYPE,
         file,
-        organizationId: this.organizationId(),
         parentNodeId: this.options.parentNodeId,
         retention: DEFAULT_RETENTION,
         scene: DEFAULT_SCENE,
         source: DEFAULT_SOURCE,
-        tenantId: this.tenantId(),
         uploadProfileCode: this.options.uploadProfileCode ?? DEFAULT_UPLOAD_PROFILE,
         userId,
         operatorId: userId,
@@ -295,7 +278,6 @@ class SdkworkDriveService implements DriveService {
     const normalizedNodeId = requireValue(nodeId, 'Drive node id');
     const response = await this.client().drive.nodes.downloadUrls.create(normalizedNodeId, {
       requestedTtlSeconds: DEFAULT_DOWNLOAD_TTL_SECONDS,
-      tenantId: this.tenantId(),
     });
     return this.mapDownload(response);
   }
@@ -304,14 +286,12 @@ class SdkworkDriveService implements DriveService {
     await this.client().drive.nodes.update(requireValue(id, 'Drive node id'), {
       nodeName: normalizeName(newName, 'Node name'),
       operatorId: this.userId(),
-      tenantId: this.tenantId(),
     });
   }
 
   private async deleteNode(id: string): Promise<void> {
     await this.client().drive.nodes.delete(requireValue(id, 'Drive node id'), {
       operatorId: this.userId(),
-      tenantId: this.tenantId(),
     });
   }
 
@@ -319,7 +299,6 @@ class SdkworkDriveService implements DriveService {
     const response = await this.client().drive.spaces.list({
       ownerSubjectId: this.userId(),
       ownerSubjectType: 'user',
-      tenantId: this.tenantId(),
     });
     const space = extractSpaces(response)
       .find((item) => item.lifecycleStatus === 'active' && item.ownerSubjectId === this.userId())
@@ -341,14 +320,6 @@ class SdkworkDriveService implements DriveService {
 
   private client(): SdkworkDriveAppClient {
     return this.options.client ?? getDriveAppSdkClientWithSession();
-  }
-
-  private tenantId(): string {
-    return pickTenantId(this.options.tenantId);
-  }
-
-  private organizationId(): string | undefined {
-    return pickOrganizationId(this.options.organizationId);
   }
 
   private userId(): string {

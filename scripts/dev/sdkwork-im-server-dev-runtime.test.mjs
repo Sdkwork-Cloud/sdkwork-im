@@ -54,12 +54,12 @@ assert.equal(
   'server:dev must choose the next available local gateway bind when 18079 is already occupied',
 );
 assert.equal(
-  fallbackBindEnv.env.SDKWORK_IM_SERVER_BIND,
+  fallbackBindEnv.env.SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND,
   '127.0.0.1:18081',
   'server:dev must pass the selected bind to the Rust gateway',
 );
 assert.equal(
-  fallbackBindEnv.env.SDKWORK_IM_SERVER_API_BASE_URL,
+  fallbackBindEnv.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   'http://127.0.0.1:18081',
   'server:dev must expose the selected gateway URL to browser SDK env resolution',
 );
@@ -87,14 +87,14 @@ assert.equal(
 
 const explicitBindEnv = await resolveSdkworkImServerBindEnv({
   env: {
-    SDKWORK_IM_SERVER_BIND: '127.0.0.1:28079',
+    SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:28079',
   },
   isPortAvailable: async () => false,
 });
 assert.equal(
   explicitBindEnv.bindAddr,
   '127.0.0.1:28079',
-  'server:dev must respect an explicit SDKWORK_IM_SERVER_BIND instead of auto-rotating it',
+  'server:dev must respect an explicit SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND instead of auto-rotating it',
 );
 assert.equal(
   explicitBindEnv.portChanged,
@@ -103,7 +103,7 @@ assert.equal(
 );
 
 const startScript = fs.readFileSync(
-  path.join(repoRoot, 'scripts/dev/start-sdkwork-im-unified-web.mjs'),
+  path.join(repoRoot, 'scripts/im-server-dev.mjs'),
   'utf8',
 );
 assert.match(

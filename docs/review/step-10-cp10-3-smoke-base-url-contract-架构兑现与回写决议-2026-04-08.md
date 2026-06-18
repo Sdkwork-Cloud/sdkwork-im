@@ -7,7 +7,7 @@
 
 ## 本轮已兑现能力
 - `09`
-  - `Wave D / Step 10 / CP10-3` 已开始把“可重复执行的 smoke”从底层工具脚本提升到标准 `deploy-local` 交付入口
+  - `Wave D / Step 10 / CP10-3` 已开始把“可重复执行的 smoke”从底层工具脚本提升到标准 `retired-lifecycle-deploy` 交付入口
 - `137`
   - 本地 Docker 交付链路现在不再把 smoke 锁死到默认地址，而是允许 operator 显式指定 smoke 目标
   - 这让本地部署拓扑可以在不改脚本内部实现的前提下，适配非默认端口、代理入口或后续 profile 变化
@@ -23,7 +23,7 @@
 
 ## 是否偏离架构
 - 无偏离。
-- 本轮是在既有 `deploy-local` 统一入口上继续增强 smoke 合同，而不是引入新的旁路脚本或新的平台分叉。
+- 本轮是在既有 `retired-lifecycle-deploy` 统一入口上继续增强 smoke 合同，而不是引入新的旁路脚本或新的平台分叉。
 - 这与 `137` 的部署入口统一化、`142` 的 deploy-time/operator config 显式化是同向收敛。
 
 ## 回写决议
@@ -35,19 +35,19 @@
 
 ## 证据
 - 代码：
-  - `bin/deploy-local.ps1`
-  - `bin/deploy-local.sh`
+  - `pnpm im:dev`
+  - `pnpm im:dev`
   - `bin/_cmd-forward-powershell.cmd`
   - `deployments/scripts/bootstrap-local.ps1`
-  - `services/local-minimal-node/tests/deployment_profile_test.rs`
+  - `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 - 文档：
   - `docs/部署/快速启动脚本.md`
   - `README.md`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p local-minimal-node --offline --test deployment_profile_test`
-  - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/deploy-local.ps1 -Help`
-  - `cmd /c bin\\deploy-local.cmd --help`
+  - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+  - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 
 ## 当前判断
 - 当前增量：通过

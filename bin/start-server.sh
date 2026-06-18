@@ -216,7 +216,7 @@ elif [[ ! -f "$server_yaml" && -f "${config_dir}/server.yaml" ]]; then
 fi
 [[ -f "$server_yaml" ]] || { echo "Missing server config. Run init-config-server first: ${server_yaml}" >&2; exit 1; }
 
-bind_address="${SDKWORK_IM_SERVER_BIND:-${SDKWORK_IM_SERVER_BIND_ADDRESS:-}}"
+bind_address="${SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND:-}"
 if [[ -z "$bind_address" ]]; then
   bind_address="$(read_yaml_value "$server_yaml" "bind_address")"
 fi
@@ -246,17 +246,8 @@ if [[ -f "$pid_file" ]]; then
   fi
 fi
 
-export SDKWORK_IM_SERVER_BIND="$bind_address"
+export SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND="$bind_address"
 export SDKWORK_IM_WEB_GATEWAY_BIND="$bind_address"
-if [[ -n "${SDKWORK_IM_SERVER_API_BASE_URL:-}" && -z "${SDKWORK_IM_SERVER_API_BASE_URL:-}" ]]; then
-  export SDKWORK_IM_SERVER_API_BASE_URL="$SDKWORK_IM_SERVER_API_BASE_URL"
-fi
-if [[ -n "${SDKWORK_IM_SERVER_BASE_URL:-}" && -z "${SDKWORK_IM_SERVER_BASE_URL:-}" ]]; then
-  export SDKWORK_IM_SERVER_BASE_URL="$SDKWORK_IM_SERVER_BASE_URL"
-fi
-if [[ -n "${SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL:-}" && -z "${SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL:-}" ]]; then
-  export SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL="$SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL"
-fi
 server_args=(--config "$server_yaml")
 
 if [[ "$foreground" -eq 1 ]]; then

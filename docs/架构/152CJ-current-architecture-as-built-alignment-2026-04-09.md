@@ -8,7 +8,7 @@ Later files named `152CJ-Loop*.md` are incremental addenda. They do not replace 
 
 ## 2. Current As-Built State
 
-- `local-minimal-node` exposes the direct-chat binding route used by the IM app SDK contract.
+- `sdkwork-im-server` exposes the direct-chat binding route used by the IM app SDK contract.
 - Direct-chat binding retries are treated as an idempotent business operation instead of a missing-route gap.
 - Contacts, friend requests, preferences, tags, recommendations, reaction summaries, and pin summaries are SDK-backed runtime capabilities rather than local UI seed data.
 - Conversation runtime membership and social durable truth remain separate boundaries: conversation membership is a runtime projection, while friendship/contact state is owned by social-domain APIs.
@@ -16,7 +16,7 @@ Later files named `152CJ-Loop*.md` are incremental addenda. They do not replace 
 
 ## 3. Direct Chat Binding Alignment
 
-The direct-chat binding capability is no longer an architecture gap for `local-minimal-node`.
+The direct-chat binding capability is no longer an architecture gap for `sdkwork-im-server`.
 
 Current expected behavior:
 

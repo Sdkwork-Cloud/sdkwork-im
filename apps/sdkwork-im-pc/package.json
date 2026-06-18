@@ -17,7 +17,6 @@
     "test:qr-scan-standard": "tsx scripts/qr-scan-standard-contract.test.ts"
   },
   "dependencies": {
-    "@google/genai": "catalog:",
     "@zxing/browser": "catalog:",
     "@zxing/library": "catalog:",
     "@sdkwork-internal/im-app-api-generated": "workspace:*",

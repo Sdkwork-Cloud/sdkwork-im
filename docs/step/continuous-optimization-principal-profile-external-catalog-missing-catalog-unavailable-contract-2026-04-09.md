@@ -31,9 +31,9 @@
 ## Verification
 
 ```powershell
-cargo test -p local-minimal-node --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
-cargo test -p local-minimal-node --offline --test principal_profile_provider_runtime_selection_test -- --nocapture
-cargo test -p local-minimal-node --offline -- --nocapture
+cargo test -p sdkwork-im-gateway --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test principal_profile_provider_runtime_selection_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline -- --nocapture
 cargo fmt --all --check
 ```
 

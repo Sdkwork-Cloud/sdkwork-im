@@ -32,6 +32,7 @@ export interface OrgDepartment {
 
 export interface FriendRequest {
   avatar?: string;
+  direction: 'incoming' | 'outgoing';
   id: number;
   name: string;
   msg: string;
@@ -72,6 +73,7 @@ export interface ContactService {
   updateProfile(update: Partial<User>): Promise<User>;
   deleteContact(userId: string): Promise<void>;
   handleFriendRequest(requestId: number, action: 'accept' | 'reject'): Promise<void>;
+  cancelFriendRequest(requestId: number): Promise<void>;
   toggleStarContact(userId: string, isStarred: boolean): Promise<void>;
   setContactRemark(userId: string, remark: string): Promise<void>;
   addToBlacklist(userId: string): Promise<void>;
@@ -215,30 +217,17 @@ class SdkworkContactService implements ContactService {
     return items;
   }
 
-  private async listAllSocialContacts(): Promise<ContactView[]> {
-    const items: ContactView[] = [];
-    let cursor: string | undefined;
-
-    do {
-      const response = await this.client().social.contacts.list({
-        limit: CONTACTS_PAGE_LIMIT,
-        ...(cursor ? { cursor } : {}),
-      });
-      items.push(...response.items);
-      cursor = response.hasMore ? response.nextCursor : undefined;
-    } while (cursor);
-
-    return items;
-  }
-
-  private async listAllFriendRequests(direction: 'incoming' | 'outgoing'): Promise<ImFriendRequest[]> {
+  private async listAllFriendRequests(
+    direction: 'incoming' | 'outgoing',
+    status: 'pending' | 'accepted' | 'declined' | 'canceled' | 'expired' | 'all' = 'all',
+  ): Promise<ImFriendRequest[]> {
     const items: ImFriendRequest[] = [];
     let cursor: string | undefined;
 
     do {
       const response = await this.client().social.friendRequests.list({
         direction,
-        status: 'all',
+        status,
         limit: FRIEND_REQUESTS_PAGE_LIMIT,
         ...(cursor ? { cursor } : {}),
       });
@@ -258,8 +247,8 @@ class SdkworkContactService implements ContactService {
     }
 
     this.pendingFriendRequestCountRefresh = (async () => {
-      const incoming = await this.listAllFriendRequests('incoming');
-      const count = incoming.filter((request) => request.status === 'pending').length;
+      const incoming = await this.listAllFriendRequests('incoming', 'pending');
+      const count = incoming.length;
       const previousCount = this.pendingFriendRequestCount;
       this.pendingFriendRequestCount = count;
       if (previousCount !== count) {
@@ -414,7 +403,9 @@ class SdkworkContactService implements ContactService {
     if (this.isCurrentUserIdentifier(targetUserId)) {
       throw new Error('Cannot add yourself as a friend');
     }
+    await this.assertCanSendFriendRequest(targetUserId);
     await this.client().social.friendRequests.create({ targetUserId });
+    this.dispatchFriendRequestChange();
   }
 
   async addFriendBySearchQuery(query: string): Promise<User> {
@@ -423,13 +414,15 @@ class SdkworkContactService implements ContactService {
       throw new Error('Friend search query is required');
     }
 
-    const [targetUser] = await this.searchContacts(normalizedQuery);
-    if (!targetUser) {
+    const target = await this.findAddFriendTarget(normalizedQuery);
+    if (!target) {
       throw new Error('Friend search target not found');
     }
 
-    await this.addFriend(targetUser.id);
-    return targetUser;
+    this.assertRelationshipAllowsFriendRequest(target.relationshipState);
+    await this.client().social.friendRequests.create({ targetUserId: target.user.id });
+    this.dispatchFriendRequestChange();
+    return target.user;
   }
 
   async getStarredContacts(): Promise<User[]> {
@@ -518,8 +511,8 @@ class SdkworkContactService implements ContactService {
 
   async getFriendRequests(): Promise<FriendRequest[]> {
     const [incoming, outgoing] = await Promise.all([
-      this.listAllFriendRequests('incoming'),
-      this.listAllFriendRequests('outgoing'),
+      this.listAllFriendRequests('incoming', 'pending'),
+      this.listAllFriendRequests('outgoing', 'pending'),
     ]);
     const requests = [...incoming, ...outgoing];
     await this.loadFriendRequestPeerProfiles(requests);
@@ -603,6 +596,7 @@ class SdkworkContactService implements ContactService {
     }
     this.userCache.delete(normalizedUserId);
     this.preferenceByUserId.delete(normalizedUserId);
+    this.dispatchFriendRequestChange();
   }
 
   async handleFriendRequest(requestId: number, action: 'accept' | 'reject'): Promise<void> {
@@ -621,6 +615,15 @@ class SdkworkContactService implements ContactService {
     }
 
     await this.client().social.friendRequests.decline(backendRequestId);
+    this.requestIdByUiId.delete(requestId);
+    this.requestUiIdByBackendId.delete(backendRequestId);
+    await this.refreshPendingFriendRequestCount();
+    this.dispatchFriendRequestChange();
+  }
+
+  async cancelFriendRequest(requestId: number): Promise<void> {
+    const backendRequestId = this.requestIdByUiId.get(requestId) ?? String(requestId);
+    await this.client().social.friendRequests.cancel(backendRequestId);
     this.requestIdByUiId.delete(requestId);
     this.requestUiIdByBackendId.delete(backendRequestId);
     await this.refreshPendingFriendRequestCount();
@@ -659,6 +662,7 @@ class SdkworkContactService implements ContactService {
       isStarred: false,
     });
     this.preferenceByUserId.set(normalizedUserId, preferences);
+    this.dispatchFriendRequestChange();
   }
 
   async recommendToFriend(userId: string): Promise<void> {
@@ -667,7 +671,7 @@ class SdkworkContactService implements ContactService {
   }
 
   async syncContacts(): Promise<ContactSyncResult> {
-    const contacts = await this.hydrateContactUsers(await this.listAllSocialContacts());
+    const contacts = await this.hydrateContactUsers(await this.listAllContacts());
     return {
       contacts,
       refreshedContacts: contacts.length,
@@ -895,18 +899,57 @@ class SdkworkContactService implements ContactService {
   private mapFriendRequest(request: ImFriendRequest): FriendRequest {
     const uiId = this.getOrCreateRequestUiId(request.requestId);
     const currentUserId = this.getCurrentUser().id;
-    const peerUserId = request.requesterUserId === currentUserId
-      ? request.targetUserId
-      : request.requesterUserId;
+    const isOutgoing = request.requesterUserId === currentUserId;
+    const peerUserId = isOutgoing ? request.targetUserId : request.requesterUserId;
     const peerUser = this.userCache.get(peerUserId);
     const name = this.preferenceByUserId.get(peerUserId)?.remark || peerUser?.name || peerUserId;
     return {
       avatar: peerUser?.avatar,
+      direction: isOutgoing ? 'outgoing' : 'incoming',
       id: uiId,
       name,
       msg: request.requestMessage ?? '',
       status: normalizeRequestStatus(request.status),
     };
+  }
+
+  private async assertCanSendFriendRequest(targetUserId: string): Promise<void> {
+    const response = await this.client().social.users.list({
+      q: targetUserId,
+      limit: SOCIAL_USER_SEARCH_LIMIT,
+    });
+    const match = response.items.find((item) => item.userId === targetUserId);
+    if (!match) {
+      return;
+    }
+    this.assertRelationshipAllowsFriendRequest(match.relationshipState);
+  }
+
+  private assertRelationshipAllowsFriendRequest(relationshipState: string | undefined): void {
+    if (relationshipState === 'active') {
+      throw new Error('Contact is already a friend');
+    }
+    if (relationshipState?.includes('pending')) {
+      throw new Error('Friend request is already pending');
+    }
+  }
+
+  private async findAddFriendTarget(query: string): Promise<{ relationshipState: string; user: User } | null> {
+    const response = await this.client().social.users.list({
+      q: query,
+      limit: SOCIAL_USER_SEARCH_LIMIT,
+    });
+    for (const item of response.items) {
+      if (this.isCurrentUserSearchResult(item)) {
+        continue;
+      }
+      const user = this.mapSocialUserSearchResultToUser(item);
+      return {
+        relationshipState: item.relationshipState,
+        user,
+      };
+    }
+    return null;
   }
 
   private getOrCreateRequestUiId(requestId: string): number {

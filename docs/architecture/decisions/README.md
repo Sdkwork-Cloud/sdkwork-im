@@ -3,6 +3,12 @@
 This directory holds architecture decision records (ADRs) for `sdkwork-im`, following
 [`sdkwork-specs/ARCHITECTURE_DECISION_SPEC.md`](../../../sdkwork-specs/ARCHITECTURE_DECISION_SPEC.md).
 
+Topology v2 authority for runtime profiles and ingress: [../../topology-greenfield.md](../../topology-greenfield.md).
+
+Superseded ADRs may retain historical crate or profile names in migration tables; active
+implementation uses `sdkwork-im-server`, topology profile ids under `configs/topology/`, and
+application ingress `127.0.0.1:18079` for development.
+
 ## When an ADR is required
 
 An ADR is required when a change affects any of the following (per
@@ -54,4 +60,4 @@ Specs: <the SDKWork specs that own the technical rules cited>
 
 | ADR | Title | Status |
 | --- | --- | --- |
-| [ADR-20260615-crate-naming-alignment](./ADR-20260615-crate-naming-alignment.md) | Crate naming alignment (`sdkwork-im-*`/`im-*` â†?`sdkwork-im-*`), batched migration | proposed |
+| [ADR-20260615-crate-naming-alignment](./ADR-20260615-crate-naming-alignment.md) | Crate naming alignment (`sdkwork-im-*`/`im-*` ï¿½?`sdkwork-im-*`), batched migration | proposed |

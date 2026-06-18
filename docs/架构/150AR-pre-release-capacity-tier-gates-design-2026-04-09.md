@@ -17,7 +17,7 @@
 
 ### Pre-Release Tier
 
-- profile: `local-default`
+- profile: `self-hosted.split-services.development`
 - state: `template_only_pending_execution`
 - gateTemplate: `tools/perf/step-11-pre-release-tier-gate.json`
 - artifactRoot: `artifacts/perf/step-11/pre-release`

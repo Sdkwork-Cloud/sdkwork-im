@@ -1,59 +1,94 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Sdkwork IM PC
 
-# Run and deploy your AI Studio app
+SDKWork PC application root for the IM browser renderer and Tauri desktop shell.
 
-This contains everything you need to run your app locally.
+Topology v2 authority: [../../docs/topology-greenfield.md](../../docs/topology-greenfield.md) · [../../specs/topology.spec.json](../../specs/topology.spec.json)
 
-View your app in AI Studio: https://ai.studio/apps/b477902c-c13d-4da1-9512-f821598c802c
+## Prerequisites
 
-## Run Locally
+- Node.js 22, pnpm 10
+- Rust toolchain (server + desktop host)
+- Sibling checkouts: `../sdkwork-api-gateway`, `../sdkwork-rtc` (RTC media), plus shared SDK sources linked from `pnpm-workspace.yaml`
 
-**Prerequisites:**  Node.js
+## Development (recommended)
 
+Start the full stack from the repository root so topology profiles, platform gateway, and application ingress stay aligned:
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+cd ../..
+pnpm install
+pnpm im:dev              # browser renderer + sdkwork-im-server + platform gateway
+pnpm im:dev:desktop      # Tauri desktop shell
+pnpm server:dev          # server only
+```
 
-## SDKWork Documentation Contract
+Default surfaces when using `pnpm im:dev`:
 
-Domain: communication
-Capability: chat-pc
-Package type: react-package
-Status: standard
+| Surface | URL |
+| --- | --- |
+| PC renderer | `http://127.0.0.1:4176` |
+| Application ingress | `http://127.0.0.1:18079` |
+| Platform API gateway | `http://127.0.0.1:3900` |
 
-### Public API
+Database profiles:
 
-Public exports are declared in `specs/component.spec.json` under `contracts.publicExports`.
+```bash
+pnpm im:dev:postgres     # PostgreSQL via .env.postgres
+pnpm im:dev:sqlite       # local SQLite user data
+```
 
-### Required SDK Surface
+## App-root commands
 
-- None declared in `specs/component.spec.json`.
+Run from `apps/sdkwork-im-pc` when working on renderer packages only (server must already be running or started separately):
 
-### Configuration
+```bash
+pnpm install
+pnpm dev               # Vite renderer only
+pnpm build
+pnpm lint
+pnpm test:notary-app-sdk-integration
+pnpm test:qr-scan-standard
+```
 
-Configuration keys and runtime entrypoints are declared in `specs/component.spec.json`.
+Desktop host package: `packages/sdkwork-im-pc-desktop`.
 
-### SaaS/Private/Local Behavior
+## Layout
 
-This module follows the canonical standards linked from `specs/component.spec.json`, including deployment and runtime configuration rules where applicable.
+```text
+apps/sdkwork-im-pc/
+├─ src/                 # thin bootstrap, providers, route assembly
+├─ packages/            # sdkwork-im-pc-* feature and shell packages
+├─ specs/               # PC application contract
+├─ scripts/             # app-local contract tests
+└─ sdkwork.app.config.json
+```
 
-### Security
+## SDK integration
 
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module.
+- IM HTTP/WebSocket: generated `@sdkwork/im-sdk` and app/backend SDK families under repository `sdks/`
+- Platform IAM/Drive/Agent: `@sdkwork/appbase-app-sdk` via `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
+- RTC media: `@sdkwork/rtc-sdk` from sibling `../sdkwork-rtc` (not checked into this repository's `sdks/`)
 
-### Extension Points
+Do not add raw HTTP wrappers or manual auth headers in feature packages; bootstrap owns SDK construction.
 
-Extension points are limited to declared public exports, runtime entrypoints, SDK clients, events, and config keys.
+## Verification
 
-### Verification
+From repository root:
 
-- `pnpm build`
+```bash
+pnpm test:sdkwork-im-pc-dev-command
+pnpm test:workflow-commercial-gates
+```
 
-### Owner And Status
+From this directory:
 
-Owner and lifecycle status are tracked in `specs/component.spec.json`.
+```bash
+pnpm build
+pnpm lint
+```
+
+## Related docs
+
+- [../../README.md](../../README.md)
+- [../../docs/部署/README.md](../../docs/部署/README.md)
+- [AGENTS.md](./AGENTS.md)

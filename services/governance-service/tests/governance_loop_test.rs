@@ -65,8 +65,8 @@ async fn test_control_plane_governance_writes_feed_ops_and_audit_runtimes() {
 
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -158,8 +158,8 @@ async fn test_control_plane_provider_bindings_feed_ops_runtime() {
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -258,8 +258,8 @@ async fn test_control_plane_provider_policy_writes_feed_ops_and_audit_runtimes()
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -364,8 +364,8 @@ async fn test_control_plane_provider_policy_rollback_refreshes_ops_runtime_and_a
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -483,8 +483,8 @@ async fn test_control_plane_repeated_provider_policy_updates_append_distinct_aud
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -581,8 +581,8 @@ async fn test_control_plane_noop_provider_policy_write_does_not_append_audit() {
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -671,8 +671,8 @@ async fn test_control_plane_provider_policy_preview_does_not_touch_ops_or_audit(
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -734,8 +734,8 @@ async fn test_control_plane_stale_provider_policy_confirm_write_does_not_touch_o
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -849,8 +849,8 @@ async fn test_control_plane_rejects_empty_tenant_provider_bindings_query_without
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -930,8 +930,8 @@ async fn test_control_plane_rejects_empty_tenant_provider_policy_write_without_m
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -1000,8 +1000,8 @@ async fn test_control_plane_rejects_oversized_tenant_provider_bindings_query_wit
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));
@@ -1084,8 +1084,8 @@ async fn test_control_plane_rejects_oversized_tenant_provider_policy_write_witho
     let cluster = Arc::new(RealtimeClusterBridge::default());
     let ops_runtime = Arc::new(OpsRuntime::new(
         "node_a",
-        "local-minimal",
-        "127.0.0.1:18090",
+        "self-hosted.split-services.development",
+        "127.0.0.1:18079",
         vec!["session-gateway".into(), "governance-service".into()],
         vec!["conversation:c_demo".into()],
     ));

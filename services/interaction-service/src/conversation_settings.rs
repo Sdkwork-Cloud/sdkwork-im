@@ -1,9 +1,11 @@
 //! Conversation settings API handlers.
 
+#![allow(dead_code)]
+
+use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::Json;
 use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
 

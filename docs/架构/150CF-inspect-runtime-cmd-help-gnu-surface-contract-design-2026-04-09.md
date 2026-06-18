@@ -7,7 +7,7 @@
 ## Contract
 
 - `inspect-runtime-local.cmd --help` must surface:
-  - `Usage: cmd /c .\bin\inspect-runtime-local.cmd [--profile <local-minimal|local-default>] [--runtime-dir <path>] [--json] [--release]`
+  - `Usage: cmd /c .\bin\inspect-runtime-local.cmd [--profile <self-hosted.split-services.development|self-hosted.split-services.development>] [--runtime-dir <path>] [--json] [--release]`
   - the existing PowerShell usage line
 
 ## Rationale

@@ -53,15 +53,15 @@
 - `cargo test -p im-adapter-rtc-tencent --offline --test adapter_contract_test -- --nocapture`
 - `cargo test -p im-call-runtime --offline --test http_smoke_test -- --nocapture`
 - `cargo test -p im-call-runtime --offline --test rtc_runtime_persistence_test -- --nocapture`
-- `cargo test -p local-minimal-node --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_provider_health_over_http -- --nocapture`
-- `cargo test -p local-minimal-node --offline --test rtc_runtime_persistence_test -- --nocapture`
-- `cargo test -p local-minimal-node --offline --test provider_plugin_docs_test -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test http_e2e_test test_local_minimal_profile_gets_rtc_provider_health_over_http -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test rtc_runtime_persistence_test -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test provider_plugin_docs_test -- --nocapture`
 
 ## 当前结论
 
 - `rtc-volcengine / rtc-aliyun / rtc-tencent` 已全部具备最小可运行 adapter。
 - RTC provider plugin 体系不再只有 registry 声明，已经形成可实例化、可选择、可测试的三 provider baseline。
 - 当前剩余 RTC provider 架构债务：
-  - `local-minimal-node` 仍未开放 provider registry 注入/配置面
+  - `sdkwork-im-server` 仍未开放 provider registry 注入/配置面
   - recording artifact 仍未统一回流到 `ObjectStorageProvider`
   - provider callback 的内部认证/profile 仍需标准化

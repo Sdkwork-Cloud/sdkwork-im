@@ -59,20 +59,20 @@
 
 ## 证据
 - 代码：
-  - `services/local-minimal-node/src/node/runtime_dir.rs`
-  - `services/local-minimal-node/src/node.rs`
-  - `services/local-minimal-node/src/main.rs`
+  - `services/sdkwork-im-gateway/src/node/runtime_dir.rs`
+  - `services/sdkwork-im-gateway/src/node.rs`
+  - `services/sdkwork-im-gateway/src/main.rs`
 - 测试：
-  - `services/local-minimal-node/tests/runtime_dir_backup_catalog_test.rs`
+  - `services/sdkwork-im-gateway/tests/runtime_dir_backup_catalog_test.rs`
 - 脚本：
   - `bin/archive-runtime-backup-local.ps1`
   - `bin/archive-runtime-backup-local.sh`
   - `bin/archive-runtime-backup-local.cmd`
-  - `bin/status-local.ps1`
-  - `bin/status-local.sh`
+  - `bin/retired-lifecycle-status.ps1`
+  - `bin/retired-lifecycle-status.sh`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p local-minimal-node --offline`
+  - `cargo test -p sdkwork-im-gateway --offline`
   - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/archive-runtime-backup-local.ps1 -Help`
 
 ## 当前判断

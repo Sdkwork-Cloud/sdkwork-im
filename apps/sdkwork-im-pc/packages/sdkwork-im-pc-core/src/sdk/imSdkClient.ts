@@ -1,5 +1,11 @@
 import { ImSdkClient, ImWebSocketAuthOptions, type ImSdkClientOptions } from '@sdkwork/im-sdk';
 import {
+  DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL,
+  DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+} from './topologyEnvKeys';
+import {
   getSdkworkChatGlobalTokenManager,
   readAppSdkSessionTokens,
   resolveAppSdkAccessToken,
@@ -129,7 +135,7 @@ function resolveLocalDevImApiBaseUrl(): string | undefined {
   } else if (!isRuntimeDev()) {
     return undefined;
   }
-  return 'http://127.0.0.1:18079';
+  return DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL;
 }
 
 function resolveLocalDevImWebSocketBaseUrl(): string | undefined {
@@ -140,7 +146,7 @@ function resolveLocalDevImWebSocketBaseUrl(): string | undefined {
   } else if (!isRuntimeDev()) {
     return undefined;
   }
-  return 'ws://127.0.0.1:18079';
+  return DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL;
 }
 
 function resolveSameOriginHttpBaseUrl(): string | undefined {
@@ -165,26 +171,26 @@ function resolveSameOriginWebSocketBaseUrl(): string | undefined {
 }
 
 export function resolveImSdkApiBaseUrl(): string {
-  const baseUrl = readEnvValue('VITE_SDKWORK_IM_IM_API_BASE_URL')
+  const baseUrl = readEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL)
     ?? resolveLocalDevImApiBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
   if (!baseUrl) {
     throw new Error(
-      'Sdkwork IM IM SDK API base URL is not configured. Set VITE_SDKWORK_IM_IM_API_BASE_URL or serve the web build from the unified gateway origin.',
+      'Sdkwork IM SDK API base URL is not configured. Set VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL.',
     );
   }
   return normalizeHttpSdkBaseUrl(baseUrl);
 }
 
 export function resolveImSdkWebSocketBaseUrl(): string {
-  const explicitBaseUrl = readEnvValue('VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL');
-  const baseUrl = readEnvValue('VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL')
-    ?? deriveWebSocketBaseUrlFromHttpBaseUrl(readEnvValue('VITE_SDKWORK_IM_IM_API_BASE_URL'))
+  const explicitBaseUrl = readEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL);
+  const baseUrl = explicitBaseUrl
+    ?? deriveWebSocketBaseUrlFromHttpBaseUrl(readEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL))
     ?? resolveLocalDevImWebSocketBaseUrl()
     ?? resolveSameOriginWebSocketBaseUrl();
   if (!baseUrl) {
     throw new Error(
-      'Sdkwork IM IM SDK websocket base URL is not configured. Set VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL or serve the web build from the unified gateway origin.',
+      'Sdkwork IM SDK websocket base URL is not configured. Set VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL.',
     );
   }
   return explicitBaseUrl ? normalizeWebSocketSdkBaseUrl(baseUrl) : baseUrl;

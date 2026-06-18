@@ -3,13 +3,9 @@ import type {
   AiotDevice,
   SdkworkAiotAppClient,
 } from '@sdkwork/aiot-app-sdk';
-import { getAiotAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/aiotAppSdkClient';
 import {
-  readAppSdkSessionTokens,
-  resolveAppSdkOrganizationId,
-  resolveAppSdkTenantId,
-  resolveAppSdkUserId,
-} from '@sdkwork/im-pc-core/sdk/session';
+  getAiotAppSdkClientWithSession,
+} from '@sdkwork/im-pc-core/sdk/aiotAppSdkClient';
 
 export type DeviceType = 'camera' | 'speaker' | 'display' | 'sensor' | 'other';
 export type DeviceStatus = 'online' | 'offline' | 'error' | 'unactivated';
@@ -35,40 +31,11 @@ export interface DeviceService {
   activateDevice(deviceId: string, activationCode: string): Promise<void>;
 }
 
-export interface AiotDeviceServiceContext {
-  tenantId: string;
-  organizationId: string;
-  userId?: string;
-  dataScope?: string;
-  permissionScope: string;
-}
-
 export interface AiotDeviceServiceOptions {
   client?: SdkworkAiotAppClient;
-  context?: Partial<AiotDeviceServiceContext>;
 }
-
-interface AiotDevicesListParams {
-  xSdkworkTenantId: string;
-  xSdkworkOrganizationId: string;
-  xSdkworkUserId?: string;
-  xSdkworkDataScope?: string;
-  xSdkworkPermissionScope: string;
-}
-
-interface AiotDeviceCommandParams extends AiotDevicesListParams {
-  idempotencyKey: string;
-}
-
-const DEFAULT_AIOT_CONTEXT: AiotDeviceServiceContext = {
-  tenantId: '20001',
-  organizationId: '30001',
-  permissionScope: 'iot.devices.read',
-};
-const STANDARD_AGENT_ID_PATTERN = /^agent\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/u;
 
 let configuredClient: SdkworkAiotAppClient | undefined;
-let configuredContext: Partial<AiotDeviceServiceContext> = {};
 
 function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -138,41 +105,7 @@ function mapAiotDevice(device: AiotDevice): Device {
   };
 }
 
-function resolveContext(
-  permissionScope: string,
-  overrides?: Partial<AiotDeviceServiceContext>,
-): AiotDeviceServiceContext {
-  const session = readAppSdkSessionTokens();
-  return {
-    ...DEFAULT_AIOT_CONTEXT,
-    tenantId: resolveAppSdkTenantId(session) ?? DEFAULT_AIOT_CONTEXT.tenantId,
-    organizationId: resolveAppSdkOrganizationId(session) ?? DEFAULT_AIOT_CONTEXT.organizationId,
-    ...(resolveAppSdkUserId(session) ? { userId: resolveAppSdkUserId(session) } : {}),
-    ...configuredContext,
-    ...(overrides ?? {}),
-    permissionScope,
-  };
-}
-
-function toListParams(context: AiotDeviceServiceContext): AiotDevicesListParams {
-  return {
-    xSdkworkTenantId: context.tenantId,
-    xSdkworkOrganizationId: context.organizationId,
-    xSdkworkUserId: context.userId,
-    xSdkworkDataScope: context.dataScope,
-    xSdkworkPermissionScope: context.permissionScope,
-  };
-}
-
-function toCommandParams(
-  context: AiotDeviceServiceContext,
-  idempotencyKey: string,
-): AiotDeviceCommandParams {
-  return {
-    ...toListParams(context),
-    idempotencyKey,
-  };
-}
+const STANDARD_AGENT_ID_PATTERN = /^agent\.[a-z0-9_-]+(?:\.[a-z0-9_-]+)*$/u;
 
 function getClient(override?: SdkworkAiotAppClient): SdkworkAiotAppClient {
   return override ?? configuredClient ?? getAiotAppSdkClientWithSession();
@@ -183,13 +116,8 @@ async function submitDeviceCommand(
   deviceId: string,
   body: AiotCommandCreateRequest,
   idempotencyKey: string,
-  context?: Partial<AiotDeviceServiceContext>,
 ): Promise<void> {
-  await client.iot.devices.commands.create(
-    deviceId,
-    body,
-    toCommandParams(resolveContext('iot.commands.execute', context), idempotencyKey),
-  );
+  await client.iot.devicesCommandsCreate(deviceId, body, idempotencyKey);
 }
 
 function unsupportedAppDeviceManagementCapability(capability: string): Error {
@@ -202,15 +130,13 @@ class AiotDeviceService implements DeviceService {
   constructor(private readonly options: AiotDeviceServiceOptions = {}) {}
 
   async getDevices(): Promise<Device[]> {
-    const context = resolveContext('iot.devices.read', this.options.context);
-    const response = await getClient(this.options.client).iot.devices.list(toListParams(context));
+    const response = await getClient(this.options.client).iot.devicesList();
     return Array.isArray(response.data) ? response.data.map(mapAiotDevice) : [];
   }
 
   async getDevice(id: string): Promise<Device | undefined> {
-    const context = resolveContext('iot.devices.read', this.options.context);
     try {
-      const response = await getClient(this.options.client).iot.devices.retrieve(id, toListParams(context));
+      const response = await getClient(this.options.client).iot.devicesRetrieve(id);
       return response.data ? mapAiotDevice(response.data) : undefined;
     } catch {
       return undefined;
@@ -248,7 +174,6 @@ class AiotDeviceService implements DeviceService {
         payload: { agentId },
       },
       `bind-agent:${deviceId}:${agentId}`,
-      this.options.context,
     );
   }
 
@@ -262,7 +187,6 @@ class AiotDeviceService implements DeviceService {
         payload: {},
       },
       `unbind-agent:${deviceId}`,
-      this.options.context,
     );
   }
 
@@ -282,17 +206,12 @@ class AiotDeviceService implements DeviceService {
         },
       },
       `activate-device:${deviceId}`,
-      this.options.context,
     );
   }
 }
 
 export function configureDeviceService(options: AiotDeviceServiceOptions = {}): void {
   configuredClient = options.client ?? configuredClient;
-  configuredContext = {
-    ...configuredContext,
-    ...(options.context ?? {}),
-  };
 }
 
 export function createDeviceService(options: AiotDeviceServiceOptions = {}): DeviceService {

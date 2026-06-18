@@ -6,11 +6,11 @@
 - `services/conversation-runtime/src/runtime/membership.rs`
 - `services/conversation-runtime/src/runtime/handoff.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/local-minimal-node/src/node/membership.rs`
-- `services/local-minimal-node/src/node/handoff.rs`
-- `services/local-minimal-node/src/node/access.rs`
+- `services/sdkwork-im-gateway/src/node/membership.rs`
+- `services/sdkwork-im-gateway/src/node/handoff.rs`
+- `services/sdkwork-im-gateway/src/node/access.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ## 2. 本轮主要审计结论
 
@@ -18,12 +18,12 @@
 
 - runtime 自己持有的读查询 surface 不再要求每个 service entrypoint 重复传 `tenant_id / actor_id`。
 - `conversation-runtime/http` 不再在 handoff/member/read-cursor 读路径上保留第二套 raw auth capture。
-- `local-minimal-node` 的 membership/handoff/access 不再在这些 runtime-owned read surface 上重复拼装 authority。
+- `sdkwork-im-server` 的 membership/handoff/access 不再在这些 runtime-owned read surface 上重复拼装 authority。
 
 ### 2.2 本轮未发现的新回归
 
 - 新增 wrapper 没有打破 `conversation-runtime` 结构测试与 authority 测试。
-- `local-minimal-node` 的结构测试、HTTP/E2E、runtime-dir、websocket、cluster、projection 相关 suite 均继续通过。
+- `sdkwork-im-server` 的结构测试、HTTP/E2E、runtime-dir、websocket、cluster、projection 相关 suite 均继续通过。
 - `projection-service` 全量测试继续通过，说明本轮未对投影服务引入回归。
 
 ## 3. 仍然存在的真实风险
@@ -45,22 +45,22 @@
 ### 4.1 Red
 
 - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-red-runtime'; cargo test -p conversation-runtime --test conversation_domain_structure_test test_runtime_exposes_read_query_auth_context_entrypoints --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-red-local-node'; cargo test -p local-minimal-node --test lib_structure_test test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-red-local-node'; cargo test -p sdkwork-im-gateway --test lib_structure_test test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints --offline`
 
 ### 4.2 Green
 
 - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-green-runtime'; cargo test -p conversation-runtime --test conversation_domain_structure_test test_runtime_exposes_read_query_auth_context_entrypoints --offline`
 - `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-green-runtime-http'; cargo test -p conversation-runtime --test conversation_domain_structure_test test_http_read_query_surface_uses_runtime_auth_context_entrypoints --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-green-local-node'; cargo test -p local-minimal-node --test lib_structure_test test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-green-local-node'; cargo test -p sdkwork-im-gateway --test lib_structure_test test_local_minimal_node_read_query_paths_use_runtime_auth_context_entrypoints --offline`
 
 ### 4.3 Fresh verification
 
-- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/local-minimal-node/src/node/membership.rs services/local-minimal-node/src/node/handoff.rs services/local-minimal-node/src/node/access.rs services/local-minimal-node/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/membership.rs services/conversation-runtime/src/runtime/handoff.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/sdkwork-im-gateway/src/node/membership.rs services/sdkwork-im-gateway/src/node/handoff.rs services/sdkwork-im-gateway/src/node/access.rs services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 - `cargo test -p conversation-runtime --test conversation_domain_structure_test --offline`
 - `cargo test -p conversation-runtime --test authority_command_test --offline`
 - `cargo test -p conversation-runtime --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-structure'; cargo test -p local-minimal-node --test lib_structure_test --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-full'; cargo test -p local-minimal-node --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-structure'; cargo test -p sdkwork-im-gateway --test lib_structure_test --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2d-local-node-full'; cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 5. 审计结论
@@ -75,6 +75,6 @@
 
 ## 6. 下一步审计关注点
 
-- `services/local-minimal-node/src/node/projection.rs` 是否继续需要 authority query owner 收口。
+- `services/sdkwork-im-gateway/src/node/projection.rs` 是否继续需要 authority query owner 收口。
 - projection-service 读查询是否需要新的 auth-context boundary 或统一 query snapshot owner。
 - `effects.rs / session.rs` 等下游面是否仍有 raw `AuthContext` 漂移。

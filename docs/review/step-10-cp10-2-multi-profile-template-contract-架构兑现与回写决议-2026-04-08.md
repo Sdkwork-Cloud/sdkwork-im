@@ -13,17 +13,17 @@
     - 统一脚本参数
     - 回归测试门禁
 - `137`
-  - 本地交付拓扑不再只有单一 `local-minimal` 命令面，而是已经具备：
-    - `local-minimal`
-    - `local-default`
+  - 本地交付拓扑不再只有单一 `self-hosted.split-services.development` 命令面，而是已经具备：
+    - `self-hosted.split-services.development`
+    - `self-hosted.split-services.development`
     两个真实可引用的本地部署 profile 入口
-  - 其中 `local-default` 当前虽然仍复用 `local-minimal` 服务合同，但其 compose/template/脚本入口已经固定，不再漂移
+  - 其中 `self-hosted.split-services.development` 当前虽然仍复用 `self-hosted.split-services.development` 服务合同，但其 compose/template/脚本入口已经固定，不再漂移
 - `142`
   - 本地 deploy-time config 已从“初始化时生成一个 env 文件”推进到“按 profile 拥有稳定模板入口”
-  - `deploy-local` 的 profile selector 也让 deploy-time config 与 operator action 之间的接口变得显式，而不再依赖手工改脚本或硬编码 compose 路径
+  - `retired-lifecycle-deploy` 的 profile selector 也让 deploy-time config 与 operator action 之间的接口变得显式，而不再依赖手工改脚本或硬编码 compose 路径
 
 ## 本轮未兑现能力
-- `local-default` 尚未演进为独立依赖拓扑或独立 smoke/recovery 闭环
+- `self-hosted.split-services.development` 尚未演进为独立依赖拓扑或独立 smoke/recovery 闭环
 - `private-saas-single-cell`、`cloud-shared-cell`、`cloud-dedicated-cell` 仍未形成真实 compose/template/script 资产
 - `Step 10 / CP10-3` 的健康检查与 smoke 重复执行证据尚未闭环
 - `Step 10 / CP10-4` 的 inspect / repair / restore 演练尚未按多 profile 收口
@@ -42,9 +42,9 @@
 
 ## 证据
 - 代码：
-  - `services/local-minimal-node/tests/deployment_profile_test.rs`
-  - `bin/deploy-local.ps1`
-  - `bin/deploy-local.sh`
+  - `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
+  - `pnpm im:dev`
+  - `pnpm im:dev`
   - `bin/_cmd-forward-powershell.cmd`
   - `deployments/scripts/bootstrap-local.ps1`
 - 文档：
@@ -53,13 +53,13 @@
   - `docs/部署/README.md`
   - `README.md`
 - 模板：
-  - `deployments/templates/local-minimal.env.example`
-  - `deployments/templates/local-default.env.example`
+  - `deployments/templates/self-hosted.split-services.development.env.example`
+  - `deployments/templates/self-hosted.split-services.development.env.example`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p local-minimal-node --offline --test deployment_profile_test`
-  - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/deploy-local.ps1 -Help`
-  - `cmd /c bin\\deploy-local.cmd --help`
+  - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+  - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 
 ## 当前判断
 - `CP10-2`：通过

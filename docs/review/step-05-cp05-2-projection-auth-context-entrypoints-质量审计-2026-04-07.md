@@ -4,28 +4,28 @@
 
 - `services/projection-service/src/access.rs`
 - `services/projection-service/src/http.rs`
-- `services/local-minimal-node/src/node/projection.rs`
-- `services/local-minimal-node/src/node/session.rs`
-- `services/local-minimal-node/src/node.rs`
+- `services/sdkwork-im-gateway/src/node/projection.rs`
+- `services/sdkwork-im-gateway/src/node/session.rs`
+- `services/sdkwork-im-gateway/src/node.rs`
 - `services/projection-service/tests/lib_structure_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ## 2. 审计结论
 
 - 本轮改动与 `Wave B / Step 05 / CP05-2` 对齐，没有跨 step 乱序推进。
-- auth-context authority owner 已真实下沉到 projection-service，而不是停留在 HTTP 或 local-minimal-node adapter。
-- `projection-service` 与 `local-minimal-node` 的结构测试、整包测试均通过。
+- auth-context authority owner 已真实下沉到 projection-service，而不是停留在 HTTP 或 sdkwork-im-server adapter。
+- `projection-service` 与 `sdkwork-im-server` 的结构测试、整包测试均通过。
 - `rustfmt --check` 通过，且本轮新增 warning 已清零。
 
 ## 3. 本轮消除的风险
 
 - 消除了 projection-service HTTP 自己维护 device / inbox / timeline / summary / read-cursor authority 校验分支的风险。
-- 消除了 local-minimal-node projection/session 继续重复线程化 `auth.tenant_id / auth.actor_id` 的风险。
-- 消除了 `projection-service` 与 `local-minimal-node` 在 device scope / active member guard 上继续分叉的风险。
+- 消除了 sdkwork-im-server projection/session 继续重复线程化 `auth.tenant_id / auth.actor_id` 的风险。
+- 消除了 `projection-service` 与 `sdkwork-im-server` 在 device scope / active member guard 上继续分叉的风险。
 
 ## 4. 仍然存在的剩余风险
 
-- `services/local-minimal-node/src/node/effects.rs` 仍有 runtime read raw authority threading。
+- `services/sdkwork-im-gateway/src/node/effects.rs` 仍有 runtime read raw authority threading。
 - 这说明 `CP05-2` 尚未整体闭环，`Step 05` 也不能进入 `91 / 95 / 97` 通过态。
 
 ## 5. 质量证据

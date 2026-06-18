@@ -95,23 +95,13 @@ function formatRtcCallPreviewContent(
   const mode = formatRtcCallMode(descriptor.mode, translate);
   switch (descriptor.state) {
     case 'accepted':
-      return translate('chat.list.callPreview.accepted', {
-        defaultValue: '{{mode}} connected',
-        mode,
-      });
+      return translate('chat.list.callPreview.accepted', { mode });
     case 'rejected':
-      return translate('chat.list.callPreview.rejected', {
-        defaultValue: '{{mode}} rejected',
-        mode,
-      });
+      return translate('chat.list.callPreview.rejected', { mode });
     case 'ended':
-      return translate('chat.list.callPreview.ended', {
-        defaultValue: '{{mode}} ended',
-        mode,
-      });
+      return translate('chat.list.callPreview.ended', { mode });
     case 'started':
       return translate('chat.list.callPreview.started', {
-        defaultValue: '{{name}} started {{mode}}',
         mode,
         name: chat.name,
       });

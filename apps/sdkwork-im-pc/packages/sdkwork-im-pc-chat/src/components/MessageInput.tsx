@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Smile, Paperclip, Scissors, Clock, Mic, ArrowUp, StopCircle, X, Reply, Heart, Search, Ghost, Coffee, Star, Plus, Zap, Image as ImageIcon, Keyboard, AudioWaveform } from 'lucide-react';
+import { Smile, Paperclip, Scissors, Clock, Mic, ArrowUp, StopCircle, X, Reply } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -62,7 +63,7 @@ function sendFileMessage(
 
 export const MessageInput: React.FC<MessageInputProps> = ({
   onSend,
-  placeholder = '发送消息...',
+  placeholder,
   disabled = false,
   isTyping = false,
   onStop,
@@ -72,6 +73,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   onCancelReply,
   onHistoryClick,
 }) => {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t('chat.messageInput.defaultPlaceholder');
   const [height, setHeight] = useState(defaultHeight);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeEmojiTab, setActiveEmojiTab] = useState('emoji');
@@ -155,7 +158,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     extensions: [
       StarterKit,
       Placeholder.configure({
-        placeholder: isTyping ? '智能体正在回复...' : placeholder,
+        placeholder: isTyping ? t('chat.messageInput.agentTypingPlaceholder') : resolvedPlaceholder,
         emptyEditorClass: 'is-editor-empty',
       }),
     ],
@@ -169,7 +172,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     onUpdate: ({ editor }) => {
       setIsEmpty(editor.getText().trim().length === 0);
     },
-  }, [placeholder, disabled, isTyping]);
+  }, [placeholder, disabled, isTyping, resolvedPlaceholder, t]);
 
   const onEmojiClick = React.useCallback((emoji: string) => {
     if (editor && !disabled && !isTyping) {
@@ -181,10 +184,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const onStickerClick = React.useCallback((url: string) => {
     void url;
     if (onSend) {
-      toast('表情图片需要本地文件或 Drive 资源后才能发送', 'error');
+      toast(t('chat.messageInput.toast.stickerNeedsFile'), 'error');
     }
     setShowEmojiPicker(false);
-  }, [onSend]);
+  }, [onSend, t]);
 
   const handleSend = () => {
     if (!editor || disabled || isTyping) return;
@@ -252,9 +255,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         setIsRecording(false);
         const finalDuration = voiceDurationRef.current;
         if (finalDuration >= 1 && onSend) {
-          toast('璇煶鏂囦欢鐢熸垚澶辫触锛岃閲嶈瘯', 'error');
+          toast(t('chat.messageInput.toast.voiceGenerationFailed'), 'error');
         } else if (finalDuration < 1) {
-          toast('说话时间太短', 'error');
+          toast(t('chat.messageInput.toast.voiceTooShort'), 'error');
         }
       }
       return;
@@ -305,7 +308,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           const file = new File([audioBlob], `voice-${Date.now()}.webm`, { type: mimeType });
           sendFileMessage(file, onSend, 'voice', { duration: finalDuration, mimeType });
         } else if (finalDuration < 1) {
-          toast('说话时间太短', 'error');
+          toast(t('chat.messageInput.toast.voiceTooShort'), 'error');
         }
       };
 
@@ -324,7 +327,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       voiceDurationRef.current = 0;
       setVoiceDuration(0);
       setIsRecording(false);
-      toast('无法访问麦克风，请检查权限后重试', 'error');
+      toast(t('chat.messageInput.toast.microphoneDenied'), 'error');
     }
   };
 
@@ -355,7 +358,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5 rounded-t-2xl shrink-0">
             <div className="flex items-center gap-2 min-w-0">
               <Reply size={14} className="text-gray-400 shrink-0" />
-              <span className="text-[12px] text-gray-400 font-medium shrink-0">回复 {replyingTo.senderName}:</span>
+              <span className="text-[12px] text-gray-400 font-medium shrink-0">{t('chat.messageInput.replyPrefix', { name: replyingTo.senderName })}</span>
               <span className="text-[12px] text-gray-500 truncate">{replyingTo.content}</span>
             </div>
             <button 
@@ -379,7 +382,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           {isDragOver && (
             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#1e1e1e]/80 backdrop-blur-sm shadow-inner rounded-lg m-2 border-2 border-dashed border-indigo-500/50">
                <ArrowUp size={32} className="text-indigo-400 mb-2 animate-bounce" />
-               <p className="text-gray-200 font-medium">松开鼠标发送文件</p>
+               <p className="text-gray-200 font-medium">{t('chat.messageInput.dropToSend')}</p>
             </div>
           )}
           <EditorContent editor={editor} className="h-full" />
@@ -401,7 +404,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              title="发送文件"
+              title={t('chat.messageInput.actions.sendFile')}
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled || isTyping}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -411,11 +414,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              title="截图 (Alt+A)"
+              title={t('chat.messageInput.actions.screenshot')}
               onClick={async () => {
                 try {
                   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-                    toast('当前浏览器不支持网页截图', 'error');
+                    toast(t('chat.messageInput.toast.screenshotUnsupported'), 'error');
                     return;
                   }
                   const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
@@ -447,9 +450,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                 } catch (e: any) {
                   console.error(e);
                   if (e?.message?.includes('display-capture')) {
-                    toast('无权限进行截图（或在新标签页中打开应用重试）', 'error');
+                    toast(t('chat.messageInput.toast.screenshotDenied'), 'error');
                   } else {
-                    toast('取消截图', 'success');
+                    toast(t('chat.messageInput.toast.screenshotCancelled'), 'success');
                   }
                 }
               }}
@@ -464,7 +467,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               <motion.button 
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                title="表情"
+                title={t('chat.messageInput.actions.emoji')}
                 disabled={disabled || isTyping}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${showEmojiPicker ? 'text-[#00b42a] bg-[#00b42a]/10' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -497,7 +500,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              title="聊天记录"
+              title={t('chat.messageInput.actions.history')}
               onClick={onHistoryClick}
               disabled={disabled || isTyping}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -507,7 +510,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              title={isRecording ? "停止录音并发送" : "录制语音消息"}
+              title={isRecording ? t('chat.messageInput.actions.stopRecording') : t('chat.messageInput.actions.recordVoice')}
               onClick={toggleVoiceRecording}
               disabled={disabled || isTyping}
               className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed relative ${isRecording ? 'text-[#00b42a] bg-[#00b42a]/10 hover:bg-[#00b42a]/20' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
@@ -521,7 +524,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              title="停止生成"
+              title={t('chat.messageInput.actions.stopGenerating')}
               onClick={onStop}
               className="w-8 h-8 rounded-full bg-red-500/20 hover:bg-red-500/30 flex items-center justify-center text-red-500 transition-colors shadow-sm"
             >
@@ -531,7 +534,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              title="发送 (Enter)"
+              title={t('chat.messageInput.actions.send')}
               onClick={handleSend}
               disabled={disabled || isEmpty}
               className="w-8 h-8 rounded-full bg-[#00b42a] hover:bg-[#009a24] disabled:bg-white/10 disabled:text-gray-500 flex items-center justify-center text-white transition-colors shadow-sm"

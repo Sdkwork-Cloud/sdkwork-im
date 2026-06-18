@@ -146,7 +146,16 @@ export const AddFriendModal: React.FC<{ isOpen: boolean; onClose: () => void }> 
                     await contactService.addFriend(result.id);
                     toast(t('contacts.addFriend.toast.requestSent', { name: result.name }), 'success');
                     onClose();
-                  } catch {
+                  } catch (error) {
+                    const message = error instanceof Error ? error.message : '';
+                    if (message.includes('already a friend')) {
+                      toast(t('contacts.addFriend.toast.alreadyFriend'), 'info');
+                      return;
+                    }
+                    if (message.includes('already pending')) {
+                      toast(t('contacts.addFriend.toast.requestPending'), 'info');
+                      return;
+                    }
                     toast(t('contacts.addFriend.toast.requestFailed'), 'error');
                   }
                 }}

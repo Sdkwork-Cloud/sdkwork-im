@@ -94,6 +94,10 @@ jobs:
       - name: Cache Rust Artifacts
         uses: swatinem/rust-cache@v2
 
+      - name: Test sdkwork-im-gateway integration suite
+        run: cargo test -p sdkwork-im-gateway --tests
+      - name: Test sdkwork-im-openapi crate
+        run: cargo test -p sdkwork-im-openapi --tests
       - name: Test sdkwork-comms-conversation-service
         run: cargo test -p sdkwork-comms-conversation-service --tests
 
@@ -184,8 +188,6 @@ jobs:
           SDKWORK_IM_POSTGRES_TEST_DATABASE_URL: postgres://sdkwork_im_test:sdkwork_im_test@localhost:5432/sdkwork_im_test
         run: cargo test -p session-gateway --test postgres_realtime_websocket_live_drill_test -- --nocapture
 
-      - name: Test local-minimal realtime storage provider contract
-        run: cargo test -p local-minimal-node --test realtime_storage_provider_contract_test
 
       - name: Strict clippy PostgreSQL realtime storage scope
         run: cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime --tests -- -D warnings
@@ -193,8 +195,6 @@ jobs:
       - name: Strict clippy PostgreSQL realtime session-gateway runtime scope
         run: cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime -p session-gateway --tests -- -D warnings
 
-      - name: Strict clippy PostgreSQL realtime local-minimal wiring scope
-        run: cargo clippy -p im-postgres-realtime-contracts -p im-adapters-postgres-realtime -p local-minimal-node --tests -- -D warnings
 
       - name: Test Sdkwork IM PC auth appbase UI contract
         working-directory: apps/sdkwork-im-pc
@@ -217,50 +217,22 @@ jobs:
       - name: Test projection contacts actor-kind isolation
         run: cargo test -p projection-service --test http_smoke_test test_contacts_query_rejects_same_actor_id_with_different_actor_kind_over_http -- --exact
 
-      - name: Test local-minimal end-to-end flow
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_runs_end_to_end_flow -- --exact
 
-      - name: Test local-minimal preserves add-member request attributes
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_preserves_add_member_request_attributes_for_non_user_principal -- --exact
 
-      - name: Test local-minimal oversized render hints
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_oversized_render_hints_on_post_message -- --exact
 
-      - name: Test local-minimal OpenAPI schema exports
-        run: cargo test -p local-minimal-node --test openapi_schema_export_test
 
-      - name: Test local-minimal IM v3 OpenAPI contract
-        run: cargo test -p local-minimal-node --test openapi_im_v3_contract_test
 
-      - name: Test local-minimal chat runtime route namespace
-        run: cargo test -p local-minimal-node --test chat_runtime_session_namespace_test
 
-      - name: Test local-minimal runtime config contract
-        run: cargo test -p local-minimal-node --test runtime_config_test
 
-      - name: Test local-minimal commercial gate contract
-        run: cargo test -p local-minimal-node --test commercial_gate_contract_test
 
-      - name: Test commercial readiness gate
-        run: cargo test -p local-minimal-node --test commercial_readiness_gate_test
 
-      - name: Test commercial readiness CLI gate
-        run: cargo test -p local-minimal-node --test runtime_cli_error_handling_test
 
-      - name: Test local-minimal principal-profile oversized creator attributes
-        run: cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_rejects_oversized_creator_attributes_on_create_conversation -- --exact
 
-      - name: Test local-minimal principal-profile oversized sender metadata
-        run: cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_rejects_oversized_sender_metadata_on_post_message -- --exact
 
-      - name: Test local-minimal principal-profile merges add-member request attributes
-        run: cargo test -p local-minimal-node --test principal_profile_provider_mainline_test test_local_principal_profile_provider_merges_add_member_request_attributes -- --exact
 
       - name: Strict clippy core runtime scope
         run: cargo clippy -p sdkwork-comms-conversation-service -p governance-service --tests -- -D warnings
 
-      - name: Strict clippy sdkwork-comms-conversation-service and local-minimal scope
-        run: cargo clippy --no-deps -p sdkwork-comms-conversation-service -p local-minimal-node --tests -- -D warnings
 
   downstream-exactly-once-tests:
     name: Downstream Exactly Once
@@ -297,23 +269,11 @@ jobs:
       - name: Test audit-service
         run: cargo test -p audit-service --tests
 
-      - name: Test IM calls duplicate session create
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_rtc_session_create_as_idempotent -- --exact
 
-      - name: Test IM calls actor-kind scope conflict
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_duplicate_rtc_create_from_different_actor_kind -- --exact
 
-      - name: Test IM calls duplicate side-effect suppression
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_suppresses_duplicate_rtc_state_side_effects -- --exact
 
-      - name: Test local-minimal media provider health surface
-        run: cargo test -p local-minimal-node --test media_provider_http_test
 
-      - name: Test local-minimal rejects removed media upload lifecycle
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_accept_legacy_media_upload_lifecycle_requests -- --exact
 
-      - name: Test local-minimal realtime limit guardrail
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_realtime_limit_above_guardrail_over_http -- --exact
 
       - name: Test stream duplicate open
         run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_open_stream_is_idempotent_and_conflicting_retry_is_rejected -- --exact
@@ -330,17 +290,9 @@ jobs:
       - name: Test stream request-scope append owner access
         run: cargo test -p streaming-service --test stream_lifecycle_test test_request_scoped_stream_append_rejects_different_actor_over_http -- --exact
 
-      - name: Test local-minimal duplicate open stream
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_open_stream_as_idempotent -- --exact
 
-      - name: Test local-minimal duplicate open stream actor scope conflict
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_duplicate_open_stream_from_different_actor -- --exact
 
-      - name: Test local-minimal request stream owner access
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_request_stream_list_from_different_actor -- --exact
 
-      - name: Test local-minimal oversized list stream id
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_oversized_stream_id_on_list_frames_over_http -- --exact
 
       - name: Test stream duplicate complete
         run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_complete_stream_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact
@@ -351,8 +303,6 @@ jobs:
       - name: Test stream oversized complete result message id
         run: cargo test -p streaming-service --test stream_lifecycle_test test_stream_complete_rejects_oversized_result_message_id_over_http -- --exact
 
-      - name: Test local-minimal duplicate complete fanout suppression
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_complete_retry -- --exact
 
       - name: Test stream duplicate abort
         run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_abort_stream_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact
@@ -363,8 +313,6 @@ jobs:
       - name: Test stream oversized abort reason
         run: cargo test -p streaming-service --test stream_lifecycle_test test_stream_abort_rejects_oversized_reason_over_http -- --exact
 
-      - name: Test local-minimal duplicate abort fanout suppression
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_abort_retry -- --exact
 
       - name: Test stream checkpoint replay
         run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_checkpoint_stream_request_replays_after_stream_completes -- --exact
@@ -372,8 +320,6 @@ jobs:
       - name: Test stream checkpoint actor scope conflict
         run: cargo test -p streaming-service --test stream_lifecycle_test test_duplicate_checkpoint_stream_request_with_different_actor_is_not_found -- --exact
 
-      - name: Test local-minimal duplicate checkpoint replay
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_replays_duplicate_checkpoint_retry_after_complete -- --exact
 
       - name: Test audit duplicate anchor
         run: cargo test -p audit-service --test http_smoke_test test_duplicate_record_anchor_request_is_idempotent_and_conflicting_retry_is_rejected -- --exact
@@ -381,14 +327,8 @@ jobs:
       - name: Test audit duplicate anchor after session rotation
         run: cargo test -p audit-service --test http_smoke_test test_duplicate_record_anchor_request_replays_after_session_rotation -- --exact
 
-      - name: Test local-minimal duplicate audit anchor
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_audit_anchor_as_idempotent -- --exact
 
-      - name: Test local-minimal duplicate audit anchor after session rotation
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_replays_duplicate_audit_anchor_after_session_rotation -- --exact
 
-      - name: Strict clippy downstream exactly-once scope
-        run: cargo clippy --no-deps -p media-service -p streaming-service -p audit-service -p local-minimal-node --tests -- -D warnings
 
   windows-commercial-smoke:
     name: Windows Commercial Smoke
@@ -434,41 +374,17 @@ jobs:
       - name: Test automation duplicate execution idempotency
         run: cargo test -p automation-service --test http_smoke_test test_duplicate_execution_id_is_idempotent_and_conflicting_retry_is_rejected_over_http -- --exact
 
-      - name: Test local-minimal task10 capabilities
-        run: cargo test -p local-minimal-node --test task10_capabilities_e2e_test
 
-      - name: Test local-minimal duplicate automation request idempotency
-        run: cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_treats_duplicate_automation_request_as_idempotent -- --exact
 
-      - name: Test local-minimal automation notification actor-kind isolation
-        run: cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_isolates_automation_notifications_by_actor_kind -- --exact
 
-      - name: Test local-minimal automation audit actor-kind isolation
-        run: cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_records_automation_audit_per_actor_kind -- --exact
 
-      - name: Test local-minimal duplicate notification request idempotency
-        run: cargo test -p local-minimal-node --test task10_capabilities_e2e_test test_local_minimal_profile_treats_duplicate_notification_request_as_idempotent -- --exact
 
-      - name: Test local-minimal notification actor-kind inbox isolation
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_notification_queries_from_different_actor_kind -- --exact
 
-      - name: Test local-minimal contacts actor-kind isolation
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_rejects_same_actor_id_with_different_actor_kind_on_contacts_query -- --exact
 
-      - name: Test local-minimal public auth
-        run: cargo test -p local-minimal-node --test public_auth_e2e_test
 
-      - name: Test local-minimal direct-chat binding idempotency
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_treats_duplicate_direct_chat_binding_as_idempotent -- --exact
 
-      - name: Test local-minimal duplicate message fanout suppression
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_message_post_retry -- --exact
 
-      - name: Test local-minimal duplicate stream fanout suppression
-        run: cargo test -p local-minimal-node --test http_e2e_test test_local_minimal_profile_does_not_refanout_duplicate_stream_frame_retry -- --exact
 
-      - name: Strict clippy Windows smoke scope
-        run: cargo clippy -p notification-service -p automation-service -p local-minimal-node --tests -- -D warnings
 
   performance-smoke:
     name: Performance Smoke
@@ -494,14 +410,8 @@ jobs:
       - name: Cache Rust Artifacts
         uses: swatinem/rust-cache@v2
 
-      - name: Step11 Quant Baseline
-        run: cargo test -p local-minimal-node --test performance_quant_baseline_test -- --nocapture
 
-      - name: Step11 HA/DR Drill Baseline
-        run: cargo test -p local-minimal-node --test performance_ha_dr_drill_test -- --nocapture
 
-      - name: Step11 Drill Catalog Contract
-        run: cargo test -p local-minimal-node --test performance_drill_catalog_test -- --nocapture
 
   supply-chain-security:
     name: Supply Chain Security

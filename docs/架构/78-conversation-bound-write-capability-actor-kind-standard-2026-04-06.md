@@ -64,7 +64,7 @@ All public adapters that authorize conversation-bound delegated writes must pass
 
 Required current adapter:
 
-- `services/local-minimal-node`
+- `services/sdkwork-im-gateway`
 
 Current covered delegated write families:
 

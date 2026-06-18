@@ -27,7 +27,7 @@
 
 ### 3. 本地服务后台托管方式不稳定
 
-`start-local.ps1` 的既有后台模式会出现：
+`retired-lifecycle-start.ps1` 的既有后台模式会出现：
 
 - 启动后健康检查一度成功
 - 随后进程退出
@@ -43,7 +43,7 @@
 - `open-chat-test.ps1` 默认改为 GUI 窗口模式
 - `open-chat-test.ps1` 补齐 `-NoProfile`
 - GUI 子进程参数拼接改为兼容 PowerShell 5.1 的 `Arguments` 字符串
-- 服务不健康时改为“独立宿主前台托管”模式启动 `local-minimal-node.exe`
+- 服务不健康时改为“独立宿主前台托管”模式启动 `sdkwork-im-server.exe`
 
 ## 实机验证
 

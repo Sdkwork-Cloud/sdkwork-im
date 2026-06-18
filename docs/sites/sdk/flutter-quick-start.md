@@ -28,7 +28,7 @@ dependencies:
 import 'package:im_sdk/im_sdk.dart';
 
 final client = ImSdkClient.create(
-  baseUrl: 'http://127.0.0.1:18090',
+  baseUrl: 'http://127.0.0.1:18079',
   authToken: token,
 );
 ```

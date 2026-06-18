@@ -7,7 +7,7 @@
 ## 红绿证据
 
 - 红灯：
-  - `cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_surfaces_tier_gate_artifact_roots_in_catalog_schema_and_backwrites -- --exact --nocapture`
+  - `cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_surfaces_tier_gate_artifact_roots_in_catalog_schema_and_backwrites -- --exact --nocapture`
   - 失败信息：缺少 `gateTemplate`
 - 绿灯：
   - 同一条测试在补齐 catalog tier `artifactRoot`、schema 字段和文档回写后转绿
@@ -31,7 +31,7 @@
 - 仓库继续明确区分：
   - gate 状态：`template_only_pending_execution`
   - slot 状态：`pending_collection`
-- `local-default` 继续作为 `Pre-Release Tier` 的默认 profile
+- `self-hosted.split-services.development` 继续作为 `Pre-Release Tier` 的默认 profile
 - `capacity-dedicated` 继续作为 `Capacity Tier` 的目标环境名
 - gate 模板内部既有 contract 仍然保持：
   - `collectionSummary`
@@ -50,5 +50,5 @@
 
 ## 下一步
 
-- 优先考虑回填一轮真实 `local-default` 的 `Pre-Release Tier` 样本
+- 优先考虑回填一轮真实 `self-hosted.split-services.development` 的 `Pre-Release Tier` 样本
 - 若继续做模板 contract，可再评估是否把高阶 tier 的摘要字段继续上浮到 catalog

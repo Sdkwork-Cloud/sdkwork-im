@@ -54,17 +54,17 @@
   - `projection-service` 已经拥有的 replay metrics
   - `ops runtime` 已经拥有的 replay lag
 
-### 3. `local-minimal-node` 对齐暴露同一条 replay-status 路由
-- `services/local-minimal-node/src/node/build.rs`
+### 3. `sdkwork-im-server` 对齐暴露同一条 replay-status 路由
+- `services/sdkwork-im-gateway/src/node/build.rs`
   - 新增 `GET /backend/v3/api/ops/replay_status`
-- `services/local-minimal-node/src/node/platform.rs`
+- `services/sdkwork-im-gateway/src/node/platform.rs`
   - 新增 `get_ops_replay_status(...)`
   - 直接复用 `ops_runtime.replay_status_view()`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
   - 结构守卫已把 `get_ops_replay_status` 纳入公开边界约束
 
 ### 4. startup replay 的最小耗时归一化，保证吞吐率可解释
-- `services/local-minimal-node/src/node/build.rs`
+- `services/sdkwork-im-gateway/src/node/build.rs`
   - 当 startup replay 实际发生时，`durationMs` 现在会最小归一化到 `1ms`
 - 这样做的目的不是伪造耗时，而是避免：
   - 回放确实发生
@@ -79,7 +79,7 @@
     - `status == idle`
     - `replayThroughputPerSecond == 0`
     - 默认 `projection_replay` lag 项存在
-- `services/local-minimal-node/tests/domain_recovery_persistence_test.rs`
+- `services/sdkwork-im-gateway/tests/domain_recovery_persistence_test.rs`
   - stale snapshot restart 现在新增校验：
     - `status == replayed`
     - `replay.backlogSize >= 1`
@@ -90,13 +90,13 @@
 ## 改动范围
 - 代码：
   - `services/ops-service/src/lib.rs`
-  - `services/local-minimal-node/src/node/build.rs`
-  - `services/local-minimal-node/src/node/platform.rs`
+  - `services/sdkwork-im-gateway/src/node/build.rs`
+  - `services/sdkwork-im-gateway/src/node/platform.rs`
 - 测试：
   - `services/ops-service/tests/ops_runtime_test.rs`
   - `services/ops-service/tests/http_smoke_test.rs`
-  - `services/local-minimal-node/tests/domain_recovery_persistence_test.rs`
-  - `services/local-minimal-node/tests/lib_structure_test.rs`
+  - `services/sdkwork-im-gateway/tests/domain_recovery_persistence_test.rs`
+  - `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 - 文档：
   - 本执行卡
   - 本轮质量审计与复盘
@@ -112,7 +112,7 @@
 - 先写测试，再验证缺口：
   - `cargo test -p ops-service --offline --test ops_runtime_test test_runtime_exposes_projection_replay_status_with_derived_throughput`
   - `cargo test -p ops-service --offline --test http_smoke_test test_cluster_lag_health_runtime_dir_and_diagnostics_over_http`
-  - `cargo test -p local-minimal-node --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
+  - `cargo test -p sdkwork-im-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
 - 红测失败点与预期一致：
   - `ops-service` 还没有 `ProjectionReplayStatusView`
   - `/backend/v3/api/ops/replay_status` 还不存在
@@ -126,9 +126,9 @@
 - `cargo fmt --all`
 - `cargo test -p ops-service --offline --test ops_runtime_test test_runtime_exposes_projection_replay_status_with_derived_throughput`
 - `cargo test -p ops-service --offline --test http_smoke_test test_cluster_lag_health_runtime_dir_and_diagnostics_over_http`
-- `cargo test -p local-minimal-node --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
+- `cargo test -p sdkwork-im-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
 - `cargo test -p ops-service --offline`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 结论

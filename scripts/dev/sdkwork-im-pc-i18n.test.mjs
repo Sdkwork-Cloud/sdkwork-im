@@ -79,6 +79,36 @@ assert.deepEqual(
   'contact groups locale keys must match',
 );
 assert.deepEqual(
+  Object.keys(chatZh.contacts.newFriends).sort(),
+  Object.keys(chatEn.contacts.newFriends).sort(),
+  'contact new friends locale keys must match',
+);
+assert.deepEqual(
+  Object.keys(chatZh.contacts.allContacts).sort(),
+  Object.keys(chatEn.contacts.allContacts).sort(),
+  'contact all contacts locale keys must match',
+);
+assert.deepEqual(
+  Object.keys(chatZh.favorites).sort(),
+  Object.keys(chatEn.favorites).sort(),
+  'favorites locale keys must match',
+);
+assert.deepEqual(
+  Object.keys(chatZh.chat.messageList).sort(),
+  Object.keys(chatEn.chat.messageList).sort(),
+  'chat message list locale keys must match',
+);
+assert.deepEqual(
+  Object.keys(chatZh.chat.messageInput).sort(),
+  Object.keys(chatEn.chat.messageInput).sort(),
+  'chat message input locale keys must match',
+);
+assert.deepEqual(
+  Object.keys(chatZh.settingsModal).sort(),
+  Object.keys(chatEn.settingsModal).sort(),
+  'settings modal locale keys must match',
+);
+assert.deepEqual(
   Object.keys(chatZh.contacts.detail).sort(),
   Object.keys(chatEn.contacts.detail).sort(),
   'contact detail locale keys must match',
@@ -145,6 +175,11 @@ const settingsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/
 assert.match(settingsSource, /useTranslation/u, 'Settings modal must use react-i18next');
 assert.match(settingsSource, /i18n\.changeLanguage/u, 'Settings language selector must update the chat i18next instance');
 assert.match(settingsSource, /sdkwork-im-pc:language-changed/u, 'Settings language selector must notify nested workspace i18n instances');
+assert.doesNotMatch(
+  settingsSource,
+  /通用设置|功能模块|消息通知|隐私安全|外观设置|设备管理|加我为朋友时需要验证|清理本地数据|主题配色|跟随系统|下线/u,
+  'SettingsModal must not keep hard-coded Chinese settings copy',
+);
 assert.doesNotMatch(settingsSource, /value="ja-JP"/u, 'Settings language selector must not offer unsupported locales');
 
 const orgContainerSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/contacts/OrgContainer.tsx');
@@ -189,6 +224,50 @@ assert.doesNotMatch(
   contactDetailSource,
   /Contact starred|Contact unstarred|Contact update failed|Chat ID is not ready|Chat ID copied|Voice calling is unavailable|Video calling is unavailable|Set remark|Remark updated|Remark update failed|Recommendation sent|Recommendation failed|Added to blacklist|Blacklist update failed|Contact deleted|Delete contact failed|Messaging is unavailable|Unknown position|Basic Info|Department|Company|Location|Signature|Mail app selected|Voice call|Video call|Copy Chat ID|Add to Blacklist/u,
   'ContactDetailPane must not keep hard-coded English contact detail copy',
+);
+
+const newFriendsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/contacts/NewFriendsContainer.tsx');
+assert.match(newFriendsSource, /useTranslation/u, 'NewFriendsContainer must use react-i18next');
+assert.match(newFriendsSource, /contacts\.newFriends\.title/u, 'NewFriendsContainer title must use i18n');
+assert.doesNotMatch(
+  newFriendsSource,
+  /加载好友申请失败|已通过申请|处理好友申请失败|新的朋友|添加朋友|等待对方验证|请求添加你为好友/u,
+  'NewFriendsContainer must not keep hard-coded Chinese friend-request copy',
+);
+
+const allContactsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/contacts/AllContactsContainer.tsx');
+assert.match(allContactsSource, /useTranslation/u, 'AllContactsContainer must use react-i18next');
+assert.match(allContactsSource, /contacts\.allContacts\.title/u, 'AllContactsContainer title must use i18n');
+assert.doesNotMatch(
+  allContactsSource,
+  /加载联系人失败|全部好友|增加联系人|加载中/u,
+  'AllContactsContainer must not keep hard-coded Chinese contact list copy',
+);
+
+const messageInputSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/MessageInput.tsx');
+assert.match(messageInputSource, /useTranslation/u, 'MessageInput must use react-i18next');
+assert.match(messageInputSource, /chat\.messageInput\.defaultPlaceholder/u, 'MessageInput default placeholder must use i18n');
+assert.doesNotMatch(
+  messageInputSource,
+  /发送消息\.\.\.|智能体正在回复|说话时间太短|无法访问麦克风|松开鼠标发送文件|取消截图/u,
+  'MessageInput must not keep hard-coded Chinese input copy',
+);
+
+const messageListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/MessageList.tsx');
+assert.match(messageListSource, /chat\.messageList\.contextMenu\.copy/u, 'MessageList context menu must use i18n');
+assert.doesNotMatch(
+  messageListSource,
+  /label:\s*['"]复制['"]|label:\s*['"]回复['"]|已选择 \{|加载中\.\.\.|未知用户|视频通话|语音通话/u,
+  'MessageList must not keep hard-coded Chinese message list copy',
+);
+
+const favoritesViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/pages/FavoritesView.tsx');
+assert.match(favoritesViewSource, /useTranslation/u, 'FavoritesView must use react-i18next');
+assert.match(favoritesViewSource, /favorites\.title/u, 'FavoritesView title must use i18n');
+assert.doesNotMatch(
+  favoritesViewSource,
+  /加载收藏失败|取消收藏失败|全部收藏|暂无收藏内容|在收藏中搜索/u,
+  'FavoritesView must not keep hard-coded Chinese favorites copy',
 );
 
 const addFriendModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/AddFriendModal.tsx');

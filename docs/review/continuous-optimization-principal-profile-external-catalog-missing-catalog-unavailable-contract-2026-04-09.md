@@ -29,8 +29,8 @@
 
 ## Changed Files
 
-- `services/local-minimal-node/src/node/principal_profile.rs`
-- `services/local-minimal-node/tests/principal_profile_provider_runtime_selection_test.rs`
+- `services/sdkwork-im-gateway/src/node/principal_profile.rs`
+- `services/sdkwork-im-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
 - `docs/review/continuous-optimization-principal-profile-external-catalog-missing-catalog-unavailable-contract-2026-04-09.md`
 - `docs/step/continuous-optimization-principal-profile-external-catalog-missing-catalog-unavailable-contract-2026-04-09.md`
 - `docs/架构/09BJ-principal-profile-external-catalog-missing-catalog-unavailable-contract-implementation-plan-2026-04-09.md`
@@ -41,7 +41,7 @@
 Red:
 
 ```powershell
-cargo test -p local-minimal-node --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
+cargo test -p sdkwork-im-gateway --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
 ```
 
 - Failed before the patch because app assembly panicked at:
@@ -50,9 +50,9 @@ cargo test -p local-minimal-node --offline missing_catalog_path_and_returns_prov
 Green:
 
 ```powershell
-cargo test -p local-minimal-node --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
-cargo test -p local-minimal-node --offline --test principal_profile_provider_runtime_selection_test -- --nocapture
-cargo test -p local-minimal-node --offline -- --nocapture
+cargo test -p sdkwork-im-gateway --offline missing_catalog_path_and_returns_provider_unavailable -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test principal_profile_provider_runtime_selection_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline -- --nocapture
 cargo fmt --all --check
 ```
 

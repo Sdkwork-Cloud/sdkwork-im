@@ -8,7 +8,7 @@
 
 ## 本轮已兑现能力
 - `09`
-  - `Step 10 / CP10-1` 现在已经把 `local-minimal` 命令面冻结为统一入口：
+  - `Step 10 / CP10-1` 现在已经把 `self-hosted.split-services.development` 命令面冻结为统一入口：
     - `install`
     - `init`
     - `start`
@@ -40,15 +40,15 @@
 
 ## 证据
 - 代码：
-  - `services/local-minimal-node/tests/deployment_profile_test.rs`
-  - `bin/status-local.sh`
+  - `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
+  - `bin/retired-lifecycle-status.sh`
 - 文档：
   - `docs/部署/快速启动脚本.md`
 - 验证：
   - `cargo fmt --all --check`
-  - `cargo test -p local-minimal-node --offline --test deployment_profile_test`
-  - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/status-local.ps1 -Help`
-  - `cmd /c bin\\status-local.cmd --help`
+  - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/retired-lifecycle-status.ps1 -Help`
+  - `cmd /c bin\\retired-lifecycle-status.cmd --help`
 
 ## 当前判断
 - `CP10-1`：通过

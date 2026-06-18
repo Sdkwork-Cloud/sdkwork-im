@@ -9,6 +9,33 @@ notes, and developer guides for Sdkwork IM.
 
 SDKWork Chat maintainers.
 
+## Topology v2 (current authority)
+
+| Topic | Entry |
+| --- | --- |
+| Greenfield plan | [topology-greenfield.md](./topology-greenfield.md) |
+| Machine contract | [../specs/topology.spec.json](../specs/topology.spec.json) |
+| Profile env files | [../configs/topology/](../configs/topology/) |
+| Deployment index | [部署/README.md](./部署/README.md) |
+| Public docs site | [sites/](./sites/) |
+
+Default development: `pnpm im:dev` from repository root. Application ingress: `http://127.0.0.1:18079`.
+
+Retired `local-minimal` / `local-default` profiles and lifecycle scripts are documented only in
+[topology-greenfield.md](./topology-greenfield.md) and [sites/deployment/](./sites/deployment/).
+
+## Archive indexes
+
+| Directory | Role |
+| --- | --- |
+| [架构/](./架构/README.md) | 2026-04 architecture design archive |
+| [step/](./step/README.md) | Step execution plans |
+| [review/](./review/README.md) | Execution cards and retrospectives |
+| [architecture/decisions/](./architecture/decisions/README.md) | ADRs |
+
+Archive filenames may retain historical tokens for link stability; active body text uses Topology v2
+vocabulary.
+
 ## Allowed Content
 
 - Architecture decisions, runbooks, changelogs, design documents, implementation plans, and
@@ -27,6 +54,12 @@ SDKWork Chat maintainers.
 - `../sdkwork-specs/ARCHITECTURE_DECISION_SPEC.md`
 
 ## Verification
+
+```bash
+pnpm test:topology-baggage
+pnpm test:workflow-commercial-gates
+pnpm test:sdkwork-workspace-structure-standard
+```
 
 Run documentation-specific checks when available and
 `pnpm run test:sdkwork-workspace-structure-standard` after root layout changes.

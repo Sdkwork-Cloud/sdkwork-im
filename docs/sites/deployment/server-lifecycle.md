@@ -70,7 +70,7 @@ The packaged server flow freezes PostgreSQL as the storage baseline.
 - `passwordFile`
 - `migrationMode`
 
-That storage contract is separate from the file-backed defaults used by the local `local-minimal`
+That storage contract is separate from the file-backed defaults used in development topology profiles.
 development profile.
 
 ## Service-manager Outputs

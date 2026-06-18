@@ -20,7 +20,7 @@ assert.doesNotMatch(
 
 assert.match(
   messageListSource,
-  /\{\s*id:\s*['"]reaction['"][\s\S]*?label:\s*['"](?:表情回应|琛ㄦ儏鍥炲簲)['"][\s\S]*?icon:\s*<Smile\s+size=\{14\}/u,
+  /\{\s*id:\s*['"]reaction['"][\s\S]*?label:\s*t\(['"]chat\.messageList\.contextMenu\.reaction['"]\)[\s\S]*?icon:\s*<Smile\s+size=\{14\}/u,
   'Message context menu must expose the emoji reaction action after removing the hover toolbar.',
 );
 

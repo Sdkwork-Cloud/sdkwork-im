@@ -50,7 +50,6 @@ members = [
     "services/sdkwork-comms-conversation-service",
     "services/contact-service",
     "services/interaction-service",
-    "services/local-minimal-node",
     "services/media-service",
     "services/projection-service",
     "services/session-gateway",
@@ -99,21 +98,20 @@ sdkwork-api-config = { path = "crates/sdkwork-api-config" }
 # IAM_SPEC §2 (layered package boundary) for the contract these crates
 # implement.
 sdkwork_id = { path = "../sdkwork-appbase/crates/sdkwork-platform-id-service", package = "sdkwork-platform-id-service" }
-sdkwork_http_context = { path = "../sdkwork-appbase/crates/sdkwork-platform-http-context-service", package = "sdkwork-platform-http-context-service" }
+sdkwork_web_core = { path = "../sdkwork-web-framework/crates/sdkwork-web-core", package = "sdkwork-web-core" }
 # DATABASE_SPEC §33: unified database config (env, pool, table prefix).
 # All PostgreSQL adapters consume this; the sqlx pool builder lives in a
 # companion crate `sdkwork-database-sqlx` that is not required here.
 sdkwork_database_config = { path = "../sdkwork-database/crates/sdkwork-database-config", package = "sdkwork-database-config" }
-# IM pins `sdkwork-rtc` at commit 1c1ff3b via sdkwork.workflow.json. Local
-# development may keep that revision in `../sdkwork-rtc-im-compat` as a git
-# worktree while `../sdkwork-rtc` tracks a newer checkout.
-sdkwork-rtc-adapter-agora = { path = "../sdkwork-rtc-im-compat/adapters/rtc-agora" }
-sdkwork-rtc-adapter-aliyun = { path = "../sdkwork-rtc-im-compat/adapters/rtc-aliyun" }
-sdkwork-rtc-adapter-livekit = { path = "../sdkwork-rtc-im-compat/adapters/rtc-livekit" }
-sdkwork-rtc-adapter-tencent = { path = "../sdkwork-rtc-im-compat/adapters/rtc-tencent" }
-sdkwork-rtc-adapter-volcengine = { path = "../sdkwork-rtc-im-compat/adapters/rtc-volcengine" }
-sdkwork-rtc-core = { path = "../sdkwork-rtc-im-compat/crates/sdkwork-rtc-core" }
-sdkwork-rtc-app-context = { path = "../sdkwork-rtc-im-compat/crates/sdkwork-rtc-app-context" }
+# IM consumes RTC media/provider runtime from the canonical `sdkwork-rtc`
+# authority workspace. Signaling remains IM-owned; RTC must not depend back on IM.
+sdkwork-communication-rtc-service = { path = "../sdkwork-rtc/crates/sdkwork-communication-rtc-service" }
+sdkwork-rtc-app-context = { path = "../sdkwork-rtc/crates/sdkwork-rtc-app-context" }
+sdkwork-rtc-adapter-agora = { path = "../sdkwork-rtc/plugins/rtc-agora" }
+sdkwork-rtc-adapter-aliyun = { path = "../sdkwork-rtc/plugins/rtc-aliyun" }
+sdkwork-rtc-adapter-livekit = { path = "../sdkwork-rtc/plugins/rtc-livekit" }
+sdkwork-rtc-adapter-tencent = { path = "../sdkwork-rtc/plugins/rtc-tencent" }
+sdkwork-rtc-adapter-volcengine = { path = "../sdkwork-rtc/plugins/rtc-volcengine" }
 # Internal IM workspace members
 conversation-runtime = { path = "services/sdkwork-comms-conversation-service", package = "sdkwork-comms-conversation-service" }
 im-domain-core = { path = "crates/im-domain-core" }

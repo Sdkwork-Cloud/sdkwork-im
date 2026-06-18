@@ -113,7 +113,7 @@ RTC 相关能力拆成两层：
 3. 若会话状态为 `Rejected` 或 `Ended`，拒绝写入自定义信令，返回 `rtc_session_closed`。
 4. 若请求携带 `signalingStreamId`，将其同步挂到 RTC 会话上，形成后续流式信令关联键。
 5. 运行时构造 `RtcSignalEvent`，写入本地信令存储。
-6. 若会话绑定了 `conversationId`，`local-minimal-node` 立即把该信令投影成一条 IM `MessageType::Signal` 消息。
+6. 若会话绑定了 `conversationId`，`sdkwork-im-server` 立即把该信令投影成一条 IM `MessageType::Signal` 消息。
 7. IM 消息复用统一消息后处理链，自动更新：
    - 会话摘要
    - inbox 计数
@@ -171,7 +171,7 @@ RTC 相关能力拆成两层：
 
 ## 8. 存储与可靠性标准
 
-当前 `local-minimal` 实现使用内存存储，定位是本地可运行基线，不代表生产最终形态。
+当前 `self-hosted.split-services.development` 实现使用内存存储，定位是本地可运行基线，不代表生产最终形态。
 
 生产版标准建议如下：
 
@@ -209,13 +209,13 @@ RTC 相关能力拆成两层：
 - 关闭态 RTC 会话拒绝自定义信令
 - `sender` 统一结构接入 RTC 自定义信令
 - 会话绑定 IM 时自动投影为 `signal` 消息
-- `local-minimal-node` 端到端测试覆盖自定义信令路径
+- `sdkwork-im-server` 端到端测试覆盖自定义信令路径
 
 本轮验证基线：
 
 - `cargo test -p im-domain-core --test model_contract_test --offline`
 - `cargo test -p im-call-runtime --test rtc_signal_flow_test --offline`
-- `cargo test -p local-minimal-node --test http_e2e_test --offline`
+- `cargo test -p sdkwork-im-gateway --test http_e2e_test --offline`
 
 ## 11. 下一步
 

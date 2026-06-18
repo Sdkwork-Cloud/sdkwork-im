@@ -82,13 +82,13 @@ function resolveSameOriginHttpBaseUrl(): string | undefined {
 
 export function resolveBackendSdkBaseUrl(): string {
   const baseUrl = readEnvValue('VITE_SDKWORK_IM_BACKEND_API_BASE_URL')
-    ?? readEnvValue('VITE_SDKWORK_IM_APP_API_BASE_URL')
+    ?? readEnvValue('VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL')
     ?? readEnvValue('VITE_SDKWORK_IAM_APP_API_BASE_URL')
     ?? resolveLocalDevBackendApiBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
   if (!baseUrl) {
     throw new Error(
-      'Sdkwork IM backend SDK base URL is not configured. Set VITE_SDKWORK_IM_BACKEND_API_BASE_URL or serve the web build from the unified gateway origin.',
+      'Sdkwork IM backend SDK base URL is not configured. Set VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL.',
     );
   }
   return normalizeBackendSdkBaseUrl(baseUrl);

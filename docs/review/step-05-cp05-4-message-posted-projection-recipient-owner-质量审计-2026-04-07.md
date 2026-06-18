@@ -4,20 +4,20 @@
 
 - 本轮增量通过。
 - `notification-service` 已开始统一拥有 message-posted recipient authority。
-- `local-minimal-node` 不再把 `recipient_ids` 作为 edge 输入透传给 notification owner。
+- `sdkwork-im-server` 不再把 `recipient_ids` 作为 edge 输入透传给 notification owner。
 
 ## 2. 证据
 
 - 结构证据
   - `test_notification_runtime_exposes_message_posted_notification_owner_seam`
   - `test_local_minimal_node_effects_do_not_thread_message_posted_recipient_ids`
-  - `cargo test -p local-minimal-node --test lib_structure_test --offline --target-dir target-cp054k-reg-local-structure-full`
+  - `cargo test -p sdkwork-im-gateway --test lib_structure_test --offline --target-dir target-cp054k-reg-local-structure-full`
 - 行为证据
   - `test_request_message_posted_notifications_resolves_current_active_recipients_from_projection_auth_context`
   - `test_local_minimal_profile_fanouts_message_notifications_to_other_active_members_only`
 - 回归证据
   - `cargo test -p notification-service --offline --target-dir target-cp054k-reg-notification-full`
-  - `rustfmt --edition 2024 --check services/notification-service/src/lib.rs services/notification-service/tests/lib_structure_test.rs services/notification-service/tests/notification_pipeline_test.rs services/local-minimal-node/src/node/build.rs services/local-minimal-node/src/node/effects.rs services/local-minimal-node/tests/lib_structure_test.rs`
+  - `rustfmt --edition 2024 --check services/notification-service/src/lib.rs services/notification-service/tests/lib_structure_test.rs services/notification-service/tests/notification_pipeline_test.rs services/sdkwork-im-gateway/src/node/build.rs services/sdkwork-im-gateway/src/node/effects.rs services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ## 3. 剩余问题
 

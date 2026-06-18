@@ -102,4 +102,4 @@ Observed green result:
    - notification
    - streaming
    - RTC
-2. verify whether media attach orchestration in `local-minimal-node` should explicitly document the same finalized-asset immutability rule
+2. verify whether media attach orchestration in `sdkwork-im-server` should explicitly document the same finalized-asset immutability rule

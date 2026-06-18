@@ -111,7 +111,16 @@ assert.match(chatListSource, /chat\.list\.item\.unreadCount/u, 'left chat sessio
 assert.match(chatLayoutSource, /placeholder=\{t\(["']chat\.searchInput\.placeholder["']\)\}/u, 'top search input placeholder must use dedicated i18n key');
 assert.match(chatLayoutSource, /aria-label=\{t\(["']chat\.searchInput\.ariaLabel["']\)\}/u, 'top search input aria label must use dedicated i18n key');
 assert.match(chatLayoutSource, /title=\{t\(["']chat\.searchInput\.title["']\)\}/u, 'top search input title must use dedicated i18n key');
-assert.match(chatLayoutSource, /chat\.modal\.title\.searchMessages/u, 'chat inline modals must render titles through i18n keys');
+assert.match(
+  chatLayoutSource,
+  /<ChatHistoryModal[\s\S]*?isOpen=\{activeModal === "search"/u,
+  'chat search must open the SDK-backed history modal instead of a local inline search form',
+);
+assert.match(
+  read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ChatHistoryModal.tsx'),
+  /chat\.historySearch\.title/u,
+  'chat history modal must render its title through i18n keys',
+);
 assert.match(chatRightPanelSource, /chat\.rightPanel\.actions\.searchChat/u, 'chat right panel must render actions through i18n keys');
 assert.match(chatWindowSource, /systemAssistantService\.isSystemAssistantChat/u, 'chat window must recognize the default assistant conversation');
 assert.match(chatWindowSource, /chat\.systemAssistant\.welcomeMessage/u, 'chat window must render a localized assistant welcome message');
@@ -188,6 +197,10 @@ for (const requiredKey of [
   'chat.window.inputPlaceholder',
   'chat.window.typing',
   'chat.window.toast.sendFailed',
+  'chat.messageList.toast.loadFailed',
+  'chat.messageList.toast.deleteFailed',
+  'chat.messageList.toast.favoriteFailed',
+  'chat.messageList.toast.reactionFailed',
   'chat.startup.assistantUnavailable',
   'chat.startup.assistantToastUnavailable',
   'chat.startup.syncWarning',

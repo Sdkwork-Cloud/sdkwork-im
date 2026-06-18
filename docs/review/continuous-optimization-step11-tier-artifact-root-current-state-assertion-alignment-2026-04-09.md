@@ -29,16 +29,16 @@
 Red:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
 ```
 
 Green:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_step11_tier_artifact_roots_in_repo -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test -- --nocapture
 cargo fmt --all --check
-cargo test -p local-minimal-node --offline -- --nocapture
+cargo test -p sdkwork-im-gateway --offline -- --nocapture
 ```
 
 ## Result
@@ -48,4 +48,4 @@ cargo test -p local-minimal-node --offline -- --nocapture
 
 ## Next Gap
 
-- Continue the review loop above Step 11 docs into broader provider/runtime/cross-platform verification for `local-minimal-node`.
+- Continue the review loop above Step 11 docs into broader provider/runtime/cross-platform verification for `sdkwork-im-server`.

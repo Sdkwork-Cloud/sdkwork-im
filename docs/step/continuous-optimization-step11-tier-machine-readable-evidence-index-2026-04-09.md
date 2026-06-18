@@ -7,7 +7,7 @@ Co-locate a machine-readable evidence index with each Step 11 high-tier artifact
 ## Red
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
 ```
 
 - The repo had no `artifacts/perf/step-11/schemas/step-11-tier-evidence-index.schema.json`.
@@ -21,10 +21,10 @@ cargo test -p local-minimal-node --offline --test performance_drill_catalog_test
 ## Verify
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_co_locates_step11_tier_evidence_indexes_with_artifact_roots -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test -- --nocapture
-cargo test -p local-minimal-node --offline -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline -- --nocapture
 ```
 
 ## Next

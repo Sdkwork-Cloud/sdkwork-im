@@ -3,7 +3,7 @@
 ## 结论
 
 - 发现真实偏差：文档长期宣称 `principal-profile-upstream-context / principal-profile-external-catalog` 双形态已闭环，但默认运行时入口始终硬编码本地实现，`external` 只能在测试里手工注入。
-- 本轮已修复：`local-minimal-node` 默认装配已支持按配置切换到真实 `principal-profile-external-catalog`。
+- 本轮已修复：`sdkwork-im-server` 默认装配已支持按配置切换到真实 `principal-profile-external-catalog`。
 - 本轮未扩大范围：未进入 RTC / 对象存储 / IoT 的真实云厂商 SDK 适配，这些仍在后续 backlog。
 
 ## Bug 详情
@@ -38,17 +38,17 @@
 ## 验证证据
 
 - 新增回归测试：
-  - `services/local-minimal-node/tests/principal_profile_provider_runtime_selection_test.rs`
+  - `services/sdkwork-im-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
 - 通过：
-  - `cargo test -p local-minimal-node --test principal_profile_provider_runtime_selection_test -- --nocapture`
-  - `cargo test -p local-minimal-node principal_profile_provider -- --nocapture`
+  - `cargo test -p sdkwork-im-gateway --test principal_profile_provider_runtime_selection_test -- --nocapture`
+  - `cargo test -p sdkwork-im-gateway principal_profile_provider -- --nocapture`
 
 ## 剩余问题清单
 
 ### P1 待处理：Windows operator 脚本 help 面仍有残缺
 
-- `install-local.cmd --help` 仍未补 GNU-style `.cmd` usage
-- `deploy-local.cmd --help` 仍未补 GNU-style `.cmd` usage
+- `retired-lifecycle-install.cmd --help` 仍未补 GNU-style `.cmd` usage
+- `retired-lifecycle-deploy.cmd --help` 仍未补 GNU-style `.cmd` usage
 
 ### P1 待处理：provider 体系仍未进入真实云适配阶段
 
@@ -58,6 +58,6 @@
 
 ## 下一步计划
 
-1. 冻结 `install-local.cmd --help` 与 `deploy-local.cmd --help` 的 Windows discoverability 合约。
+1. 冻结 `retired-lifecycle-install.cmd --help` 与 `retired-lifecycle-deploy.cmd --help` 的 Windows discoverability 合约。
 2. 为 `principal-profile-external-catalog` 增加 operator 示例配置文档与健康检查断言。
 3. 进入 `rtc-volcengine` 最小真实 adapter，建立 provider/plugin 从“契约闭环”到“运行闭环”的下一段主路径。

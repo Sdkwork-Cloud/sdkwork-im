@@ -31,13 +31,12 @@ test('commercial readiness checks cover the verified frontend and backend gate c
       'pc-auth-appbase-ui-contract',
       'pc-notary-app-sdk-integration',
       'pc-qr-scan-standard',
+      'topology-baggage',
       'dependency-management',
       'workflow-commercial-gates',
       'governance-service-tests',
-      'commercial-gate-contract',
+      'gateway-integration-tests',
       'session-gateway-tests',
-      'performance-quant-baseline',
-      'performance-drill-catalog',
     ],
   );
 

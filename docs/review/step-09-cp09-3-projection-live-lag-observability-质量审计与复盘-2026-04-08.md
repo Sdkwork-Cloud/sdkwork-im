@@ -5,16 +5,16 @@
 - `services/projection-service/src/lib.rs`
 - `services/projection-service/src/scope.rs`
 - `services/ops-service/src/lib.rs`
-- `services/local-minimal-node/src/node/platform.rs`
+- `services/sdkwork-im-gateway/src/node/platform.rs`
 - `services/projection-service/tests/projection_snapshot_test.rs`
-- `services/local-minimal-node/tests/domain_recovery_persistence_test.rs`
+- `services/sdkwork-im-gateway/tests/domain_recovery_persistence_test.rs`
 
 ## 审计结论
 - 本轮未发现阻塞当前增量交付的剩余缺陷。
 - 改动符合 `CP09-3` 当前最小正确方向：
   - live lag 继续由 `projection-service` 拥有
   - `ops-service` 继续只负责公开 lag 聚合
-  - `local-minimal-node` 继续只负责 owner-to-ops 映射
+  - `sdkwork-im-server` 继续只负责 owner-to-ops 映射
 - 本轮没有为补 live lag 再建新的 replay 状态机或新的 telemetry 存储 owner。
 
 ## 正向结果
@@ -48,7 +48,7 @@
 - `cargo fmt --all --check`
 - `cargo test -p projection-service --offline`
 - `cargo test -p ops-service --offline`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 
 ## 复盘结论
 - 本轮最正确的决策，是把 live lag 放回现有 apply owner 与既有 `ops/lag` 入口，而不是继续扩张 `ops/replay-status` 的职责。

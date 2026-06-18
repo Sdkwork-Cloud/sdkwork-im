@@ -51,7 +51,7 @@
 - 本轮实现继续遵守既有架构边界：
   - `projection-service` 继续拥有 projection observability 状态
   - `ops-service` 继续维护公共 schema 与 runtime 状态
-  - `local-minimal-node` 继续通过真实 replay 路径计算并映射 evidence
+  - `sdkwork-im-server` 继续通过真实 replay 路径计算并映射 evidence
 - 本轮也没有把 replay lag 做成新的硬编码脚本字段，而是继续挂在真实恢复合同上。
 
 ## 回写决议
@@ -66,20 +66,20 @@
 - 代码：
   - `services/projection-service/src/observability.rs`
   - `services/ops-service/src/lib.rs`
-  - `services/local-minimal-node/src/node/build.rs`
-  - `services/local-minimal-node/src/node/platform.rs`
+  - `services/sdkwork-im-gateway/src/node/build.rs`
+  - `services/sdkwork-im-gateway/src/node/platform.rs`
 - 测试：
   - `services/projection-service/tests/projection_snapshot_test.rs`
   - `services/ops-service/tests/http_smoke_test.rs`
-  - `services/local-minimal-node/tests/domain_recovery_persistence_test.rs`
+  - `services/sdkwork-im-gateway/tests/domain_recovery_persistence_test.rs`
 - 验证：
   - `cargo test -p projection-service --offline --test projection_snapshot_test test_projection_service_records_projection_replay_metrics`
   - `cargo test -p ops-service --offline --test http_smoke_test test_cluster_lag_health_runtime_dir_and_diagnostics_over_http`
-  - `cargo test -p local-minimal-node --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics`
-  - `cargo test -p local-minimal-node --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
+  - `cargo test -p sdkwork-im-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_surfaces_projection_plane_observability_over_ops_health_and_diagnostics`
+  - `cargo test -p sdkwork-im-gateway --offline --test domain_recovery_persistence_test test_default_local_minimal_profile_reports_projection_replay_backlog_and_lag_after_stale_snapshot_restart`
   - `cargo test -p projection-service --offline`
   - `cargo test -p ops-service --offline`
-  - `cargo test -p local-minimal-node --offline`
+  - `cargo test -p sdkwork-im-gateway --offline`
   - `cargo fmt --all --check`
 
 ## 当前判断

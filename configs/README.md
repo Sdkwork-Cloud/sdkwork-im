@@ -28,7 +28,16 @@ SDKWork IM maintainers.
 - `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`
 - `../sdkwork-specs/CONFIG_SPEC.md`
 - `../sdkwork-specs/ENVIRONMENT_SPEC.md`
+- `../sdkwork-specs/APP_RUNTIME_TOPOLOGY_SPEC.md`
+
+## Topology v2
+
+Runtime profile env files live under [topology/](./topology/README.md). Default development uses
+`self-hosted.split-services.development` (`pnpm im:dev`).
 
 ## Verification
 
-Run `pnpm run test:sdkwork-workspace-structure-standard` from the repository root.
+```bash
+pnpm test:topology-baggage
+pnpm test:sdkwork-workspace-structure-standard
+```

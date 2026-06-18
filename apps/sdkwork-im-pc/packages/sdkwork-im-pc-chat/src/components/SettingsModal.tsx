@@ -187,7 +187,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="w-[200px] bg-[#1e1e1e] flex flex-col shrink-0 relative z-20 border-r border-white/5">
               <div className="h-[72px] px-6 flex items-center shrink-0">
                 <span className="text-lg font-semibold text-gray-200 tracking-wide">
-                  设置
+                  {t("settingsModal.title")}
                 </span>
               </div>
               <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 custom-scrollbar">
@@ -200,7 +200,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
                   )}
                 >
-                  <Volume2 size={16} /> 通用设置
+                  <Volume2 size={16} /> {t("settingsModal.tabs.general")}
                 </button>
                 <button
                   onClick={() => setActiveTab("modules")}
@@ -211,7 +211,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
                   )}
                 >
-                  <LayoutGrid size={16} /> 功能模块
+                  <LayoutGrid size={16} /> {t("settingsModal.tabs.modules")}
                 </button>
                 <button
                   onClick={() => setActiveTab("notifications")}
@@ -222,7 +222,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
                   )}
                 >
-                  <Bell size={16} /> 消息通知
+                  <Bell size={16} /> {t("settingsModal.tabs.notifications")}
                 </button>
                 <button
                   onClick={() => setActiveTab("privacy")}
@@ -233,7 +233,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
                   )}
                 >
-                  <Shield size={16} /> 隐私安全
+                  <Shield size={16} /> {t("settingsModal.tabs.privacy")}
                 </button>
                 <button
                   onClick={() => setActiveTab("appearance")}
@@ -244,7 +244,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
                   )}
                 >
-                  <Paintbrush size={16} /> 外观设置
+                  <Paintbrush size={16} /> {t("settingsModal.tabs.appearance")}
                 </button>
                 <button
                   onClick={() => setActiveTab("devices")}
@@ -255,7 +255,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       : "text-gray-400 hover:text-gray-200 hover:bg-white/5",
                   )}
                 >
-                  <Cpu size={16} /> 设备管理
+                  <Cpu size={16} /> {t("settingsModal.tabs.devices")}
                 </button>
               </div>
               <div className="p-3 border-t border-white/5">
@@ -266,7 +266,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors font-medium"
                 >
-                  <LogOut size={16} /> 退出登录
+                  <LogOut size={16} /> {t("settingsModal.logout")}
                 </button>
               </div>
             </div>
@@ -276,14 +276,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {/* Header Sticky */}
               <div className="h-[72px] px-8 flex items-center justify-between shrink-0 border-b border-white/5 bg-[#181818]/90 backdrop-blur-md sticky top-0 z-30">
                 <h2 className="text-lg font-medium text-gray-100 tracking-wide">
-                  {{
-                    general: "通用设置",
-                    modules: "功能模块",
-                    notifications: "消息通知",
-                    privacy: "隐私安全",
-                    appearance: "外观设置",
-                    devices: "设备管理",
-                  }[activeTab] || "设置"}
+                  {t(`settingsModal.tabs.${activeTab}`)}
                 </h2>
                 <button
                   onClick={onClose}
@@ -308,7 +301,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="space-y-6">
                           <div className="space-y-2">
                             <h3 className="text-sm font-medium text-gray-300">
-                              语言
+                              {t("settingsModal.general.language")}
                             </h3>
                             <div className="flex items-center gap-3 p-3 bg-[#2b2b2d] rounded-xl border border-white/5 flex-wrap">
                               <Globe
@@ -322,18 +315,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   updateSetting({ lang: e.target.value })
                                 }
                               >
-                                <option value="zh-CN">简体中文</option>
-                                <option value="en-US">English</option>
+                                <option value="zh-CN">{t("settingsModal.general.languageZh")}</option>
+                                <option value="en-US">{t("settingsModal.general.languageEn")}</option>
                               </select>
                             </div>
                           </div>
                           <div className="space-y-2">
                             <h3 className="text-sm font-medium text-gray-300">
-                              系统开机启动
+                              {t("settingsModal.general.autoStartTitle")}
                             </h3>
                             <div className="flex items-center justify-between p-4 bg-[#2b2b2d] rounded-xl border border-white/5">
                               <span className="text-sm text-gray-300">
-                                开机时自动启动 Sdkwork IM
+                                {t("settingsModal.general.autoStartDescription")}
                               </span>
                               <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -365,72 +358,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       >
                         <div className="space-y-4">
                           <p className="text-sm text-gray-400 mb-4">
-                            勾选需要在侧边栏显示的功能模块：
+                            {t("settingsModal.modules.description")}
                           </p>
                           <div className="flex flex-col gap-3">
                             {(() => {
                               const configuredAvailable = [
-                                {
-                                  id: "chat",
-                                  name: "聊天",
-                                  icon: MessageSquare,
-                                },
-                                {
-                                  id: "workspace",
-                                  name: "工作台",
-                                  icon: LayoutGrid,
-                                },
-                                {
-                                  id: "orders",
-                                  name: "订单中心",
-                                  icon: ReceiptText,
-                                },
-                                { id: "shop", name: "购物中心", icon: Store },
-                                {
-                                  id: "calendar",
-                                  name: "日历",
-                                  icon: Calendar,
-                                },
-                                {
-                                  id: "notary",
-                                  name: "公证业务",
-                                  icon: ShieldCheck,
-                                },
-                                {
-                                  id: "knowledge",
-                                  name: "知识库",
-                                  icon: BookOpen,
-                                },
-                                {
-                                  id: "drive",
-                                  name: "网盘",
-                                  icon: Cloud,
-                                },
-                                {
-                                  id: "devices",
-                                  name: "智能硬件",
-                                  icon: Cpu,
-                                },
-                                {
-                                  id: "community",
-                                  name: "社群圈子",
-                                  icon: Users,
-                                },
-                                { 
-                                  id: "course", 
-                                  name: "在线课程", 
-                                  icon: GraduationCap 
-                                },
-                                { id: "agent", name: "智能体", icon: Sparkles },
-                                { id: "voice", name: "声音市场", icon: Mic },
-                                {
-                                  id: "enterprise",
-                                  name: "企业中心",
-                                  icon: Building2,
-                                },
-                                { id: "contacts", name: "通讯录", icon: Users },
-                                { id: "favorites", name: "收藏", icon: Star },
-                              ];
+                                { id: "chat", icon: MessageSquare },
+                                { id: "workspace", icon: LayoutGrid },
+                                { id: "orders", icon: ReceiptText },
+                                { id: "shop", icon: Store },
+                                { id: "calendar", icon: Calendar },
+                                { id: "notary", icon: ShieldCheck },
+                                { id: "knowledge", icon: BookOpen },
+                                { id: "drive", icon: Cloud },
+                                { id: "devices", icon: Cpu },
+                                { id: "community", icon: Users },
+                                { id: "course", icon: GraduationCap },
+                                { id: "agent", icon: Sparkles },
+                                { id: "voice", icon: Mic },
+                                { id: "enterprise", icon: Building2 },
+                                { id: "contacts", icon: Users },
+                                { id: "favorites", icon: Star },
+                              ].map((mod) => ({
+                                ...mod,
+                                name: t(`sidebar.${mod.id}`),
+                              }));
 
                               const allAvailable = configuredAvailable.filter(
                                 (mod) =>
@@ -523,7 +475,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                           disabled={!isChecked || index === 0}
                                           onClick={handleMoveUp}
                                           className="p-1 px-2 text-gray-500 hover:text-gray-200 hover:bg-white/10 rounded transition-colors disabled:opacity-0 disabled:pointer-events-none"
-                                          title="上移"
+                                          title={t("settingsModal.modules.moveUp")}
                                         >
                                           <ArrowUp size={16} />
                                         </button>
@@ -534,7 +486,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                           }
                                           onClick={handleMoveDown}
                                           className="p-1 px-2 text-gray-500 hover:text-gray-200 hover:bg-white/10 rounded transition-colors disabled:opacity-0 disabled:pointer-events-none"
-                                          title="下移"
+                                          title={t("settingsModal.modules.moveDown")}
                                         >
                                           <ArrowDown size={16} />
                                         </button>
@@ -793,7 +745,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <div className="p-4 bg-[#2b2b2d] rounded-xl border border-white/5 flex flex-col gap-3">
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-gray-200">
-                                加我为朋友时需要验证
+                                {t("settingsModal.privacy.requireAuth")}
                               </span>
                               <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -812,7 +764,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <div className="h-px w-full bg-white/5"></div>
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-gray-200">
-                                向朋友展示在线状态
+                                {t("settingsModal.privacy.showOnline")}
                               </span>
                               <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -832,11 +784,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <button
                             onClick={async () => {
                               await settingsService.clearCache();
-                              toast("本地缓存数据已清理", "success");
+                              toast(t("settingsModal.privacy.cacheCleared"), "success");
                             }}
                             className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-medium rounded-lg transition-colors border border-red-500/20"
                           >
-                            清理本地数据
+                            {t("settingsModal.privacy.clearCache")}
                           </button>
                         </div>
                       </motion.div>
@@ -854,7 +806,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="space-y-6">
                           <div>
                             <h3 className="text-sm font-medium text-gray-300 mb-4">
-                              主题配色
+                              {t("settingsModal.appearance.themeTitle")}
                             </h3>
                             <div className="flex items-center gap-4">
                               <button
@@ -883,7 +835,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   ></div>
                                 </div>
                                 <span className="text-xs text-gray-300">
-                                  浅色
+                                  {t("settingsModal.appearance.light")}
                                 </span>
                               </button>
                               <button
@@ -910,7 +862,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   ></div>
                                 </div>
                                 <span className="text-xs text-gray-300">
-                                  深色
+                                  {t("settingsModal.appearance.dark")}
                                 </span>
                               </button>
                               <button
@@ -945,7 +897,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   ></div>
                                 </div>
                                 <span className="text-xs text-gray-300">
-                                  跟随系统
+                                  {t("settingsModal.appearance.system")}
                                 </span>
                               </button>
                             </div>
@@ -972,10 +924,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               />
                               <div>
                                 <div className="text-sm font-medium text-gray-200">
-                                  当前设备 (MacBook Pro)
+                                  {t("settingsModal.devices.currentDevice", { name: devices[0]?.name ?? "MacBook Pro" })}
                                 </div>
                                 <div className="text-xs text-indigo-400 mt-1">
-                                  在线
+                                  {t("settingsModal.devices.online")}
                                 </div>
                               </div>
                             </div>
@@ -1005,11 +957,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   setDevices(
                                     devices.filter((d) => d.id !== device.id),
                                   );
-                                  toast(`已退出 ${device.name}`, "success");
+                                  toast(t("settingsModal.devices.signedOut", { name: device.name }), "success");
                                 }}
                                 className="text-xs text-red-400 hover:text-red-300 font-medium px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/10 transition-colors"
                               >
-                                下线
+                                {t("settingsModal.devices.signOut")}
                               </button>
                             </div>
                           ))}

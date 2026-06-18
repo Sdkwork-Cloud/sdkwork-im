@@ -2,35 +2,35 @@
 
 ## 1. 本轮背景
 
-- 上一轮已经为 `local-default` 的 evidence index 冻结了 slot 级元数据字段：
+- 上一轮已经为 `self-hosted.split-services.development` 的 evidence index 冻结了 slot 级元数据字段：
   - `artifactPath`
   - `collectedAt`
   - `checksumSha256`
 - 但如果没有一个顶层 evidence root，`artifactPath` 仍然可能在不同 bundle、不同 operator 之间各写各的相对路径。
-- 当前环境依旧没有真实 `local-default` 发布后执行窗口，因此本轮不伪造任何真实归档文件，只先固定 artifact root contract 和模板态占位目录。
+- 当前环境依旧没有真实 `self-hosted.split-services.development` 发布后执行窗口，因此本轮不伪造任何真实归档文件，只先固定 artifact root contract 和模板态占位目录。
 
 ## 2. 实际落地
 
 ### 2.1 evidence index 已新增顶层 `artifactRoot`
 
 - 更新：`artifacts/releases/schemas/post-release-evidence-index.schema.json`
-- 更新：`artifacts/releases/wave-d-2026-04-08/local-default-post-release-evidence-index.json`
+- 更新：`artifacts/releases/wave-d-2026-04-08/self-hosted.split-services.development-post-release-evidence-index.json`
 - 当前 evidence index 已固定：
-  - `artifactRoot = artifacts/releases/wave-d-2026-04-08/evidence/local-default`
+  - `artifactRoot = artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development`
 - 这让后续每个 slot 的 `artifactPath` 都有单一锚点，而不是继续依赖口头约定。
 
 ### 2.2 bundle 内已建立模板态 evidence root 占位目录
 
-- 新增：`artifacts/releases/wave-d-2026-04-08/evidence/local-default/README.md`
+- 新增：`artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development/README.md`
 - 当前占位目录已明确：
-  - 这是 `local-default` post-release 真实归档证据未来应落入的根目录
+  - 这是 `self-hosted.split-services.development` post-release 真实归档证据未来应落入的根目录
   - 当前状态仍是 `template_only_pending_collection`
   - `artifactPath` 应解析到该目录之下
 
 ### 2.3 样本、模板、bundle 文档已同步
 
-- 更新：`docs/部署/local-default发布后验证样本.md`
-- 更新：`docs/部署/local-default发布后验证执行记录模板.md`
+- 更新：`docs/部署/性能与灾备演练场景.md`
+- 更新：`docs/部署/性能与灾备演练场景.md`
 - 更新：`artifacts/releases/README.md`
 - 更新：`artifacts/releases/wave-d-2026-04-08/bundle-manifest.md`
 - 当前文档已明确：
@@ -40,7 +40,7 @@
 
 ### 2.4 contract gate 已冻结
 
-- 更新：`services/local-minimal-node/tests/deployment_profile_test.rs`
+- 更新：`services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 - 新增：
   - `test_local_default_release_bundle_freezes_evidence_artifact_root_contract`
 - 当前门禁已锁定：
@@ -61,6 +61,6 @@
 
 ## 4. fresh evidence
 
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test test_local_default_release_bundle_freezes_evidence_artifact_root_contract -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_local_default_release_bundle_freezes_evidence_artifact_root_contract -- --nocapture`
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test -- --nocapture`

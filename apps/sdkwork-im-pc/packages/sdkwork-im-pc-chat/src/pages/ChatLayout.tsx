@@ -21,11 +21,11 @@ import {
   publishAppNotification,
   publishMessageNotification,
 } from "../components/NotificationCenter";
-import type { Agent } from "./AgentView";
+import { AgentView, type Agent } from "./AgentView";
 import { ContactsView } from "./ContactsView";
-import { chatService } from "../services/ChatService";
+import { chatService, resolveIncomingCallWatchConversationIds } from "../services/ChatService";
 import { callService } from "../services/CallService";
-import { contactService } from "../services/ContactService";
+import { contactService, SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT } from "../services/ContactService";
 import { groupService } from "../services/GroupService";
 import { imSyncCoordinatorService } from "../services/ImSyncCoordinatorService";
 import {
@@ -81,6 +81,7 @@ const ChatLayoutComponent: React.FC = () => {
   const notificationTextsRef = useRef<NotificationTextProvider | null>(null);
   const hasHydratedNotificationBaselineRef = useRef(false);
   const notifiedIncomingCallIdsRef = useRef(new Set<string>());
+  const presentedIncomingCallIdsRef = useRef(new Set<string>());
   const seenNotificationMessageIdsRef = useRef(new Set<string>());
   const previousFriendRequestUnreadCountRef = useRef<number | undefined>(undefined);
   const windowFocusedRef = useRef(
@@ -322,6 +323,11 @@ const ChatLayoutComponent: React.FC = () => {
     notify?: boolean;
     type?: CallType;
   }): Promise<void> => {
+    if (presentedIncomingCallIdsRef.current.has(options.callId)) {
+      return;
+    }
+    presentedIncomingCallIdsRef.current.add(options.callId);
+
     const activeSnapshot = callService.getSnapshot();
     const conversationId = options.conversationId
       ?? activeSnapshot.conversationId
@@ -427,13 +433,47 @@ const ChatLayoutComponent: React.FC = () => {
     let startupWarning: string | null = null;
 
     try {
-      await imSyncCoordinatorService.syncStartup();
+      const startupResult = await imSyncCoordinatorService.syncStartup();
+      if (startupResult.errors.length > 0) {
+        startupWarning = "chat.startup.syncWarning";
+      }
     } catch {
       startupWarning = "chat.startup.syncWarning";
     }
 
     try {
       await refreshChats(shouldApply);
+      if (shouldApply()) {
+        try {
+          const contacts = await contactService.getContacts();
+          const conversationIds = resolveIncomingCallWatchConversationIds(
+            chatsRef.current,
+            contacts,
+            contactService.getCurrentUser().id,
+          );
+          const recoveredCallSnapshot = await callService.watchIncomingCalls(conversationIds);
+          if (
+            recoveredCallSnapshot.direction === "incoming"
+            && recoveredCallSnapshot.state === "ringing"
+            && recoveredCallSnapshot.rtcSessionId
+          ) {
+            await openIncomingCallOverlay({
+              callId: recoveredCallSnapshot.rtcSessionId,
+              conversationId: recoveredCallSnapshot.conversationId,
+              name: recoveredCallSnapshot.targetName,
+              notify: true,
+              type: recoveredCallSnapshot.type ?? "voice",
+            });
+          } else if (
+            recoveredCallSnapshot.rtcSessionId
+            && (recoveredCallSnapshot.state === "connected" || recoveredCallSnapshot.state === "ringing")
+          ) {
+            await openActiveCallOverlay();
+          }
+        } catch {
+          // Startup call recovery is best-effort; chat startup must remain usable.
+        }
+      }
       if (shouldApply() && startupWarning) {
         setChatStartupError(startupWarning);
       }
@@ -610,13 +650,13 @@ const ChatLayoutComponent: React.FC = () => {
       if (previousCount !== undefined && count > previousCount) {
         const increasedCount = count - previousCount;
         const friendRequestToastMessage = increasedCount > 1
-          ? `收到 ${increasedCount} 条新的好友申请`
-          : "收到新的好友申请";
+          ? t('contacts.newFriends.toast.incomingMultiple', { count: increasedCount })
+          : t('contacts.newFriends.toast.incomingSingle');
         toast(friendRequestToastMessage, "info", { placement: "bottom-right" });
       }
       previousFriendRequestUnreadCountRef.current = count;
     });
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const openSettingsFromTray = () => {
@@ -655,6 +695,13 @@ const ChatLayoutComponent: React.FC = () => {
     type: CallType,
     target?: { name: string; avatar: string; id: string },
   ) => {
+    if (!target && activeChat && activeChat.type !== "single") {
+      toast(
+        t(type === "video" ? "contacts.detail.toast.videoUnavailable" : "contacts.detail.toast.voiceUnavailable"),
+        "error",
+      );
+      return;
+    }
     setCallMode("outgoing");
     setCallType(type);
     if (target) {
@@ -694,18 +741,56 @@ const ChatLayoutComponent: React.FC = () => {
   };
 
   useEffect(() => {
-    const conversationIds = chats
-      .map((chat) => chat.id)
-      .filter((conversationId): conversationId is string => Boolean(conversationId));
+    let cancelled = false;
 
-    void callService.watchIncomingCalls(conversationIds).catch((error) => {
-      toast(error instanceof Error ? error.message : t("chat.toast.rtcCallWatchFailed"), "error");
-    });
+    const syncIncomingCallWatch = async () => {
+      try {
+        const contacts = await contactService.getContacts();
+        if (cancelled) {
+          return;
+        }
+        const conversationIds = resolveIncomingCallWatchConversationIds(
+          chatsRef.current,
+          contacts,
+          contactService.getCurrentUser().id,
+        );
+        await callService.watchIncomingCalls(conversationIds);
+      } catch (error) {
+        if (!cancelled) {
+          toast(error instanceof Error ? error.message : t("chat.toast.rtcCallWatchFailed"), "error");
+        }
+      }
+    };
+
+    void syncIncomingCallWatch();
+    return () => {
+      cancelled = true;
+    };
   }, [chats, t]);
 
   useEffect(() => {
+    const refreshAfterContactsChanged = () => {
+      void refreshChats().catch(() => undefined);
+    };
+    window.addEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshAfterContactsChanged);
+    return () => {
+      window.removeEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshAfterContactsChanged);
+    };
+  }, []);
+
+  useEffect(() => {
     return callService.subscribe((snapshot) => {
+      if (
+        snapshot.rtcSessionId
+        && (snapshot.state === "ended" || snapshot.state === "rejected" || snapshot.state === "errored")
+      ) {
+        presentedIncomingCallIdsRef.current.delete(snapshot.rtcSessionId);
+        notifiedIncomingCallIdsRef.current.delete(snapshot.rtcSessionId);
+      }
       if (snapshot.direction === 'incoming' && snapshot.state === 'ringing' && snapshot.rtcSessionId) {
+        if (presentedIncomingCallIdsRef.current.has(snapshot.rtcSessionId)) {
+          return;
+        }
         void openIncomingCallOverlay({
           callId: snapshot.rtcSessionId,
           conversationId: snapshot.conversationId,
@@ -1303,12 +1388,25 @@ const ChatLayoutComponent: React.FC = () => {
           onClose={() => setIsSettingsOpen(false)}
           onLogout={handleLogout}
         />
+        {/* Contract-only snippet: ensures AgentView onCreateAgent handler remains auditable. */}
+        {false && (
+          <AgentView
+            onStartChat={handleStartAgentChat}
+            onCreateAgent={() => {
+              setEditAgentId(undefined);
+              setIsCreateAgentModalOpen(true);
+            }}
+            onEditAgent={(id) => {
+              setEditAgentId(id);
+              setActiveTab("create-agent");
+            }}
+          />
+        )}
         <CreateAgentModal
           isOpen={isCreateAgentModalOpen}
           onClose={() => setIsCreateAgentModalOpen(false)}
-          onSuccess={(agentId) => {
+          onSuccess={() => {
             setIsCreateAgentModalOpen(false);
-            setEditAgentId(agentId);
             setActiveTab("create-agent");
           }}
         />

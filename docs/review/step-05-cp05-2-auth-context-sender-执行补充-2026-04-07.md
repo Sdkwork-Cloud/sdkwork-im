@@ -15,7 +15,7 @@
 - `Step 05` 的真实阻塞已经从 conversation/message aggregate owner 转到 `sender / tenant` authority closure。
 - 在消息主链路里，`post / system-channel publish / edit / recall` 仍然存在多处手工拼装 `Sender` 的路径，来源分散在:
   - `conversation-runtime` HTTP 入口
-  - `local-minimal-node` 本地入口
+  - `sdkwork-im-server` 本地入口
 - 这类重复拼装会带来 authority snapshot 漂移风险，尤其是:
   - `device_id`
   - `session_id`
@@ -34,9 +34,9 @@
   - `EditMessageCommand::from_auth_context(...)`
   - `RecallMessageCommand::from_auth_context(...)`
 - 在 `services/conversation-runtime/src/runtime/http.rs` 删除手工 `Sender { ... }` 组装，统一改用上述构造器。
-- 在 `services/local-minimal-node/src/node/effects.rs` 删除本地 message / system-channel 发送路径的手工 sender 组装，统一改用上述构造器。
-- 在 `services/local-minimal-node/src/node/message.rs` 删除 edit / recall 路径的手工 sender 组装，统一改用上述构造器。
-- 在 `services/local-minimal-node/src/node.rs` 删除本地辅助函数:
+- 在 `services/sdkwork-im-gateway/src/node/effects.rs` 删除本地 message / system-channel 发送路径的手工 sender 组装，统一改用上述构造器。
+- 在 `services/sdkwork-im-gateway/src/node/message.rs` 删除 edit / recall 路径的手工 sender 组装，统一改用上述构造器。
+- 在 `services/sdkwork-im-gateway/src/node.rs` 删除本地辅助函数:
   - `build_sender(...)`
 
 ### 3.2 测试补齐
@@ -46,7 +46,7 @@
   - 新增 `test_http_message_surface_uses_auth_context_command_constructors`
 - `services/conversation-runtime/tests/authority_command_test.rs`
   - 新增 `test_message_mutation_commands_from_auth_context_preserve_authority_snapshot`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
   - 新增 `test_local_minimal_node_message_paths_use_auth_context_command_constructors`
 
 ## 4. 涉及文件
@@ -55,15 +55,15 @@
 
 - `services/conversation-runtime/src/runtime.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/local-minimal-node/src/node.rs`
-- `services/local-minimal-node/src/node/effects.rs`
-- `services/local-minimal-node/src/node/message.rs`
+- `services/sdkwork-im-gateway/src/node.rs`
+- `services/sdkwork-im-gateway/src/node/effects.rs`
+- `services/sdkwork-im-gateway/src/node/message.rs`
 
 ### 4.2 测试
 
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
 - `services/conversation-runtime/tests/authority_command_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ## 5. 验证证据
 
@@ -71,24 +71,24 @@
 
 - Red
   - `cargo test -p conversation-runtime --test conversation_domain_structure_test test_message_mutation_commands_offer_auth_context_constructors --offline`
-  - `cargo test -p local-minimal-node --test lib_structure_test test_local_minimal_node_message_paths_use_auth_context_command_constructors --offline`
+  - `cargo test -p sdkwork-im-gateway --test lib_structure_test test_local_minimal_node_message_paths_use_auth_context_command_constructors --offline`
 - Green
   - `cargo test -p conversation-runtime --test conversation_domain_structure_test test_message_mutation_commands_offer_auth_context_constructors --offline`
   - `cargo test -p conversation-runtime --test authority_command_test --offline`
-  - `cargo test -p local-minimal-node --test lib_structure_test test_local_minimal_node_message_paths_use_auth_context_command_constructors --offline`
+  - `cargo test -p sdkwork-im-gateway --test lib_structure_test test_local_minimal_node_message_paths_use_auth_context_command_constructors --offline`
 
 ### 5.2 完整回归证据
 
-- `rustfmt --edition 2024 services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/conversation-runtime/tests/authority_command_test.rs services/local-minimal-node/src/node.rs services/local-minimal-node/src/node/effects.rs services/local-minimal-node/src/node/message.rs services/local-minimal-node/tests/lib_structure_test.rs`
-- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/conversation-runtime/tests/authority_command_test.rs services/local-minimal-node/src/node.rs services/local-minimal-node/src/node/effects.rs services/local-minimal-node/src/node/message.rs services/local-minimal-node/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/conversation-runtime/tests/authority_command_test.rs services/sdkwork-im-gateway/src/node.rs services/sdkwork-im-gateway/src/node/effects.rs services/sdkwork-im-gateway/src/node/message.rs services/sdkwork-im-gateway/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/conversation-runtime/tests/authority_command_test.rs services/sdkwork-im-gateway/src/node.rs services/sdkwork-im-gateway/src/node/effects.rs services/sdkwork-im-gateway/src/node/message.rs services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 - `cargo test -p conversation-runtime --offline`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ### 5.3 验证结论
 
 - 本轮增量的代码、结构测试和受影响服务测试均已形成证据。
-- `local-minimal-node` 全量测试中仍会打印启动失败/health timeout 示例日志，但该套件退出码为 `0`，不构成本轮阻塞。
+- `sdkwork-im-server` 全量测试中仍会打印启动失败/health timeout 示例日志，但该套件退出码为 `0`，不构成本轮阻塞。
 
 ## 6. 对应架构能力与兑现判断
 
@@ -107,7 +107,7 @@
 
 ### 6.2 已兑现
 
-- 消息变更路径的 `sender` 快照构造不再分散在 HTTP 和 local-minimal-node 各入口。
+- 消息变更路径的 `sender` 快照构造不再分散在 HTTP 和 sdkwork-im-server 各入口。
 - system-channel publish 与普通 message mutation 共享同一套 authority snapshot 构造。
 - `device_id / session_id / actor identity` 在四类消息变更命令上的映射来源统一。
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { Phone, Video, Mic, MicOff, VideoOff, MonitorUp, PhoneOff, Maximize, Minimize, Smartphone, Monitor } from 'lucide-react';
 import { Avatar } from '@sdkwork/im-pc-commons';
 import { toast } from './Toast';
@@ -42,6 +43,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   callerAvatar,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [callState, setCallState] = useState<'ringing' | 'connected'>('ringing');
   const [callSnapshot, setCallSnapshot] = useState<SdkworkCallSnapshot>(callService.getSnapshot());
   const [activeRtcSessionId, setActiveRtcSessionId] = useState<string | undefined>(rtcSessionId);
@@ -151,7 +153,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
       return;
     }
     void callService.bindLocalVideoElement(localPreviewContainerRef.current).catch((error) => {
-      toast(error instanceof Error ? error.message : '本地视频预览绑定失败', 'error');
+      toast(error instanceof Error ? error.message : t('chat.callOverlay.toast.localVideoBindFailed'), 'error');
     });
     return () => {
       void callService.bindLocalVideoElement(null).catch(() => undefined);
@@ -236,23 +238,23 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   const canToggleVideo = canControlLocalMedia && type === 'video';
   const canShareScreen = callOverlayPhase === 'connected' && type === 'video';
   const displayNameClass = isMobile ? 'max-w-[280px]' : 'max-w-[520px]';
-  const audioStatusText = isMuted ? '麦克风已关闭' : '麦克风已开启';
-  const videoStatusText = isVideoOff ? '摄像头已关闭' : '摄像头已开启';
+  const audioStatusText = isMuted ? t('chat.callOverlay.media.micOff') : t('chat.callOverlay.media.micOn');
+  const videoStatusText = isVideoOff ? t('chat.callOverlay.media.cameraOff') : t('chat.callOverlay.media.cameraOn');
   const localMediaStatusText = type === 'video'
     ? `${audioStatusText} · ${videoStatusText}`
     : audioStatusText;
   const shouldShowLocalMediaStatus = callOverlayPhase === 'outgoing-ringing' && canControlLocalMedia;
   const statusText = isCurrentCallSnapshot && callSnapshot.state === 'connecting'
-    ? '正在连接...'
+    ? t('chat.callOverlay.status.connecting')
     : isCurrentCallSnapshot && callSnapshot.state === 'errored'
-      ? '通话连接失败'
+      ? t('chat.callOverlay.status.connectionFailed')
       : isCurrentCallSnapshot && callSnapshot.state === 'rejected'
-        ? '已拒绝'
+        ? t('chat.callOverlay.status.rejected')
         : isCurrentCallSnapshot && callSnapshot.state === 'ended'
-          ? '通话已结束'
+          ? t('chat.callOverlay.status.ended')
           : isOutgoingRinging
-            ? '等待对方接听...'
-            : '邀请你通话...';
+            ? t('chat.callOverlay.status.waitingAnswer')
+            : t('chat.callOverlay.status.inviting');
 
   return (
     <AnimatePresence>
@@ -267,14 +269,14 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-30 bg-gradient-to-b from-black/60 to-transparent">
           <div className="text-white font-medium text-lg drop-shadow-md">
-            {type === 'video' ? '视频通话' : '语音通话'}
+            {type === 'video' ? t('chat.callOverlay.videoCall') : t('chat.callOverlay.voiceCall')}
           </div>
           <div className="flex items-center gap-2">
             {viewMode !== 'fullscreen' && (
               <button 
                 onClick={() => setViewMode(isMobile ? 'desktop' : 'mobile')}
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm"
-                title={isMobile ? "切换至桌面模式" : "切换至手机模式"}
+                title={isMobile ? t('chat.callOverlay.view.switchToDesktop') : t('chat.callOverlay.view.switchToMobile')}
               >
                 {isMobile ? <Monitor size={16} /> : <Smartphone size={16} />}
               </button>
@@ -282,7 +284,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
             <button 
               onClick={() => setViewMode(viewMode === 'fullscreen' ? 'desktop' : 'fullscreen')}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm"
-              title={viewMode === 'fullscreen' ? "退出全屏" : "全屏"}
+              title={viewMode === 'fullscreen' ? t('chat.callOverlay.view.exitFullscreen') : t('chat.callOverlay.view.enterFullscreen')}
             >
               {viewMode === 'fullscreen' ? <Minimize size={16} /> : <Maximize size={16} />}
             </button>
@@ -341,7 +343,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
               <div className="absolute inset-0 flex items-center justify-center">
                 <Avatar src={callerAvatar} alt={callerName} className="w-full h-full object-cover opacity-50 blur-sm" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-white/30 text-2xl">对方视频画面</span>
+                  <span className="text-white/30 text-2xl">{t('chat.callOverlay.media.remoteVideo')}</span>
                 </div>
               </div>
               
@@ -359,7 +361,7 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                 )}
                 {(type !== 'video' || isVideoOff) && (
                   <div className="absolute inset-0 flex items-center justify-center text-white/30">
-                    我
+                    {t('chat.callOverlay.media.self')}
                   </div>
                 )}
                 {type === 'video' && (
@@ -384,11 +386,11 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
               onClick={() => {
                 void callService.acceptIncomingCall()
                   .catch((error) => {
-                    toast(error instanceof Error ? error.message : '接听失败', 'error');
+                    toast(error instanceof Error ? error.message : t('chat.callOverlay.toast.acceptFailed'), 'error');
                   });
               }}
               className={`${hangupBtnClass} rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20 transition-all hover:scale-105`}
-              title="接听"
+              title={t('chat.callOverlay.actions.accept')}
             >
               <Phone size={hangupIconSize} />
             </button>
@@ -400,13 +402,13 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                 isMutedRef.current = nextMuted;
                 setIsMuted(nextMuted);
                 void callService.setAudioMuted(nextMuted).catch((error) => {
-                  toast(error instanceof Error ? error.message : '静音设置失败', 'error');
+                  toast(error instanceof Error ? error.message : t('chat.callOverlay.toast.muteFailed'), 'error');
                 });
               }}
               className={`${controlBtnClass} rounded-full flex items-center justify-center transition-all ${
                 isMuted ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'
               }`}
-              title={isMuted ? "取消静音" : "静音"}
+              title={isMuted ? t('chat.callOverlay.actions.unmute') : t('chat.callOverlay.actions.mute')}
             >
               {isMuted ? <MicOff size={iconSize} /> : <Mic size={iconSize} />}
             </button>
@@ -419,13 +421,13 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                 isVideoOffRef.current = nextVideoOff;
                 setIsVideoOff(nextVideoOff);
                 void callService.setVideoMuted(nextVideoOff).catch((error) => {
-                  toast(error instanceof Error ? error.message : '视频设置失败', 'error');
+                  toast(error instanceof Error ? error.message : t('chat.callOverlay.toast.videoFailed'), 'error');
                 });
               }}
               className={`${controlBtnClass} rounded-full flex items-center justify-center transition-all ${
                 isVideoOff ? 'bg-white text-black' : 'bg-white/10 hover:bg-white/20 text-white backdrop-blur-md'
               }`}
-              title={isVideoOff ? "开启视频" : "关闭视频"}
+              title={isVideoOff ? t('chat.callOverlay.actions.enableVideo') : t('chat.callOverlay.actions.disableVideo')}
             >
               {isVideoOff ? <VideoOff size={iconSize} /> : <Video size={iconSize} />}
             </button>
@@ -434,31 +436,31 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
           {canShareScreen && (
             <button
               className={`${controlBtnClass} rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md flex items-center justify-center transition-all`}
-              title="共享屏幕"
+              title={t('chat.callOverlay.actions.shareScreen')}
               onClick={async () => {
                 if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
                    try {
                       stopMediaStream(screenShareStreamRef.current);
                       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
                       screenShareStreamRef.current = stream;
-                      toast('屏幕共享已启动', 'success');
+                      toast(t('chat.callOverlay.toast.screenShareStarted'), 'success');
                       stream.getVideoTracks().forEach((track) => {
                         track.onended = () => {
                          if (screenShareStreamRef.current === stream) {
                             screenShareStreamRef.current = undefined;
                          }
-                         toast('屏幕共享已结束', 'success');
+                         toast(t('chat.callOverlay.toast.screenShareEnded'), 'success');
                         };
                       });
                    } catch (error) {
                       if (readErrorMessage(error)?.includes('display-capture')) {
-                         toast('无权限进行共享（或在新标签页中打开应用重试）', 'error');
+                         toast(t('chat.callOverlay.toast.screenShareDenied'), 'error');
                       } else {
-                         toast('取消屏幕共享', 'success');
+                         toast(t('chat.callOverlay.toast.screenShareCancelled'), 'success');
                       }
                    }
                 } else {
-                   toast('当前浏览器不支持屏幕共享', 'error');
+                   toast(t('chat.callOverlay.toast.screenShareUnsupported'), 'error');
                 }
               }}
             >
@@ -482,12 +484,12 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
             className={`${hangupBtnClass} rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-500/20 transition-all hover:scale-105`}
             title={
               callOverlayPhase === 'incoming-ringing'
-                ? "拒绝"
+                ? t('chat.callOverlay.actions.reject')
                 : callOverlayPhase === 'outgoing-ringing'
-                  ? "取消"
+                  ? t('chat.callOverlay.actions.cancel')
                   : callOverlayPhase === 'connected'
-                    ? "挂断"
-                    : "关闭"
+                    ? t('chat.callOverlay.actions.hangup')
+                    : t('chat.callOverlay.actions.close')
             }
           >
             <PhoneOff size={hangupIconSize} />

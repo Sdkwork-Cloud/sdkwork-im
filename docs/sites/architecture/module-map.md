@@ -22,7 +22,7 @@ directories are stable enough to document as product surfaces.
 
 | Service | Responsibility |
 | --- | --- |
-| `local-minimal-node` | IM open-platform HTTP node that assembles the current default runtime |
+| `sdkwork-im-gateway` | Unified application ingress, aggregate OpenAPI export, service-schema proxies, rendered docs, and canonical `sdkwork-im-server` binary |
 | `comms-conversation-service` | Conversation, membership, message, and handoff behavior |
 | `session-gateway` | client route heartbeat, presence, realtime route ownership, disconnect fences, and websocket handling |
 | `projection-service` | Inbox, timeline, summary, and read-model projection support |

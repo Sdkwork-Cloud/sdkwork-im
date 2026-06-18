@@ -7,7 +7,7 @@
 ## Scope
 
 - `bin/inspect-runtime-local.ps1`
-- `services/local-minimal-node/tests/deployment_profile_test.rs`
+- `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 
 ## Implementation
 

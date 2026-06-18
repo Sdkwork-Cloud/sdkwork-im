@@ -208,7 +208,7 @@
 - runtime 专用创建逻辑
 - runtime `agent_handoff` 写入权限开放
 - conversation-runtime HTTP 路由
-- local-minimal-node HTTP 路由
+- sdkwork-im-server HTTP 路由
 - 单元测试、HTTP 测试、本地 profile E2E 测试
 
 ## 13. 后续演进

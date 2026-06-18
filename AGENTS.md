@@ -22,6 +22,13 @@ Do not copy root standard text into this repository. If these relative paths do 
 
 Read `sdkwork.app.config.json` before changing application behavior, runtime config, SDK wiring, release metadata, or app-owned capabilities.
 
+## RTC Dependency Boundary
+
+- `sdkwork-im` owns call signaling (`/im/v3/api/calls/*`) and WebSocket call workflow.
+- RTC media/provider runtime comes from sibling `../sdkwork-rtc` only (`sdkwork-communication-rtc-service`, `plugins/rtc-*`, `@sdkwork/rtc-sdk`).
+- Do not materialize RTC SDK packages under this repository (`sdks/` must not contain `sdkwork-rtc-sdk`).
+- Canonical boundary reference: `../sdkwork-rtc/docs/rtc-im-boundary.md`.
+
 ## Local Dictionary Structure
 
 - `AGENTS.md`: local agent entrypoint and relative SDKWORK spec index.
@@ -71,10 +78,14 @@ For TypeScript or frontend code, prefer strict types, explicit package exports, 
 Run commands from this directory unless a command explicitly targets another path.
 
 - `pnpm install`: install dependencies for this workspace or package.
-- `pnpm run dev`: start the local development server or app shell.
+- `pnpm im:dev`: start the topology v2 browser dev stack (`self-hosted.split-services.development`).
+- `pnpm server:dev`: start the Rust server and platform gateway without the PC renderer.
+- `pnpm run dev`: alias of `pnpm im:dev` for workspace compatibility.
 - `pnpm run check:commercial-readiness`: run repository verification or architecture checks.
 - `pnpm run test:database-naming-standard`: run the configured test suite for this scope.
 - `pnpm run test:runtime-standard`: run the configured test suite for this scope.
+- `pnpm run test:topology-baggage`: scan active paths for retired topology vocabulary.
+- `pnpm run test:rtc-signaling-boundary`: verify IM/RTC signaling boundary contracts.
 - `pnpm run test:sdkwork-im-pc-dev-command`: run the configured test suite for this scope.
 - `pnpm run test:sdkwork-im-pc-i18n`: run the configured test suite for this scope.
 - `pnpm run test:sdkwork-im-pc-sidebar-modules`: run the configured test suite for this scope.
@@ -99,17 +110,17 @@ The repository-specific guidance below was preserved from the previous `AGENTS.m
 
 ### Project Structure & Module Organization
 
-This repository is a Rust 2024 workspace for Sdkwork IM, with SDK, docs, and release tooling. Core domain and contract crates live in `crates/`, runtime services in `services/`, storage/provider integrations in `adapters/`, and command-line tools in `tools/`. Local lifecycle scripts are under `bin/`, deployment helpers under `deployments/`, docs under `docs/`, SDK work under `sdks/`, and Node governance scripts under `scripts/`. Rust tests are colocated with each crate or service in `tests/`. Avoid editing `vendor/`, `.runtime/`, `target/`, and generated SDK outputs unless explicitly required.
+This repository is a Rust 2024 workspace for Sdkwork IM, with SDK, docs, and release tooling. Core domain and contract crates live in `crates/`, runtime services in `services/`, storage/provider integrations in `adapters/`, and command-line tools in `tools/`. CLI wrappers are under `bin/` (`chat-cli*`, `chat-window*`); deployment templates under `deployments/`, docs under `docs/`, SDK work under `sdks/` (RTC SDK in sibling `../sdkwork-rtc`), and Node governance scripts under `scripts/`. Rust tests are colocated with each crate or service in `tests/`. Avoid editing `vendor/`, `.runtime/`, `target/`, and generated SDK outputs unless explicitly required.
 
 ### Build, Test, and Development Commands
 
-- `cargo test -p local-minimal-node --tests`: run main local integration tests.
+- `cargo test -p sdkwork-im-gateway --tests`: run gateway integration tests for the default application ingress.
 - `cargo test --workspace`: run all workspace tests; expect this to be slower.
 - `cargo fmt --all --check`: verify Rust formatting.
 - `cargo clippy --workspace --tests -- -D warnings`: lint with warnings as errors; for large changes, prefer narrower package scopes from `.github/workflows/im-commercial-gates.yml`.
 - `node scripts/run-commercial-gates-governance-node-tests.mjs` or `pnpm test:workflow-commercial-gates`: run Node governance tests.
-- `pnpm server:dev`: start the unified local web server script.
-- `./bin/start-local.ps1` and `./bin/status-local.ps1`: start and inspect the default local profile.
+- `pnpm test:topology-baggage` / `pnpm test:rtc-signaling-boundary`: topology v2 and RTC boundary contracts.
+- `pnpm im:dev` / `pnpm server:dev`: start the topology v2 development stack.
 
 ### Coding Style & Naming Conventions
 

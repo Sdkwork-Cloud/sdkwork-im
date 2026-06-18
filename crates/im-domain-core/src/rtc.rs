@@ -109,15 +109,18 @@ pub trait RtcStateStore: Send + Sync {
         &self,
         tenant_id: &str,
         rtc_session_id: &str,
-    ) -> Result<Option<RtcStateRecord>, sdkwork_rtc_core::RtcContractError>;
+    ) -> Result<Option<RtcStateRecord>, sdkwork_communication_rtc_service::RtcContractError>;
 
-    fn save_state(&self, record: RtcStateRecord) -> Result<(), sdkwork_rtc_core::RtcContractError>;
+    fn save_state(
+        &self,
+        record: RtcStateRecord,
+    ) -> Result<(), sdkwork_communication_rtc_service::RtcContractError>;
 
     fn clear_state(
         &self,
         tenant_id: &str,
         rtc_session_id: &str,
-    ) -> Result<bool, sdkwork_rtc_core::RtcContractError>;
+    ) -> Result<bool, sdkwork_communication_rtc_service::RtcContractError>;
 }
 
 pub fn encode_im_call_key_segments<const N: usize>(parts: [&str; N]) -> String {

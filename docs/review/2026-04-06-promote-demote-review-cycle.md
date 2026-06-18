@@ -97,7 +97,7 @@
 
 - `services/conversation-runtime/src/lib.rs`
   - 新增 runtime HTTP 路由 `/members/change-role`
-- `services/local-minimal-node/src/lib.rs`
+- `services/sdkwork-im-gateway/src/lib.rs`
   - 新增 app 路由 `/members/change-role`
   - 新增 `conversation.member_role_changed` 审计锚点
 
@@ -115,10 +115,10 @@
 - `cargo test -p conversation-runtime --test conversation_flow_test --offline`
 - `cargo test -p conversation-runtime --test http_smoke_test --offline`
 - `cargo test -p projection-service --test timeline_projection_test --offline`
-- `cargo test -p local-minimal-node --test access_control_e2e_test --offline`
+- `cargo test -p sdkwork-im-gateway --test access_control_e2e_test --offline`
 - `cargo test -p conversation-runtime --offline`
 - `cargo test -p projection-service --offline`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 - `cargo test --workspace --offline`
 
 ## 7. 当前剩余风险

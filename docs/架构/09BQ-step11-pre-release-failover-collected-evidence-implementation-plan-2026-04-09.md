@@ -13,7 +13,7 @@
 ### Task 1: Freeze the collected-evidence contract
 
 **Files:**
-- Modify: `services/local-minimal-node/tests/performance_drill_catalog_test.rs`
+- Modify: `services/sdkwork-im-gateway/tests/performance_drill_catalog_test.rs`
 - Create: `artifacts/perf/step-11/pre-release/failover/drill.json`
 - Modify: `artifacts/perf/step-11/pre-release/pre-release-tier-evidence-index.json`
 - Modify: `artifacts/perf/step-11/pre-release/checksum-manifest.txt`
@@ -46,7 +46,7 @@
 **Files:**
 - Verify only
 
-- [ ] Run `cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_failover_collected_evidence -- --exact --nocapture`
+- [ ] Run `cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_failover_collected_evidence -- --exact --nocapture`
 - [ ] Run `cargo fmt --all --check`
-- [ ] Run `cargo test -p local-minimal-node --offline --test performance_drill_catalog_test -- --nocapture`
-- [ ] Run `cargo test -p local-minimal-node --offline -- --nocapture`
+- [ ] Run `cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test -- --nocapture`
+- [ ] Run `cargo test -p sdkwork-im-gateway --offline -- --nocapture`

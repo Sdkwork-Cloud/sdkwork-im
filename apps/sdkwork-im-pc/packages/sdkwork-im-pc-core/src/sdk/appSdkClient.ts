@@ -4,6 +4,11 @@ import {
   type SdkworkAppConfig,
 } from '@sdkwork-internal/im-app-api-generated';
 import {
+  DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL,
+  VITE_SDKWORK_IAM_APP_API_BASE_URL,
+  VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+} from './topologyEnvKeys';
+import {
   createSdkworkChatRequestContextInterceptors,
   getSdkworkChatGlobalTokenManager,
   readAppSdkSessionTokens,
@@ -66,7 +71,7 @@ function resolveLocalDevAppApiBaseUrl(): string | undefined {
   if (!import.meta.env.DEV) {
     return undefined;
   }
-  return 'http://127.0.0.1:18079';
+  return DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL;
 }
 
 function resolveSameOriginHttpBaseUrl(): string | undefined {
@@ -79,13 +84,13 @@ function resolveSameOriginHttpBaseUrl(): string | undefined {
 }
 
 export function resolveAppSdkBaseUrl(): string {
-  const baseUrl = readEnvValue('VITE_SDKWORK_IAM_APP_API_BASE_URL')
-    ?? readEnvValue('VITE_SDKWORK_IM_APP_API_BASE_URL')
+  const baseUrl = readEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL)
+    ?? readEnvValue(VITE_SDKWORK_IAM_APP_API_BASE_URL)
     ?? resolveLocalDevAppApiBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
   if (!baseUrl) {
     throw new Error(
-      'Sdkwork IM app SDK base URL is not configured. Set VITE_SDKWORK_IM_APP_API_BASE_URL or serve the web build from the unified gateway origin.',
+      'Sdkwork IM app SDK base URL is not configured. Set VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL.',
     );
   }
   return normalizeAppSdkBaseUrl(baseUrl);

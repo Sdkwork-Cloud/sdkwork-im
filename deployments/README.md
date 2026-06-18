@@ -5,6 +5,19 @@
 Deployment descriptors, environment topology, packaging handoff files, infrastructure examples, and
 deployment runbooks for Sdkwork IM.
 
+## Topology v2
+
+- Machine contract: [../specs/topology.spec.json](../specs/topology.spec.json)
+- Profile env files: [../configs/topology/](../configs/topology/)
+- Greenfield plan: [../docs/topology-greenfield.md](../docs/topology-greenfield.md)
+- Deployment docs: [../docs/部署/README.md](../docs/部署/README.md)
+
+Default development profile: `self-hosted.split-services.development` via `pnpm im:dev`.
+Application ingress bind: `127.0.0.1:18079` (from profile env, not hardcoded in services).
+
+Retired compose files and `bin/*-local.*` lifecycle scripts are removed; see topology-greenfield
+delete list.
+
 ## Owner
 
 SDKWork Chat maintainers.

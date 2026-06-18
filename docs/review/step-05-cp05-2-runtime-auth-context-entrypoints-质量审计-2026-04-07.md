@@ -6,27 +6,27 @@
 - `services/conversation-runtime/src/runtime/membership.rs`
 - `services/conversation-runtime/src/runtime/handoff.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/local-minimal-node/src/node.rs`
-- `services/local-minimal-node/src/node/conversation.rs`
-- `services/local-minimal-node/src/node/membership.rs`
-- `services/local-minimal-node/src/node/handoff.rs`
-- `services/local-minimal-node/src/node/projection.rs`
+- `services/sdkwork-im-gateway/src/node.rs`
+- `services/sdkwork-im-gateway/src/node/conversation.rs`
+- `services/sdkwork-im-gateway/src/node/membership.rs`
+- `services/sdkwork-im-gateway/src/node/handoff.rs`
+- `services/sdkwork-im-gateway/src/node/projection.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ## 2. 本轮主要质量判断
 
 ### 2.1 已消除的风险
 
 - 已消除 HTTP 非 message mutation 路径对旧 `*with_*kind` runtime 入口的依赖。
-- 已消除 local-minimal-node non-message mutation 路径对旧 `*with_*kind` runtime 入口的依赖。
+- 已消除 sdkwork-im-server non-message mutation 路径对旧 `*with_*kind` runtime 入口的依赖。
 - 已把 `actor_kind` capture 从入口层参数线程化，继续收口到 `conversation-runtime` 自身的 auth-context boundary。
 
 ### 2.2 本轮未发现的回归
 
 - 未发现新增 runtime auth-context wrapper 打坏 conversation create/member/handoff/read-cursor 的行为测试。
 - 未发现 local profile HTTP/E2E 测试因入口层切换到 runtime wrapper 而出现行为回归。
-- 未发现 `local-minimal-node/src/node.rs` import 清理后产生新的未解析符号问题。
+- 未发现 `sdkwork-im-server/src/node.rs` import 清理后产生新的未解析符号问题。
 
 ## 3. 仍然存在的真实风险
 
@@ -50,12 +50,12 @@
 
 - `cargo test -p conversation-runtime --test conversation_domain_structure_test --offline`
 - `cargo test -p conversation-runtime --test authority_command_test --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node'; cargo test -p local-minimal-node --test lib_structure_test --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node'; cargo test -p sdkwork-im-gateway --test lib_structure_test --offline`
 
 ### 4.2 全量受影响服务验证
 
 - `cargo test -p conversation-runtime --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node-full'; cargo test -p local-minimal-node --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node-full'; cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 5. 审计结论

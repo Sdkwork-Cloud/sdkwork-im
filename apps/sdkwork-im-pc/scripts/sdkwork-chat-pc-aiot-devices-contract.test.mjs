@@ -108,8 +108,8 @@ assert.match(
 );
 assert.match(
   aiotDeviceServiceSource,
-  /\.iot\.devices\.list\s*\(/u,
-  'Canonical device service must list devices through client.iot.devices.list.',
+  /\.iot\.devicesList\s*\(/u,
+  'Canonical device service must list devices through client.iot.devicesList.',
 );
 assert.doesNotMatch(
   aiotDeviceServiceSource,
@@ -139,8 +139,8 @@ assert.match(
 );
 assert.match(
   aiotIotServiceSource,
-  /\.iot\.devices\.list\s*\(/u,
-  'Canonical IoT service must load fleet nodes through client.iot.devices.list.',
+  /\.iot\.devicesList\s*\(/u,
+  'Canonical IoT service must load fleet nodes through client.iot.devicesList.',
 );
 assert.doesNotMatch(
   aiotIotServiceSource,
@@ -213,13 +213,12 @@ assert.doesNotMatch(
 );
 
 const rootCargoSource = readRepoText('Cargo.toml');
-const localMinimalCargoSource = readRepoText('services/local-minimal-node/Cargo.toml');
+const imGatewayCargoSource = readRepoText('services/sdkwork-im-gateway/Cargo.toml');
 const sessionGatewayCargoSource = readRepoText('services/session-gateway/Cargo.toml');
 const imPlatformCargoSource = readRepoText('crates/im-platform-contracts/Cargo.toml');
 const imPlatformExportsSource = readRepoText('crates/im-platform-contracts/src/lib.rs');
 const imPlatformProviderSource = readRepoText('crates/im-platform-contracts/src/provider.rs');
-const localMinimalBuildSource = readRepoText('services/local-minimal-node/src/node/build.rs');
-const localMinimalNodeSource = readRepoText('services/local-minimal-node/src/node.rs');
+const imGatewayLibSource = readRepoText('services/sdkwork-im-gateway/src/lib.rs');
 
 for (const retiredRustMember of [
   'adapters/iot-access-local',
@@ -234,7 +233,7 @@ for (const retiredRustMember of [
 }
 
 for (const [label, source] of [
-  ['local-minimal-node Cargo.toml', localMinimalCargoSource],
+  ['sdkwork-im-gateway Cargo.toml', imGatewayCargoSource],
   ['session-gateway Cargo.toml', sessionGatewayCargoSource],
   ['im-platform-contracts Cargo.toml', imPlatformCargoSource],
 ]) {
@@ -248,7 +247,7 @@ for (const [label, source] of [
 for (const [label, source] of [
   ['im-platform-contracts exports', imPlatformExportsSource],
   ['im-platform-contracts provider contracts', imPlatformProviderSource],
-  ['local-minimal-node runtime build', localMinimalBuildSource],
+  ['sdkwork-im-gateway lib', imGatewayLibSource],
 ]) {
   assert.doesNotMatch(
     source,
@@ -269,21 +268,21 @@ for (const dependencyName of [
     `Sdkwork IM Rust workspace must not integrate ${dependencyName}; AIoT runtime API traffic is routed through sdkwork-api-gateway.`,
   );
   assert.doesNotMatch(
-    localMinimalCargoSource,
+    imGatewayCargoSource,
     new RegExp(`${dependencyName}\\.workspace\\s*=\\s*true`),
-    `local-minimal-node must not consume ${dependencyName}; AIoT runtime API traffic is routed through sdkwork-api-gateway.`,
+    `sdkwork-im-gateway must not consume ${dependencyName}; AIoT runtime API traffic is routed through sdkwork-api-gateway.`,
   );
 }
 
 assert.doesNotMatch(
-  localMinimalNodeSource,
+  imGatewayLibSource,
   /mod aiot_bridge;|sdkwork_aiot_http_api|aiot_app_api_server|aiot_backend_api_server/u,
-  'local-minimal-node must not keep a product-local SDKWork AIoT Rust backend bridge.',
+  'sdkwork-im-gateway must not keep a product-local SDKWork AIoT Rust backend bridge.',
 );
 assert.doesNotMatch(
-  localMinimalBuildSource,
+  imGatewayLibSource,
   /\/app\/v3\/api\/iot|\/backend\/v3\/api\/iot|aiot_bridge::|standard_app_api_server|standard_admin_api_server/u,
-  'local-minimal-node must not mount AIoT app/backend API prefixes; sdkwork-api-gateway owns those foundation surfaces.',
+  'sdkwork-im-gateway must not mount AIoT app/backend API prefixes; sdkwork-api-gateway owns those foundation surfaces.',
 );
 
 console.log('sdkwork im pc AIoT devices SDK contract passed.');

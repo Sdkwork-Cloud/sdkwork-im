@@ -14,7 +14,7 @@
     - `conversation-runtime.ensure_conversation_bound_write_allowed(tenant_id, conversation_id, principal_id, capability)`
   - that gate resolved active membership by `principal_id` and then enforced only conversation-type capability rules.
   - it never checked whether ingress `actor_kind` matched the resolved member `principal_kind`.
-  - `local-minimal-node` used that id-only gate for conversation-bound writes that delegate into other runtimes:
+  - `sdkwork-im-server` used that id-only gate for conversation-bound writes that delegate into other runtimes:
     - stream open / append / checkpoint / complete / abort
     - RTC create / invite / accept / reject / end / signal
   - after the id-only gate passed, downstream runtimes still consumed raw `auth.actor_kind` for sender/event stamping where applicable.
@@ -34,7 +34,7 @@ Regression tests were added first:
 
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
   - `test_conversation_bound_write_capability_gate_rejects_actor_kind_mismatch`
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
   - `test_conversation_bound_stream_writes_reject_bearer_actor_kind_mismatch`
   - `test_conversation_bound_rtc_writes_reject_bearer_actor_kind_mismatch`
 
@@ -63,7 +63,7 @@ Chosen design:
 3. keep legacy id-only gate as a compatibility wrapper:
    - derive actor kind from runtime member truth
    - delegate into the actor-kind-aware gate
-4. update `local-minimal-node` conversation-bound write gate helper to pass raw ingress actor kind into the runtime gate
+4. update `sdkwork-im-server` conversation-bound write gate helper to pass raw ingress actor kind into the runtime gate
 
 ## 4. Implementation
 
@@ -71,11 +71,11 @@ Chosen design:
   - added `ensure_conversation_bound_write_allowed_with_actor_kind(...)`
   - changed `ensure_conversation_bound_write_allowed(...)` into a compatibility wrapper
   - hardened the capability gate with `ensure_actor_kind_matches_member(...)`
-- `services/local-minimal-node/src/lib.rs`
+- `services/sdkwork-im-gateway/src/lib.rs`
   - updated `ensure_conversation_bound_write_access(...)` to call the actor-kind-aware runtime gate
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
   - added runtime regression coverage for the generic capability gate
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
   - added local bearer actor-kind mismatch coverage for:
     - conversation-bound stream writes
     - conversation-bound RTC writes
@@ -91,7 +91,7 @@ Chosen design:
 ### Green
 
 - `cargo test -p conversation-runtime --offline test_conversation_bound_write_capability_gate_rejects_actor_kind_mismatch`
-- `cargo test -p local-minimal-node --offline --test access_control_e2e_test conversation_bound_`
+- `cargo test -p sdkwork-im-gateway --offline --test access_control_e2e_test conversation_bound_`
 
 Observed green results:
 
@@ -103,7 +103,7 @@ Observed green results:
 
 ## 6. Remaining Risks
 
-- `local-minimal-node` still passes raw `auth` into downstream streaming/RTC runtimes after the capability gate succeeds; this is acceptable only because the actor-kind-aware gate now rejects spoofed writes before mutation.
+- `sdkwork-im-server` still passes raw `auth` into downstream streaming/RTC runtimes after the capability gate succeeds; this is acceptable only because the actor-kind-aware gate now rejects spoofed writes before mutation.
 - standalone `streaming-service` and `im-call-runtime` do not own conversation membership logic; if future deployment profiles bind them directly to conversation authorization, the same actor-kind-aware gate must be inserted ahead of them.
 - other generic conversation-bound delegation gates may still exist outside stream and RTC surfaces.
 

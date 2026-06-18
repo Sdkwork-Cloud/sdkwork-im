@@ -70,7 +70,9 @@
       "toast": {
         "requestFailed": "Friend request failed",
         "requestSent": "Friend request sent to {{name}}",
-        "searchFailed": "Search failed"
+        "searchFailed": "Search failed",
+        "alreadyFriend": "This user is already your friend",
+        "requestPending": "Friend request is already pending"
       }
     },
     "groups": {
@@ -84,6 +86,41 @@
         "loadFailed": "Failed to load groups",
         "createSucceeded": "Group created",
         "createFailed": "Failed to create group"
+      }
+    },
+    "newFriends": {
+      "title": "New friends",
+      "description": "Review and respond to friend requests",
+      "addFriend": "Add friend",
+      "loading": "Loading...",
+      "incomingDefaultMsg": "Sent you a friend request",
+      "outgoingDefaultMsg": "Waiting for verification",
+      "accept": "Accept",
+      "reject": "Reject",
+      "cancel": "Withdraw",
+      "statusAdded": "Added",
+      "statusCancelled": "Withdrawn",
+      "statusRejected": "Rejected",
+      "toast": {
+        "loadFailed": "Failed to load friend requests",
+        "acceptSucceeded": "Friend request accepted",
+        "rejectSucceeded": "Friend request rejected",
+        "cancelSucceeded": "Friend request withdrawn",
+        "handleFailed": "Failed to handle friend request",
+        "cancelFailed": "Failed to withdraw friend request",
+        "incomingSingle": "New friend request received",
+        "incomingMultiple": "{{count}} new friend requests received"
+      }
+    },
+    "allContacts": {
+      "title": "All contacts",
+      "count": "{{count}} contacts",
+      "addContact": "Add contact",
+      "loading": "Loading...",
+      "groupLabel": "All contacts",
+      "scrollTop": "Top",
+      "toast": {
+        "loadFailed": "Failed to load contacts"
       }
     },
     "detail": {
@@ -180,6 +217,72 @@
         "memberSubmitFailed": "Member management submission failed",
         "chatUnavailable": "Chat is not connected, so a conversation cannot be started"
       }
+    }
+  },
+  "favorites": {
+    "filters": {
+      "all": "All favorites",
+      "links": "Links",
+      "images": "Images & video",
+      "files": "Files",
+      "chat": "Chat history"
+    },
+    "title": "All favorites",
+    "description": "Sync important links, images, and work files across devices",
+    "searchPlaceholder": "Search favorites...",
+    "loading": "Loading...",
+    "empty": "No favorites yet",
+    "viewList": "List view",
+    "viewGrid": "Grid view",
+    "fromSource": "From {{source}}",
+    "remove": "Remove favorite",
+    "toast": {
+      "loadFailed": "Failed to load favorites",
+      "opening": "Opening: {{title}}",
+      "removeSucceeded": "Removed from favorites",
+      "removeFailed": "Failed to remove favorite"
+    }
+  },
+  "settingsModal": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "modules": "Modules",
+      "notifications": "Notifications",
+      "privacy": "Privacy",
+      "appearance": "Appearance",
+      "devices": "Devices"
+    },
+    "logout": "Log out",
+    "general": {
+      "language": "Language",
+      "languageZh": "Simplified Chinese",
+      "languageEn": "English",
+      "autoStartTitle": "Launch at startup",
+      "autoStartDescription": "Automatically start Sdkwork IM when the system boots"
+    },
+    "modules": {
+      "description": "Choose which modules appear in the sidebar:",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
+    },
+    "privacy": {
+      "requireAuth": "Require verification for friend requests",
+      "showOnline": "Show online status to friends",
+      "clearCache": "Clear local data",
+      "cacheCleared": "Local cache cleared"
+    },
+    "appearance": {
+      "themeTitle": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "devices": {
+      "currentDevice": "Current device ({{name}})",
+      "online": "Online",
+      "signOut": "Sign out",
+      "signedOut": "Signed out {{name}}"
     }
   },
   "chat": {
@@ -328,6 +431,112 @@
       "ariaLabel": "Search conversations",
       "title": "Search conversations"
     },
+    "forwardModal": {
+      "title": "Forward {{count}} messages",
+      "searchPlaceholder": "Search conversations",
+      "empty": "No conversations found",
+      "send": "Send ({{count}})",
+      "forwarding": "Forwarding...",
+      "toast": {
+        "loadFailed": "Failed to load conversations",
+        "success": "Forwarded to {{count}} conversations",
+        "failed": "Forward failed"
+      }
+    },
+    "messageList": {
+      "loading": "Loading...",
+      "unknownUser": "Unknown user",
+      "contextMenu": {
+        "copy": "Copy",
+        "reply": "Reply",
+        "reaction": "React",
+        "forward": "Forward",
+        "favorite": "Favorite",
+        "multiSelect": "Select",
+        "delete": "Delete"
+      },
+      "multiSelect": {
+        "selected": "{{count}} selected",
+        "forward": "Forward",
+        "delete": "Delete"
+      },
+      "media": {
+        "image": "Image",
+        "video": "Video"
+      },
+      "rtcCall": {
+        "videoMode": "Video call",
+        "voiceMode": "Voice call",
+        "initiatorFallback": "Caller",
+        "actorFallback": "Other party",
+        "subjectWithReceiver": "{{initiator}} started a {{mode}} with {{receiver}}",
+        "subjectWithoutReceiver": "{{initiator}} started a {{mode}}",
+        "accepted": "{{callSubject}}. {{actor}} answered",
+        "rejected": "{{callSubject}}. {{actor}} declined",
+        "ended": "{{callSubject}}. {{actor}} hung up",
+        "startedWithReceiver": "{{initiator}} started a {{mode}} with {{receiver}}",
+        "startedWithoutReceiver": "{{initiator}} started a {{mode}}",
+        "syncing": "{{callSubject}} is syncing"
+      },
+      "toast": {
+        "loadFailed": "Failed to load messages",
+        "deleteSuccess": "Message deleted",
+        "deleteManySuccess": "Deleted {{count}} messages",
+        "deleteFailed": "Failed to delete message",
+        "openGroupFailed": "Failed to open group chat",
+        "copySuccess": "Copied",
+        "favoriteSuccess": "Added to favorites",
+        "favoriteFailed": "Failed to add favorite",
+        "reactionFailed": "Failed to update reaction"
+      }
+    },
+    "messageItems": {
+      "voice": {
+        "playFailed": "Playback failed"
+      },
+      "videoCall": {
+        "endedFallback": "Call ended"
+      },
+      "applet": {
+        "label": "Mini app",
+        "loading": "Loading mini app environment: {{name}}"
+      },
+      "card": {
+        "personalLabel": "Contact card",
+        "groupInviteLabel": "Group invite",
+        "addedToContacts": "Added {{name}} to contacts",
+        "openGroupChat": "Open group chat"
+      },
+      "file": {
+        "downloadStarted": "Downloading file: {{name}}",
+        "resourceNotFound": "File resource not found: {{name}}"
+      }
+    },
+    "messageInput": {
+      "defaultPlaceholder": "Send a message...",
+      "agentTypingPlaceholder": "Assistant is replying...",
+      "replyPrefix": "Reply to {{name}}:",
+      "dropToSend": "Drop to send file",
+      "actions": {
+        "sendFile": "Send file",
+        "screenshot": "Screenshot (Alt+A)",
+        "emoji": "Emoji",
+        "history": "Chat history",
+        "stopRecording": "Stop recording and send",
+        "recordVoice": "Record voice message",
+        "stopGenerating": "Stop generating",
+        "send": "Send (Enter)"
+      },
+      "toast": {
+        "stickerNeedsFile": "Sticker images require a local file or Drive asset before sending",
+        "voiceTooShort": "Recording is too short",
+        "voiceGenerationFailed": "Failed to generate voice message. Please retry.",
+        "microphoneDenied": "Microphone access denied. Check permissions and retry.",
+        "screenshotUnsupported": "Screenshot is not supported in this browser",
+        "screenshotDenied": "Screenshot permission denied. Open the app in a new tab and retry.",
+        "screenshotCancelled": "Screenshot cancelled"
+      }
+    },
     "systemAssistant": {
       "displayName": "System Assistant",
       "welcomeMessage": "Hi, I am your system assistant. I can help you find conversations, set up contacts, create groups, and handle workspace questions. Tell me what you want to do first.",
@@ -362,6 +571,55 @@
     },
     "call": {
       "incoming": "Incoming call"
+    },
+    "callOverlay": {
+      "videoCall": "Video call",
+      "voiceCall": "Voice call",
+      "status": {
+        "connecting": "Connecting...",
+        "connectionFailed": "Call connection failed",
+        "rejected": "Declined",
+        "ended": "Call ended",
+        "waitingAnswer": "Waiting for answer...",
+        "inviting": "Inviting you to a call..."
+      },
+      "media": {
+        "micOff": "Microphone off",
+        "micOn": "Microphone on",
+        "cameraOff": "Camera off",
+        "cameraOn": "Camera on",
+        "remoteVideo": "Remote video",
+        "self": "Me"
+      },
+      "view": {
+        "switchToDesktop": "Switch to desktop layout",
+        "switchToMobile": "Switch to mobile layout",
+        "enterFullscreen": "Fullscreen",
+        "exitFullscreen": "Exit fullscreen"
+      },
+      "actions": {
+        "accept": "Accept",
+        "reject": "Decline",
+        "cancel": "Cancel",
+        "hangup": "Hang up",
+        "close": "Close",
+        "mute": "Mute",
+        "unmute": "Unmute",
+        "enableVideo": "Turn on video",
+        "disableVideo": "Turn off video",
+        "shareScreen": "Share screen"
+      },
+      "toast": {
+        "localVideoBindFailed": "Failed to bind local video preview",
+        "acceptFailed": "Failed to accept call",
+        "muteFailed": "Failed to update mute setting",
+        "videoFailed": "Failed to update video setting",
+        "screenShareStarted": "Screen sharing started",
+        "screenShareEnded": "Screen sharing ended",
+        "screenShareDenied": "Screen sharing permission denied. Open the app in a new tab and retry.",
+        "screenShareCancelled": "Screen sharing cancelled",
+        "screenShareUnsupported": "Screen sharing is not supported in this browser"
+      }
     },
     "notification": {
       "call": {

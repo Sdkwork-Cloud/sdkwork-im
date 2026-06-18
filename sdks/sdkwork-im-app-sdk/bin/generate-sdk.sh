@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LANGUAGES="${LANGUAGES:-typescript,flutter,rust,java,csharp,swift,kotlin,go,python}"
-BASE_URL="${BASE_URL:-http://127.0.0.1:18090}"
+BASE_URL="${BASE_URL:-http://127.0.0.1:18079}"
 FIXED_SDK_VERSION="${FIXED_SDK_VERSION:-}"
 SCHEMA_URL="${SCHEMA_URL:-}"
 REFRESH_LIVE="${REFRESH_LIVE:-false}"

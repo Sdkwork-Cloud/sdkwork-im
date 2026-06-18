@@ -52,8 +52,8 @@ const pnpmWorkspaceSource = readText('pnpm-workspace.yaml');
 const viteConfigSource = readText('vite.config.ts');
 const releaseSources = readRepoJson('config', 'shared-sdk-release-sources.json');
 const sharedSdkGitSource = readRepoText('scripts', 'dev', 'prepare-shared-sdk-git-sources.mjs');
-const devRunnerSource = readRepoText('scripts', 'dev', 'run-sdkwork-im-pc-dev.mjs');
-const unifiedServerSource = readRepoText('scripts', 'dev', 'start-sdkwork-im-unified-web.mjs');
+const devRunnerSource = readRepoText('scripts', 'lib', 'im-pc-dev.mjs');
+const unifiedServerSource = readRepoText('scripts', 'im-server-dev.mjs');
 const gatewayConfigSource = readRepoText('crates', 'sdkwork-im-gateway-config', 'src', 'lib.rs');
 const gatewaySource = readRepoText('services', 'sdkwork-im-gateway', 'src', 'lib.rs');
 const workflow = readRepoJson('sdkwork.workflow.json');
@@ -165,13 +165,13 @@ assert.match(
 
 assert.match(
   devRunnerSource,
-  /SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL[\s\S]*explicitNotaryAppApiUpstream[\s\S]*SDKWORK_IM_NOTARY_APP_API_UPSTREAM/u,
+  /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*explicitNotaryAppApiUpstream[\s\S]*SDKWORK_IM_NOTARY_APP_API_UPSTREAM/u,
   'PC dev runner must default sdkwork-notary traffic through the shared gateway root while preserving explicit Notary split upstream overrides.',
 );
 
 assert.match(
   unifiedServerSource,
-  /SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL[\s\S]*resolveSdkworkApiGatewayBaseUrl/u,
+  /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL[\s\S]*resolveSdkworkApiGatewayBaseUrl/u,
   'Unified server launcher must configure the shared sdkwork-api-gateway root for local notary SDK traffic.',
 );
 assert.doesNotMatch(

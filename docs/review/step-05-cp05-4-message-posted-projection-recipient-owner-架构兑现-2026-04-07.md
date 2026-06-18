@@ -11,8 +11,8 @@
 ## 2. 本轮架构兑现
 
 - `notification-service::NotificationRuntime` 现在开始直接消费 `projection-service::access.active_conversation_principal_ids_from_auth_context(...)`。
-- `local-minimal-node/effects.rs` 的 message side-effect 不再决定 recipient authority，只负责把已认证上下文和 message metadata 交给 notification owner。
-- `local-minimal-node/build.rs` 改为把共享 `projection_service` 注入 `NotificationRuntime`，避免 owner seam 因运行时装配分叉而失真。
+- `sdkwork-im-server/effects.rs` 的 message side-effect 不再决定 recipient authority，只负责把已认证上下文和 message metadata 交给 notification owner。
+- `sdkwork-im-server/build.rs` 改为把共享 `projection_service` 注入 `NotificationRuntime`，避免 owner seam 因运行时装配分叉而失真。
 
 ## 3. 当前决议
 

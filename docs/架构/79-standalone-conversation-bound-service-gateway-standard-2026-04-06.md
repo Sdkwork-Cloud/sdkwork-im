@@ -42,7 +42,7 @@ Shared runtimes may remain generic and conversation-agnostic.
 
 The rejection must live at the standalone adapter boundary because:
 
-- integrated profiles such as `local-minimal-node` legitimately reuse the same runtimes after successful conversation authorization
+- integrated profiles such as `sdkwork-im-server` legitimately reuse the same runtimes after successful conversation authorization
 - moving this rule into the shared runtime would break authorized integrated flows
 
 Therefore:
@@ -74,7 +74,7 @@ Each standalone service covered by this rule must have:
 
 This standard complements the already implemented rules for:
 
-- conversation-bound writes in `local-minimal-node`
+- conversation-bound writes in `sdkwork-im-server`
 - actor-kind-aware conversation authorization
 - message/governance/read-cursor mutation hardening
 

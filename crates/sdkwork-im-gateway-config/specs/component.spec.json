@@ -100,7 +100,7 @@
     "sdkClients": [],
     "events": [],
     "configKeys": [
-      "SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL",
+      "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
       "SDKWORK_API_GATEWAY_BASE_URL",
       "SDKWORK_API_GATEWAY_BIND",
       "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
@@ -123,7 +123,7 @@
       "targetApplication": "sdkwork-api-gateway",
       "targetMode": "shared-gateway",
       "gatewayBaseUrlEnvKeys": [
-        "SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL",
+        "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
         "SDKWORK_API_GATEWAY_BASE_URL"
       ],
       "gatewayBindEnv": "SDKWORK_API_GATEWAY_BIND",

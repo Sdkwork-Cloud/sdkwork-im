@@ -9,10 +9,10 @@ use axum::{
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use hmac::{Hmac, Mac};
-use sdkwork_http_context::{
-    AppRequestAuthLevel, AppRequestAuthMode, AppRequestContext, AppRequestDeploymentMode,
-    AppRequestEnvironment, AppRequestLoginScope, AppRequestPrincipal, ServerRequestId,
-    classify_api_surface, new_request_id,
+use sdkwork_web_core::{
+    classify_api_surface, new_request_id, ServerRequestId, WebAuthLevel, WebAuthMode,
+    WebDeploymentMode, WebEnvironment, WebLoginScope, WebRequestContext, WebRequestContextProfile,
+    WebRequestPrincipal, WebSubjectType, WebTransportFacts,
 };
 use sdkwork_im_ccp_core::{CcpActor, CcpAuthority, CcpSender};
 use serde_json::{Value, json};
@@ -64,7 +64,7 @@ pub struct AppContextError {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedAppContext {
-    pub app_request_context: AppRequestContext,
+    pub app_request_context: WebRequestContext,
     pub app_context: AppContext,
 }
 
@@ -566,7 +566,7 @@ pub fn resolve_app_request_context(
     headers: &HeaderMap,
     path: &str,
     method: &str,
-) -> Result<AppRequestContext, AppContextError> {
+) -> Result<WebRequestContext, AppContextError> {
     resolve_app_context_for_request(headers, path, method)
         .map(|resolved| resolved.app_request_context)
 }
@@ -584,19 +584,19 @@ pub fn resolve_app_context_for_request(
     let access_claims = TokenClaims::parse(access_token.as_str())?;
     let principal = resolve_principal(&auth_claims, &access_claims)?;
     let app_context = app_context_from_claims(&principal, &auth_claims, &access_claims);
-    let request_context = AppRequestContext {
+    let request_context = WebRequestContext {
         request_id: ServerRequestId(new_request_id()),
-        api_surface: classify_api_surface(
-            path,
-            &sdkwork_http_context::AppRequestContextProfile::default(),
-        ),
-        auth_mode: AppRequestAuthMode::DualToken,
+        api_surface: classify_api_surface(path, &WebRequestContextProfile::default()),
+        auth_mode: WebAuthMode::DualToken,
         principal: Some(principal),
-        path: path.to_owned(),
-        method: method.to_owned(),
-        auth_token_present: true,
-        access_token_present: true,
-        api_key_present: false,
+        transport: WebTransportFacts {
+            path: path.to_owned(),
+            method: method.to_owned(),
+            auth_token_present: true,
+            access_token_present: true,
+            api_key_present: false,
+        },
+        locale: None,
     };
 
     Ok(ResolvedAppContext {
@@ -635,7 +635,7 @@ pub async fn inject_app_request_context_middleware(
 fn resolve_principal(
     auth_claims: &TokenClaims,
     access_claims: &TokenClaims,
-) -> Result<AppRequestPrincipal, AppContextError> {
+) -> Result<WebRequestPrincipal, AppContextError> {
     require_optional_match(
         "tenant_id",
         auth_claims.optional(&["tenant_id", "tenantId"]),
@@ -681,70 +681,69 @@ fn resolve_principal(
         ));
     }
 
-    Ok(AppRequestPrincipal {
-        tenant_id: access_claims.required(&["tenant_id", "tenantId"], "access token tenant_id")?,
-        organization_id,
-        login_scope: access_login_scope,
-        user_id: auth_claims.required(&["user_id", "userId", "sub"], "auth token user_id")?,
-        session_id: auth_claims
-            .optional(&["session_id", "sessionId", "sid"])
-            .or_else(|| access_claims.optional(&["session_id", "sessionId", "sid"])),
-        app_id: access_claims
-            .required(&["app_id", "appId", "azp", "aud"], "access token app_id")?,
-        environment: parse_environment(access_claims.optional(&["environment", "env"])),
-        deployment_mode: parse_deployment_mode(
+    Ok(WebRequestPrincipal::builder()
+        .tenant_id(access_claims.required(&["tenant_id", "tenantId"], "access token tenant_id")?)
+        .organization_id(organization_id)
+        .login_scope(access_login_scope)
+        .user_id(auth_claims.required(&["user_id", "userId", "sub"], "auth token user_id")?)
+        .session_id(
+            auth_claims
+                .optional(&["session_id", "sessionId", "sid"])
+                .or_else(|| access_claims.optional(&["session_id", "sessionId", "sid"])),
+        )
+        .app_id(access_claims.required(&["app_id", "appId", "azp", "aud"], "access token app_id")?)
+        .environment(parse_environment(access_claims.optional(&["environment", "env"])))
+        .deployment_mode(parse_deployment_mode(
             access_claims.optional(&["deployment_mode", "deploymentMode"]),
-        ),
-        auth_level: parse_auth_level(auth_claims.optional(&["auth_level", "authLevel", "acr"])),
-        data_scope: scope_vec(
+        ))
+        .auth_level(parse_auth_level(
+            auth_claims.optional(&["auth_level", "authLevel", "acr"]),
+        ))
+        .data_scope(scope_vec(
             access_claims
                 .optional(&["data_scope", "dataScope"])
                 .or_else(|| auth_claims.optional(&["data_scope", "dataScope"])),
-        ),
-        permission_scope: scope_vec(
+        ))
+        .permission_scope(scope_vec(
             access_claims
                 .optional(&["permission_scope", "permissionScope", "scope", "scp"])
                 .or_else(|| {
                     auth_claims.optional(&["permission_scope", "permissionScope", "scope", "scp"])
                 }),
-        ),
-        api_key_id: None,
-        subject_type: auth_claims
-            .optional(&["subject_type", "subjectType"])
-            .or_else(|| access_claims.optional(&["subject_type", "subjectType"]))
-            .or_else(|| Some("user".to_owned())),
-    })
+        ))
+        .api_key_id(None)
+        .subject_type(WebSubjectType::User)
+        .build())
 }
 
 fn app_context_from_claims(
-    principal: &AppRequestPrincipal,
+    principal: &WebRequestPrincipal,
     auth_claims: &TokenClaims,
     access_claims: &TokenClaims,
 ) -> AppContext {
     let actor_id = access_claims
         .optional(&["actor_id", "actorId"])
         .or_else(|| auth_claims.optional(&["actor_id", "actorId"]))
-        .unwrap_or_else(|| principal.user_id.clone());
+        .unwrap_or_else(|| principal.user_id().to_owned());
     let actor_kind = access_claims
         .optional(&["actor_kind", "actorKind"])
         .or_else(|| auth_claims.optional(&["actor_kind", "actorKind"]))
-        .or_else(|| principal.subject_type.clone())
-        .unwrap_or_else(|| "user".to_owned());
+        .unwrap_or_else(|| format!("{:?}", principal.subject.subject_type).to_ascii_lowercase());
 
     AppContext {
-        tenant_id: principal.tenant_id.clone(),
+        tenant_id: principal.tenant_id().to_owned(),
         organization_id: principal
-            .organization_id
-            .clone()
+            .organization_id()
+            .map(str::to_owned)
             .unwrap_or_else(|| "default".to_owned()),
-        user_id: principal.user_id.clone(),
-        session_id: principal.session_id.clone(),
-        app_id: Some(principal.app_id.clone()),
-        environment: Some(format_environment(&principal.environment).to_owned()),
-        deployment_mode: Some(format_deployment_mode(&principal.deployment_mode).to_owned()),
-        auth_level: Some(format_auth_level(&principal.auth_level).to_owned()),
-        data_scope: principal.data_scope.iter().cloned().collect(),
-        permission_scope: principal.permission_scope.iter().cloned().collect(),
+        user_id: principal.user_id().to_owned(),
+        session_id: principal.session_id().map(str::to_owned),
+        app_id: Some(principal.app_id().to_owned()),
+        environment: Some(format_environment(&principal.app.environment).to_owned()),
+        deployment_mode: Some(format_deployment_mode(&principal.app.deployment_mode).to_owned()),
+        auth_level: Some(format_auth_level(&principal.auth.auth_level).to_owned()),
+        data_scope: principal.scopes.data_scope.iter().cloned().collect(),
+        permission_scope: principal.scopes.permission_scope.iter().cloned().collect(),
         actor_id,
         actor_kind,
         device_id: access_claims
@@ -960,7 +959,7 @@ fn normalize_organization_id(value: Option<String>) -> Option<String> {
 fn parse_login_scope(
     value: Option<String>,
     organization_id: Option<&str>,
-) -> Result<AppRequestLoginScope, AppContextError> {
+) -> Result<WebLoginScope, AppContextError> {
     match value
         .as_deref()
         .map(str::trim)
@@ -972,7 +971,7 @@ fn parse_login_scope(
                     "login_scope TENANT requires organization_id to be absent or 0",
                 ));
             }
-            Ok(AppRequestLoginScope::Tenant)
+            Ok(WebLoginScope::Tenant)
         }
         Some(value) if value.eq_ignore_ascii_case("ORGANIZATION") => {
             if organization_id.is_none() {
@@ -980,17 +979,17 @@ fn parse_login_scope(
                     "login_scope ORGANIZATION requires a non-zero organization_id",
                 ));
             }
-            Ok(AppRequestLoginScope::Organization)
+            Ok(WebLoginScope::Organization)
         }
         Some(value) => Err(AppContextError::invalid(format!(
             "unsupported login_scope claim: {value}"
         ))),
-        None if organization_id.is_some() => Ok(AppRequestLoginScope::Organization),
-        None => Ok(AppRequestLoginScope::Tenant),
+        None if organization_id.is_some() => Ok(WebLoginScope::Organization),
+        None => Ok(WebLoginScope::Tenant),
     }
 }
 
-fn parse_environment(value: Option<String>) -> AppRequestEnvironment {
+fn parse_environment(value: Option<String>) -> WebEnvironment {
     match value
         .as_deref()
         .unwrap_or("prod")
@@ -998,13 +997,13 @@ fn parse_environment(value: Option<String>) -> AppRequestEnvironment {
         .to_ascii_lowercase()
         .as_str()
     {
-        "dev" | "development" => AppRequestEnvironment::Dev,
-        "test" | "testing" => AppRequestEnvironment::Test,
-        _ => AppRequestEnvironment::Prod,
+        "dev" | "development" => WebEnvironment::Dev,
+        "test" | "testing" => WebEnvironment::Test,
+        _ => WebEnvironment::Prod,
     }
 }
 
-fn parse_deployment_mode(value: Option<String>) -> AppRequestDeploymentMode {
+fn parse_deployment_mode(value: Option<String>) -> WebDeploymentMode {
     match value
         .as_deref()
         .unwrap_or("saas")
@@ -1012,13 +1011,13 @@ fn parse_deployment_mode(value: Option<String>) -> AppRequestDeploymentMode {
         .to_ascii_lowercase()
         .as_str()
     {
-        "local" => AppRequestDeploymentMode::Local,
-        "private" | "private_cloud" => AppRequestDeploymentMode::Private,
-        _ => AppRequestDeploymentMode::Saas,
+        "local" => WebDeploymentMode::Local,
+        "private" | "private_cloud" => WebDeploymentMode::Private,
+        _ => WebDeploymentMode::Saas,
     }
 }
 
-fn parse_auth_level(value: Option<String>) -> AppRequestAuthLevel {
+fn parse_auth_level(value: Option<String>) -> WebAuthLevel {
     match value
         .as_deref()
         .unwrap_or("password")
@@ -1026,11 +1025,11 @@ fn parse_auth_level(value: Option<String>) -> AppRequestAuthLevel {
         .to_ascii_lowercase()
         .as_str()
     {
-        "anonymous" => AppRequestAuthLevel::Anonymous,
-        "mfa" => AppRequestAuthLevel::Mfa,
-        "system" => AppRequestAuthLevel::System,
-        "api_key" | "apikey" => AppRequestAuthLevel::ApiKey,
-        _ => AppRequestAuthLevel::Password,
+        "anonymous" => WebAuthLevel::Anonymous,
+        "mfa" => WebAuthLevel::Mfa,
+        "system" => WebAuthLevel::System,
+        "api_key" | "apikey" => WebAuthLevel::ApiKey,
+        _ => WebAuthLevel::Password,
     }
 }
 
@@ -1056,29 +1055,29 @@ fn split_scope(value: &str) -> BTreeSet<String> {
         .collect()
 }
 
-fn format_environment(value: &AppRequestEnvironment) -> &'static str {
+fn format_environment(value: &WebEnvironment) -> &'static str {
     match value {
-        AppRequestEnvironment::Dev => "dev",
-        AppRequestEnvironment::Test => "test",
-        AppRequestEnvironment::Prod => "prod",
+        WebEnvironment::Dev => "dev",
+        WebEnvironment::Test => "test",
+        WebEnvironment::Prod => "prod",
     }
 }
 
-fn format_deployment_mode(value: &AppRequestDeploymentMode) -> &'static str {
+fn format_deployment_mode(value: &WebDeploymentMode) -> &'static str {
     match value {
-        AppRequestDeploymentMode::Saas => "saas",
-        AppRequestDeploymentMode::Local => "local",
-        AppRequestDeploymentMode::Private => "private",
+        WebDeploymentMode::Saas => "saas",
+        WebDeploymentMode::Local => "local",
+        WebDeploymentMode::Private => "private",
     }
 }
 
-fn format_auth_level(value: &AppRequestAuthLevel) -> &'static str {
+fn format_auth_level(value: &WebAuthLevel) -> &'static str {
     match value {
-        AppRequestAuthLevel::Anonymous => "anonymous",
-        AppRequestAuthLevel::Password => "password",
-        AppRequestAuthLevel::Mfa => "mfa",
-        AppRequestAuthLevel::System => "system",
-        AppRequestAuthLevel::ApiKey => "api_key",
+        WebAuthLevel::Anonymous => "anonymous",
+        WebAuthLevel::Password => "password",
+        WebAuthLevel::Mfa => "mfa",
+        WebAuthLevel::System => "system",
+        WebAuthLevel::ApiKey => "api_key",
     }
 }
 

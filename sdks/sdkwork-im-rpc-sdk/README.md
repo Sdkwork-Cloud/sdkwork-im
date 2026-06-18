@@ -8,12 +8,12 @@ The current Sdkwork IM repository already has several capabilities that can be w
 
 | Existing capability | Current owner | RPC service group | Notes |
 | --- | --- | --- | --- |
-| Conversation lifecycle, members, read cursors, profiles, inbox | `comms-conversation-service`, `projection-service`, `local-minimal-node` | `ConversationService` | App-facing commands and queries for conversations and membership. |
-| Message posting, edits, recalls, reactions, pins, favorites | `comms-conversation-service`, `projection-service`, `local-minimal-node` | `MessageService` | Uses Drive-backed `MediaResource` for uploaded media instead of redefining upload. |
+| Conversation lifecycle, members, read cursors, profiles, inbox | `comms-conversation-service`, `projection-service`, `sdkwork-im-gateway` | `ConversationService` | App-facing commands and queries for conversations and membership. |
+| Message posting, edits, recalls, reactions, pins, favorites | `comms-conversation-service`, `projection-service`, `sdkwork-im-gateway` | `MessageService` | Uses Drive-backed `MediaResource` for uploaded media instead of redefining upload. |
 | Presence, realtime event list/ack/watch, route registration | `session-gateway`, `projection-service`, `web-gateway` | `PresenceService`, `RealtimeService` | Server-streaming methods are intended for backend/private clients and native hosts. |
-| Contacts, friend requests, friendships, social graph | `projection-service`, `control-plane-api`, `local-minimal-node` | `ContactService`, `SocialService`, `SocialAdminService` | App RPC and backend admin RPC stay separated. |
+| Contacts, friend requests, friendships, social graph | `projection-service`, `control-plane-api`, `social-service` | `ContactService`, `SocialService`, `SocialAdminService` | App RPC and backend admin RPC stay separated. |
 | Durable streams, frames, checkpoints, completion, abort | `streaming-service`, `automation-service` | `StreamService` | Supports unary mutation plus server-streaming frame watch. |
-| RTC/calls signaling and credentials | `local-minimal-node calls runtime`, `sdkwork-rtc-sdk` provider adapters | `CallService` | The RPC service exposes communication signaling; provider SDK remains separate. |
+| RTC/calls signaling and credentials | `sdkwork-im-gateway calls runtime`, `sdkwork-rtc-sdk` provider adapters | `CallService` | The RPC service exposes communication signaling; provider SDK remains separate. |
 | Notifications and notification request fanout | `notification-service` | `NotificationService` | App-facing notification list/request/watch surface. |
 | Agent response and tool-call automation | `automation-service` | `AutomationService` | Keeps streaming frames and tool-call lifecycle explicit. |
 | Runtime health, lag, replay, diagnostics, cluster control | `ops-service`, `control-plane-api` | `CommunicationOpsService`, `RealtimeNodeAdminService`, `CommunicationControlService` | Backend-only surface for operators and trusted services. |
@@ -56,7 +56,7 @@ This RPC SDK is designed for multiple deployment shapes:
 
 | Mode | Shape | Expected RPC use |
 | --- | --- | --- |
-| single-process local mode | `local-minimal-node` hosts app, runtime, realtime, and control behavior in one process. | RPC may bind to loopback for local tools and native desktop hosts. |
+| single-process local mode | `sdkwork-im-server` with `unified-process` layout hosts app, runtime, realtime, and control behavior in one process. | RPC may bind to loopback for local tools and native desktop hosts. |
 | split service mode | Conversation, realtime, streaming, notification, automation, ops, and control-plane processes run separately. | App/backend RPC clients call explicit service endpoints; metadata providers attach auth, access token, trace, deadline, and idempotency metadata. |
 | sharded realtime mode | Multiple realtime/session nodes own route leases and fanout shards. | Internal RPC uses `RuntimeTopologyService`, `RouteLeaseService`, and `DomainEventRelayService` for node discovery, route ownership, event relay, and repair. |
 | private integration mode | Other backend services integrate Sdkwork IM without browser HTTP SDKs. | Backend/internal RPC clients use TLS or mTLS, health checking, deadlines, and retry rules from the manifest. |

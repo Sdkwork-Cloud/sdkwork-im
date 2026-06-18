@@ -12,7 +12,7 @@
 
 - 现状：本地运行时配置绑定 `127.0.0.1:18124`
 - 风险：若脚本默认写死 `18090`，会误判服务不可用
-- 处理：脚本与 CLI 都改为优先读取 `.runtime/local-minimal/config/local-minimal.env`
+- 处理：脚本与 CLI 都改为优先读取 `.runtime/self-hosted.split-services.development/config/self-hosted.split-services.development.env`
 
 ### 3. PowerShell 脚本变量命名冲突
 

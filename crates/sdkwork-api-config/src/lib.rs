@@ -62,10 +62,7 @@ fn resolve_portal_api_base_url() -> Result<String> {
     for key in [
         "SDKWORK_IM_PORTAL_API_BASE_URL",
         "SDKWORK_PORTAL_API_BASE_URL",
-        "SDKWORK_IM_SERVER_API_BASE_URL",
-        "SDKWORK_IM_SERVER_BASE_URL",
-        "SDKWORK_IM_SERVER_API_BASE_URL",
-        "SDKWORK_IM_SERVER_BASE_URL",
+        "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
     ] {
         if let Some(value) = env::var(key)
             .ok()
@@ -76,15 +73,18 @@ fn resolve_portal_api_base_url() -> Result<String> {
         }
     }
 
-    if let Some(value) = env::var("SDKWORK_IM_BIND_ADDR")
+    if let Some(value) = env::var("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND")
         .ok()
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
     {
-        return normalize_portal_api_base_url_from_bind_addr(value.as_str());
+        return normalize_portal_api_base_url_from_bind_addr(
+            "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+            value.as_str(),
+        );
     }
 
-    Ok("http://127.0.0.1:18090".to_owned())
+    Ok("http://127.0.0.1:18079".to_owned())
 }
 
 fn normalize_upstream_url(value: &str) -> Result<String> {
@@ -124,10 +124,10 @@ fn normalize_explicit_portal_api_base_url(env_name: &str, value: &str) -> Result
     Ok(trimmed.to_owned())
 }
 
-fn normalize_portal_api_base_url_from_bind_addr(value: &str) -> Result<String> {
+fn normalize_portal_api_base_url_from_bind_addr(env_name: &str, value: &str) -> Result<String> {
     let trimmed = value.trim().trim_end_matches('/');
     if trimmed.is_empty() {
-        anyhow::bail!("SDKWORK_IM_BIND_ADDR cannot be empty when used as a portal api fallback");
+        anyhow::bail!("{env_name} cannot be empty when used as a portal api fallback");
     }
 
     if let Ok(socket_addr) = trimmed.parse::<SocketAddr>() {
@@ -138,12 +138,11 @@ fn normalize_portal_api_base_url_from_bind_addr(value: &str) -> Result<String> {
         ));
     }
 
-    let mut url = Url::parse(normalize_upstream_url(trimmed)?.as_str()).with_context(|| {
-        format!("SDKWORK_IM_BIND_ADDR must be a host:port or absolute url: {trimmed}")
-    })?;
+    let mut url = Url::parse(normalize_upstream_url(trimmed)?.as_str())
+        .with_context(|| format!("{env_name} must be a host:port or absolute url: {trimmed}"))?;
 
     let Some(host) = url.host_str().map(str::to_owned) else {
-        anyhow::bail!("SDKWORK_IM_BIND_ADDR must include a host");
+        anyhow::bail!("{env_name} must include a host");
     };
     if is_unspecified_host(host.as_str()) {
         let normalized_host = if matches!(url.host(), Some(url::Host::Ipv6(_))) {
@@ -242,17 +241,18 @@ mod tests {
     }
 
     #[test]
-    fn resolve_portal_api_base_url_prefers_explicit_url_and_falls_back_to_bind_addr() {
+    fn resolve_portal_api_base_url_prefers_explicit_url_and_falls_back_to_ingress_bind() {
         let _guard = env_guard();
         let _explicit = ScopedEnvVar::set(
             "SDKWORK_IM_PORTAL_API_BASE_URL",
             " https://portal-api.example.com/runtime-edge/ ",
         );
-        let _sdkwork_chat_server_api = ScopedEnvVar::remove("SDKWORK_IM_SERVER_API_BASE_URL");
-        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
-        let _server_api = ScopedEnvVar::remove("SDKWORK_IM_SERVER_API_BASE_URL");
-        let _server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
-        let _bind = ScopedEnvVar::set("SDKWORK_IM_BIND_ADDR", "127.0.0.1:19990");
+        let _application_public_http =
+            ScopedEnvVar::remove("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL");
+        let _bind = ScopedEnvVar::set(
+            "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+            "127.0.0.1:19990",
+        );
         assert_eq!(
             resolve_portal_api_base_url().expect("explicit portal api base url should resolve"),
             "https://portal-api.example.com/runtime-edge"
@@ -261,63 +261,42 @@ mod tests {
         unsafe {
             env::remove_var("SDKWORK_IM_PORTAL_API_BASE_URL");
             env::set_var(
-                "SDKWORK_IM_SERVER_API_BASE_URL",
-                " https://chat.example.com/sdkwork/chat/ ",
+                "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+                " https://im.example.com/ ",
             );
         }
         assert_eq!(
-            resolve_portal_api_base_url().expect(
-                "canonical server api base url should resolve as public portal api fallback"
-            ),
-            "https://chat.example.com/sdkwork/chat"
+            resolve_portal_api_base_url()
+                .expect("application public HTTP URL should resolve as public portal api fallback"),
+            "https://im.example.com"
         );
 
         unsafe {
-            env::remove_var("SDKWORK_IM_SERVER_API_BASE_URL");
+            env::remove_var("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL");
             env::set_var(
-                "SDKWORK_IM_SERVER_BASE_URL",
-                " https://chat.example.com/sdkwork/chat/ ",
+                "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+                " https://im.example.com/api-edge/ ",
             );
         }
         assert_eq!(
             resolve_portal_api_base_url()
-                .expect("canonical server base url should resolve as public portal api fallback"),
-            "https://chat.example.com/sdkwork/chat"
+                .expect("application public HTTP URL should resolve as public portal api fallback"),
+            "https://im.example.com/api-edge"
         );
 
         unsafe {
-            env::remove_var("SDKWORK_IM_SERVER_BASE_URL");
-            env::set_var(
-                "SDKWORK_IM_SERVER_API_BASE_URL",
-                " https://chat.example.com/api-edge/ ",
-            );
+            env::remove_var("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL");
         }
         assert_eq!(
-            resolve_portal_api_base_url()
-                .expect("server api base url should resolve as public portal api fallback"),
-            "https://chat.example.com/api-edge"
-        );
-
-        unsafe {
-            env::remove_var("SDKWORK_IM_SERVER_API_BASE_URL");
-            env::set_var("SDKWORK_IM_SERVER_BASE_URL", " https://chat.example.com/ ");
-        }
-        assert_eq!(
-            resolve_portal_api_base_url()
-                .expect("server base url should resolve as public portal api fallback"),
-            "https://chat.example.com"
-        );
-
-        unsafe {
-            env::remove_var("SDKWORK_IM_SERVER_BASE_URL");
-        }
-        assert_eq!(
-            resolve_portal_api_base_url().expect("bind addr fallback should resolve"),
+            resolve_portal_api_base_url().expect("ingress bind fallback should resolve"),
             "http://127.0.0.1:19990"
         );
 
         unsafe {
-            env::set_var("SDKWORK_IM_BIND_ADDR", "0.0.0.0:29990");
+            env::set_var(
+                "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND",
+                "0.0.0.0:29990",
+            );
         }
         assert_eq!(
             resolve_portal_api_base_url().expect("wildcard ipv4 bind should normalize"),
@@ -325,7 +304,7 @@ mod tests {
         );
 
         unsafe {
-            env::set_var("SDKWORK_IM_BIND_ADDR", "[::]:39990");
+            env::set_var("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND", "[::]:39990");
         }
         assert_eq!(
             resolve_portal_api_base_url().expect("wildcard ipv6 bind should normalize"),
@@ -336,12 +315,10 @@ mod tests {
     #[test]
     fn resolve_portal_api_base_url_rejects_unspecified_explicit_public_url() {
         let _guard = env_guard();
-        let _explicit = ScopedEnvVar::set("SDKWORK_IM_PORTAL_API_BASE_URL", "http://0.0.0.0:18090");
-        let _sdkwork_chat_server_api = ScopedEnvVar::remove("SDKWORK_IM_SERVER_API_BASE_URL");
-        let _sdkwork_chat_server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
-        let _server_api = ScopedEnvVar::remove("SDKWORK_IM_SERVER_API_BASE_URL");
-        let _server_base = ScopedEnvVar::remove("SDKWORK_IM_SERVER_BASE_URL");
-        let _bind = ScopedEnvVar::remove("SDKWORK_IM_BIND_ADDR");
+        let _explicit = ScopedEnvVar::set("SDKWORK_IM_PORTAL_API_BASE_URL", "http://0.0.0.0:18079");
+        let _application_public_http =
+            ScopedEnvVar::remove("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL");
+        let _bind = ScopedEnvVar::remove("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND");
 
         let error = resolve_portal_api_base_url()
             .expect_err("unspecified explicit public url should be rejected");
@@ -349,11 +326,16 @@ mod tests {
 
         unsafe {
             env::remove_var("SDKWORK_IM_PORTAL_API_BASE_URL");
-            env::set_var("SDKWORK_IM_SERVER_API_BASE_URL", "http://0.0.0.0:18079");
+            env::set_var(
+                "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL",
+                "http://0.0.0.0:18079",
+            );
         }
 
         let error = resolve_portal_api_base_url()
-            .expect_err("unspecified server api public url should be rejected");
-        assert!(error.to_string().contains("SDKWORK_IM_SERVER_API_BASE_URL"));
+            .expect_err("unspecified application public HTTP URL should be rejected");
+        assert!(error
+            .to_string()
+            .contains("SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL"));
     }
 }

@@ -3,7 +3,7 @@
 ## Context
 
 - `principal-profile` already supported runtime provider selection and unavailable semantics.
-- `local-minimal-node` already exposed `provider-health` routes for RTC, media, IoT access, and IoT protocol.
+- `sdkwork-im-server` already exposed `provider-health` routes for RTC, media, IoT access, and IoT protocol.
 - `principal-profile` still had no operator-facing health route.
 
 ## Confirmed Bug
@@ -28,18 +28,18 @@
 
 ## Changed Files
 
-- `services/local-minimal-node/src/node.rs`
-- `services/local-minimal-node/src/node/build.rs`
-- `services/local-minimal-node/src/node/principal_profile.rs`
-- `services/local-minimal-node/tests/principal_profile_provider_http_test.rs`
-- `services/local-minimal-node/tests/principal_profile_provider_runtime_selection_test.rs`
+- `services/sdkwork-im-gateway/src/node.rs`
+- `services/sdkwork-im-gateway/src/node/build.rs`
+- `services/sdkwork-im-gateway/src/node/principal_profile.rs`
+- `services/sdkwork-im-gateway/tests/principal_profile_provider_http_test.rs`
+- `services/sdkwork-im-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
 
 ## Verification
 
 Red:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test principal_profile_provider_http_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test principal_profile_provider_http_test -- --nocapture
 ```
 
 - Failed before the patch with `404 != 200`.
@@ -47,10 +47,10 @@ cargo test -p local-minimal-node --offline --test principal_profile_provider_htt
 Green:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test principal_profile_provider_http_test -- --nocapture
-cargo test -p local-minimal-node --offline --test principal_profile_provider_runtime_selection_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test principal_profile_provider_http_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test principal_profile_provider_runtime_selection_test -- --nocapture
 cargo fmt --all --check
-cargo test -p local-minimal-node --offline -- --nocapture
+cargo test -p sdkwork-im-gateway --offline -- --nocapture
 ```
 
 ## Remaining Gap

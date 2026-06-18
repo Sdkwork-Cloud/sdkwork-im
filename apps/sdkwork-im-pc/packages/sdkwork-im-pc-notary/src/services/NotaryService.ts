@@ -7,7 +7,6 @@ import {
   getAppbaseAppSdkClient,
   getDriveAppSdkClient,
   getNotaryAppSdkClient,
-  resolveAppSdkTenantId,
 } from '@sdkwork/im-pc-core';
 
 export interface NotaryService {
@@ -69,8 +68,6 @@ export interface CreateChatPcNotaryServiceOptions {
   appbase: unknown;
   defaultSkuId?: string;
   skuIdsByType?: Record<string, string>;
-  tenantId?: string;
-  tenantIdProvider?: () => string | undefined;
 }
 
 const DEFAULT_SKU_IDS_BY_TYPE: Record<string, string> = {
@@ -166,11 +163,6 @@ export function createChatPcNotaryService(
         .filter((party) => party.id && !retainedIds.has(party.id))
         .map((party) => notaryApi.deleteParty(taskId, party.id)),
     );
-  }
-
-  function resolveTenantIdForDriveCommand(): string | undefined {
-    const value = options.tenantIdProvider?.() ?? options.tenantId;
-    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
   }
 
   async function syncInitialPartySignatures(taskId: string, parties: Party[]): Promise<void> {
@@ -462,7 +454,6 @@ export function createChatPcNotaryService(
       const downloadUrlResponse = asRecord(
         await notaryApi.createCaseFileDownloadUrl(taskId, {
           nodeId,
-          tenantId: resolveTenantIdForDriveCommand(),
           disposition: options.disposition,
         }),
       );
@@ -494,7 +485,6 @@ export function createChatPcNotaryService(
         const downloadUrlResponse = asRecord(
           await notaryApi.createCaseFileDownloadUrl(taskId, {
             nodeId,
-            tenantId: resolveTenantIdForDriveCommand(),
             disposition: options.disposition,
           }),
         );
@@ -523,7 +513,6 @@ export function createChatPcNotaryService(
       }
       await notaryApi.deleteCaseFile(taskId, {
         nodeId,
-        tenantId: resolveTenantIdForDriveCommand(),
       });
       return loadTask(taskId);
     },
@@ -565,7 +554,6 @@ function getDelegate(): NotaryService {
       drive: getDriveAppSdkClient(),
       appbase: getAppbaseAppSdkClient(),
       defaultSkuId: 'sku-notary-general',
-      tenantIdProvider: resolveAppSdkTenantId,
     });
   }
   return delegate;

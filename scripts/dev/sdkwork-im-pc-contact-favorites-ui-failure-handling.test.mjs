@@ -59,7 +59,7 @@ assert.match(
 );
 assert.match(
   favoritesViewSource,
-  /catch\s*\{[\s\S]*?toast\(['"]取消收藏失败['"],\s*['"]error['"]\)/u,
+  /catch\s*\{[\s\S]*?toast\(t\(['"]favorites\.toast\.removeFailed['"]\),\s*['"]error['"]\)/u,
   'FavoritesView remove action must surface SDK deletion failures',
 );
 

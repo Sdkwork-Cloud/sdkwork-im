@@ -1,3 +1,5 @@
+#![allow(clippy::items_after_test_module)]
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use sdkwork_im_api_registry::{HttpMethod, RouteProtocol};

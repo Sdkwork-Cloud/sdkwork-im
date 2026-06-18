@@ -25,7 +25,7 @@ import com.sdkwork.common.core.SdkConfig
 import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
-    val config = SdkConfig(baseUrl = "http://127.0.0.1:18090")
+    val config = SdkConfig(baseUrl = "http://127.0.0.1:18079")
     val client = SdkworkImClient(config)
     client.setAuthToken("your-auth-token")
 client.setAccessToken("your-access-token")
@@ -47,7 +47,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```kotlin
-val config = SdkConfig(baseUrl = "http://127.0.0.1:18090")
+val config = SdkConfig(baseUrl = "http://127.0.0.1:18079")
 val client = SdkworkImClient(config)
 ```
 

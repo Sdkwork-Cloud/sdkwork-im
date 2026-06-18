@@ -10,7 +10,7 @@
 - Compare the failing assertion with `artifacts/perf/step-11/pre-release/README.md`.
 - Replace the stale shared-state expectation with the current gate-blocked state and seven-artifact surface.
 - Add a negative assertion that forbids stale `pending_collection` text in the shared README.
-- Re-run the targeted test, the full catalog test file, formatting, and the `local-minimal-node` offline test suite.
+- Re-run the targeted test, the full catalog test file, formatting, and the `sdkwork-im-server` offline test suite.
 
 ## Boundary
 

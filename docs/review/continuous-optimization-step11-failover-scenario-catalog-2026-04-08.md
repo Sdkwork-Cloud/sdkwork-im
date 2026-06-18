@@ -7,14 +7,14 @@
 ## 证据
 
 - 红灯：
-  - `cargo test -p local-minimal-node --offline --test performance_drill_catalog_test -- --nocapture`
+  - `cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test -- --nocapture`
   - 失败信息：`Step 11 catalog must define the failover scenario family`
 - 绿灯：
-  - `cargo test -p local-minimal-node --offline --test performance_drill_catalog_test -- --nocapture`
+  - `cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test -- --nocapture`
 
 ## 本轮改动
 
-- 收紧 `services/local-minimal-node/tests/performance_drill_catalog_test.rs`
+- 收紧 `services/sdkwork-im-gateway/tests/performance_drill_catalog_test.rs`
 - 更新 `tools/perf/step-11-scenario-catalog.json`
 - 更新 `docs/部署/性能与灾备演练场景.md`
 
@@ -26,7 +26,7 @@
 
 ## 残余风险
 
-- 当前仅冻结 `CI Smoke / local-minimal` 入口，尚未扩展到 `Pre-Release Tier` 的独立 evidence 索引
+- 当前仅冻结 `CI Smoke / self-hosted.split-services.development` 入口，尚未扩展到 `Pre-Release Tier` 的独立 evidence 索引
 - `failover` 指标仍以单轮本地演练为主，尚未形成统一 artifact schema
 
 ## 下一步

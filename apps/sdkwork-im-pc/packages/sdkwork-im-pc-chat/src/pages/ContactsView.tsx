@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Avatar } from '@sdkwork/im-pc-commons';
 import { cn } from '@sdkwork/im-pc-commons';
 import { toast } from '../components/Toast';
-import { contactService } from '../services/ContactService';
+import { contactService, SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT } from '../services/ContactService';
 import type { Chat, User as UserType } from '@sdkwork/im-pc-types';
 
 import { TagsContainer } from '../components/contacts/TagsContainer';
@@ -47,19 +47,67 @@ export const ContactsView: React.FC<{
   }, [activeId]);
 
   useEffect(() => {
-    const loadData = async () => {
+    let isMounted = true;
+
+    const loadStarredContacts = () => {
       setLoading(true);
-      try {
-        const contacts = await contactService.getStarredContacts();
-        setStarredContacts(contacts);
-      } catch (error) {
-        toast(t('contacts.starred.loadFailed'), 'error');
-      } finally {
-        setLoading(false);
-      }
+      return contactService.getStarredContacts()
+        .then((contacts) => {
+          if (isMounted) {
+            setStarredContacts(contacts);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            toast(t('contacts.starred.loadFailed'), 'error');
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setLoading(false);
+          }
+        });
     };
-    loadData();
-  }, []);
+
+    void loadStarredContacts();
+
+    const refreshStarredContacts = () => {
+      void loadStarredContacts();
+    };
+
+    const refreshSelectedUser = () => {
+      setSelectedUser((current) => {
+        if (!current) {
+          return null;
+        }
+        void contactService.getContacts()
+          .then((contacts) => {
+            if (!isMounted) {
+              return;
+            }
+            const updated = contacts.find((contact) => contact.id === current.user.id);
+            if (!updated) {
+              setSelectedUser(null);
+              return;
+            }
+            if (updated.name !== current.user.name || updated.avatar !== current.user.avatar) {
+              setSelectedUser({ user: updated, deptName: current.deptName });
+            }
+          })
+          .catch(() => undefined);
+        return current;
+      });
+    };
+
+    window.addEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshStarredContacts);
+    window.addEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshSelectedUser);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshStarredContacts);
+      window.removeEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshSelectedUser);
+    };
+  }, [t]);
 
   return (
     <div className="flex flex-1 min-h-0">

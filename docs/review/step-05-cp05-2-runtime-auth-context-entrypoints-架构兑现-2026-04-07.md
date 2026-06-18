@@ -25,7 +25,7 @@
 
 - `conversation-runtime/http`
   - 不再显式走旧 `*with_*kind` 入口
-- `local-minimal-node`
+- `sdkwork-im-server`
   - 不再显式走旧 `*with_*kind` 入口
 
 ## 3. 本轮未兑现的能力
@@ -48,21 +48,21 @@
 - `services/conversation-runtime/src/runtime/membership.rs`
 - `services/conversation-runtime/src/runtime/handoff.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/local-minimal-node/src/node/conversation.rs`
-- `services/local-minimal-node/src/node/membership.rs`
-- `services/local-minimal-node/src/node/handoff.rs`
-- `services/local-minimal-node/src/node/projection.rs`
+- `services/sdkwork-im-gateway/src/node/conversation.rs`
+- `services/sdkwork-im-gateway/src/node/membership.rs`
+- `services/sdkwork-im-gateway/src/node/handoff.rs`
+- `services/sdkwork-im-gateway/src/node/projection.rs`
 
 ### 5.2 测试证据
 
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
 - `services/conversation-runtime/tests/authority_command_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ### 5.3 fresh verification 证据
 
 - `cargo test -p conversation-runtime --offline`
-- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node-full'; cargo test -p local-minimal-node --offline`
+- `$env:CARGO_TARGET_DIR='C:\\Users\\admin\\.codex\\memories\\target-step05-cp05-2c-local-node-full'; cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 6. 架构结论

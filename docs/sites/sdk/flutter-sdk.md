@@ -54,7 +54,7 @@ Do not treat `im_sdk_generated` as a current pub.dev coordinate while `app-flutt
 import 'package:im_sdk_generated/im_sdk_generated.dart';
 
 final client = ImTransportClient.withBaseUrl(
-  baseUrl: 'http://127.0.0.1:18090',
+  baseUrl: 'http://127.0.0.1:18079',
   authToken: 'sdkwork-appbase-credential',
 );
 
@@ -79,7 +79,7 @@ The checked-in generated Flutter client currently exports these route groups thr
 import 'package:im_sdk_generated/im_sdk_generated.dart';
 
 final client = ImTransportClient.withBaseUrl(
-  baseUrl: 'http://127.0.0.1:18090',
+  baseUrl: 'http://127.0.0.1:18079',
   authToken: 'sdkwork-appbase-credential',
 );
 

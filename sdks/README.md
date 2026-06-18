@@ -31,22 +31,28 @@ SDKWork Chat maintainers.
 
 ## Verification
 
-Run the family verifier scripts documented below and
-`pnpm run test:sdkwork-workspace-structure-standard` from the repository root after SDK workspace
-layout or authority changes.
+Run the family verifier scripts documented below and governance checks from the repository root
+after SDK workspace layout or authority changes:
+
+```bash
+pnpm test:topology-baggage
+pnpm test:sdkwork-workspace-structure-standard
+node sdks/test/verify-im-v3-sdk-family-contract.test.mjs
+```
 
 `sdks/` is the repository home for Sdkwork IM SDK workspaces. The directory is organized by public
 consumer SDK family and by authoritative API boundary, not by historical generated-package dumps.
 
-The current standard model has three OpenAPI-generated HTTP SDK families, one communication
-gRPC/RPC SDK family, plus one independent RTC provider-standard SDK family:
+The current standard model has three OpenAPI-generated HTTP SDK families and one communication
+gRPC/RPC SDK family checked into this repository, plus one RTC provider-standard SDK family that
+lives only in the sibling `../sdkwork-rtc` repository:
 
 - `sdkwork-im-sdk`
   IM standardized development SDKs for `/im/v3/api`; logical API authority:
   `sdkwork-im-open-api`.
 - `sdkwork-im-app-sdk`
   App-business and non-management HTTP SDKs for `/app/v3/api`; app SDK composition depends on
-  `sdkwork-im-sdk` and `sdkwork-rtc-sdk`; logical API authority: `sdkwork-im-app-api`.
+  `sdkwork-im-sdk` and sibling `sdkwork-rtc-sdk`; logical API authority: `sdkwork-im-app-api`.
 - `sdkwork-im-backend-sdk`
   Backend management, operator, control-plane, and admin SDKs for `/backend/v3/api`; logical API
   authority: `sdkwork-im-backend-api`.
@@ -54,8 +60,10 @@ gRPC/RPC SDK family, plus one independent RTC provider-standard SDK family:
   gRPC/protobuf SDK family for distributed communication service integration. It maps the current
   IM app/backend/internal runtime capabilities into `sdkwork.communication.*` proto packages and is
   generated with `sdkgen generate --protocol rpc`.
-- `sdkwork-rtc-sdk`
-  Provider-standard RTC SDKs for multi-provider audio/video runtime integration.
+- `sdkwork-rtc-sdk` (sibling repo)
+  Provider-standard RTC SDKs for multi-provider audio/video runtime integration. Authority path:
+  `../sdkwork-rtc/sdks/sdkwork-rtc-sdk`. **Must not** be materialized under this repository's
+  `sdks/` directory.
 
 ## Current Repository Truth
 
@@ -72,12 +80,13 @@ The three Sdkwork IM HTTP-contract SDK families are separated by target surface:
 - `sdkwork-im-backend-sdk` owns `sdkwork-im-backend-api`, the backend management API under
   `/backend/v3/api/*`.
 
-The RTC workspace is intentionally separate from the OpenAPI-generated HTTP SDK families:
+The RTC workspace is intentionally separate from the OpenAPI-generated HTTP SDK families and from
+this repository checkout:
 
-- `sdkwork-rtc-sdk` owns provider standards, driver contracts, provider catalogs, runtime surface
-  rules, and provider package boundaries.
+- `sdkwork-rtc-sdk` lives in `../sdkwork-rtc/sdks/sdkwork-rtc-sdk` and owns provider standards,
+  driver contracts, provider catalogs, runtime surface rules, and provider package boundaries.
 - It is not a route-generated SDK workspace and must not be collapsed into app or backend generated
-  transport packages.
+  transport packages or copied into `sdkwork-im/sdks/`.
 
 The communication RPC workspace is intentionally separate from the OpenAPI-generated HTTP SDK
 families:
@@ -98,7 +107,8 @@ Every API must map to exactly one SDK family:
   `sdkwork-im-app-sdk`.
 - Backend management, operator, governance, control-plane, and admin API:
   `/backend/v3/api/*` -> `sdkwork-im-backend-api` -> `sdkwork-im-backend-sdk`.
-- RTC provider/runtime standard: `sdkwork-rtc-sdk`, not an OpenAPI HTTP family.
+- RTC provider/runtime standard: sibling `../sdkwork-rtc/sdks/sdkwork-rtc-sdk`, not an OpenAPI HTTP
+  family and not a local `sdks/` workspace.
 
 Backend management modules currently include:
 
@@ -157,7 +167,7 @@ transport package.
 | `sdkwork-im-app-sdk` | App developers and app-business integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated app transport plus Flutter composed `im_app_sdk` with semantic `ImAppSdkClient`; family-level dependencies on `sdkwork-im-sdk` and `sdkwork-rtc-sdk` |
 | `sdkwork-im-backend-sdk` | Backend, operator, control-plane, and admin integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Generated backend transport plus Flutter composed `im_backend_sdk` with semantic `ImBackendSdkClient` |
 | `sdkwork-im-rpc-sdk` | Distributed backend, private, local, native-host, and service-to-service communication integrations | TypeScript, Go, Java, Python, Rust | gRPC/protobuf SDK family generated from `proto/` and `rpc/sdkwork-im-rpc.manifest.json` |
-| `sdkwork-rtc-sdk` | RTC provider-standard integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | Provider-standard packages and adapters, not OpenAPI-generated transport |
+| `sdkwork-rtc-sdk` (sibling) | RTC provider-standard integrations | TypeScript, Flutter, Rust, Java, C#, Swift, Kotlin, Go, Python | `../sdkwork-rtc/sdks/sdkwork-rtc-sdk`; provider-standard packages and adapters, not OpenAPI-generated transport |
 
 All current package lines remain `not_published` until a release freeze assigns publishable
 versions. The release snapshot is recorded in

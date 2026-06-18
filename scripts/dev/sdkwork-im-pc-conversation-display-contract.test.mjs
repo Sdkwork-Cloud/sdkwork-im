@@ -8,6 +8,7 @@ const read = (path) => readFileSync(join(root, path), 'utf8');
 const chatServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/ChatService.ts');
 const groupServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/GroupService.ts');
 const chatLayoutSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/pages/ChatLayout.tsx');
+const appShellFrameSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shell/src/AppShellFrame.tsx');
 const chatRightPanelSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ChatRightPanel.tsx');
 const scanQrCodeModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ScanQrCodeModal.tsx');
 const defaultAvatarServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/DefaultAvatarService.ts');
@@ -80,7 +81,12 @@ assert.doesNotMatch(
 
 assert.match(
   chatLayoutSource,
-  /<div\s+className="h-\[52px\] w-full flex items-center shrink-0 border-b border-white\/5 bg-\[#1e1e1e\] relative print:hidden">[\s\S]*?\{renderHeaderContent\(\)\}[\s\S]*?<\/div>/u,
+  /header=\{renderHeaderContent\(\)\}/u,
+  'chat layout must delegate the unified header into AppShellFrame',
+);
+assert.match(
+  appShellFrameSource,
+  /<div\s+className="h-\[52px\] w-full flex items-center shrink-0 border-b border-white\/5 bg-\[#1e1e1e\] relative print:hidden">[\s\S]*?\{header\}/u,
   'chat unified header must use a compact 52px height shared by the conversation list header and chat window header',
 );
 

@@ -60,6 +60,10 @@ on:
         required: true
         default: false
         type: boolean
+      sdkwork_app_topology_ref:
+        description: sdkwork-app-topology commit/ref.
+        required: false
+        default: main
       sdkwork_appbase_ref:
         description: sdkwork-appbase commit/ref.
         required: false
@@ -130,6 +134,7 @@ jobs:
       framework_ref: b0829529b9277a3da32b90c2d36ff34ff09fa832
       dependency_refs_json: >-
         {
+          "SDKWORK_APP_TOPOLOGY_REF": "${{ github.event.inputs.sdkwork_app_topology_ref || vars.SDKWORK_APP_TOPOLOGY_REF }}",
           "SDKWORK_APPBASE_REF": "${{ github.event.inputs.sdkwork_appbase_ref || vars.SDKWORK_APPBASE_REF }}",
           "SDKWORK_CORE_REF": "${{ github.event.inputs.sdkwork_core_ref || vars.SDKWORK_CORE_REF }}",
           "SDKWORK_DATABASE_REF": "${{ github.event.inputs.sdkwork_database_ref || vars.SDKWORK_DATABASE_REF }}",

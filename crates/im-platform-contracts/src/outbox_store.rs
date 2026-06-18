@@ -1,6 +1,8 @@
 // Outbox Store Contract - Outbox 事件存储契约
 // 支持分布式 outbox 模式，实现可靠的事件投递
 
+#![allow(clippy::should_implement_trait)]
+
 use sdkwork_im_contract_core::ContractError;
 use serde::{Deserialize, Serialize};
 

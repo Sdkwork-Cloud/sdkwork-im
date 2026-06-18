@@ -25,18 +25,18 @@
 Red:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test deployment_profile_test test_restore_runtime_local_cmd_normalizes_expected_preview_fingerprint_switch -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_restore_runtime_local_cmd_normalizes_expected_preview_fingerprint_switch -- --exact --nocapture
 ```
 
 Green:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test deployment_profile_test test_restore_runtime_local_cmd_normalizes_expected_preview_fingerprint_switch -- --exact --nocapture
-cargo test -p local-minimal-node --offline --test deployment_profile_test test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints -- --exact --nocapture
-cargo test -p local-minimal-node --offline --test deployment_profile_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_restore_runtime_local_cmd_normalizes_expected_preview_fingerprint_switch -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_local_minimal_deployment_assets_exist_and_reference_expected_entrypoints -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test -- --nocapture
 cargo fmt --all
 cargo fmt --all --check
-cargo test -p local-minimal-node --offline -- --nocapture
+cargo test -p sdkwork-im-gateway --offline -- --nocapture
 ```
 
 ## Result

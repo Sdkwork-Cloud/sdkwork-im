@@ -2,12 +2,12 @@
 
 ## Context
 
-- lifecycle 脚本已支持 `local-minimal / local-default` profile。
-- `README.md` 与 `docs/部署/快速启动脚本.md` 仍主要展示旧的 `local-minimal` 示例。
+- lifecycle 脚本已支持 `self-hosted.split-services.development / self-hosted.split-services.development` profile。
+- `README.md` 与 `docs/部署/快速启动脚本.md` 仍主要展示旧的 `self-hosted.split-services.development` 示例。
 
 ## Confirmed Bug
 
-- operator 入口文档没有对称公开 `install/init/start/restart/stop` 的 `local-default` 用法。
+- operator 入口文档没有对称公开 `install/init/start/restart/stop` 的 `self-hosted.split-services.development` 用法。
 - 文档参数表也没有完整列出 lifecycle 全链的 `--profile` / `-ProfileName`。
 
 ## Root Cause
@@ -17,7 +17,7 @@
 
 ## Fix
 
-- 在 `README.md` 补 `install/init/start/status/restart/stop` 的 `local-default` 示例。
+- 在 `README.md` 补 `install/init/start/status/restart/stop` 的 `self-hosted.split-services.development` 示例。
 - 在 `docs/部署/快速启动脚本.md` 补 lifecycle 全链 profile 参数、三端示例、运行产物与兼容边界说明。
 - 新增回归测试 `test_quick_start_doc_surfaces_local_default_profile_examples_across_lifecycle_commands`。
 
@@ -26,21 +26,21 @@
 Red:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test deployment_profile_test test_quick_start_doc_surfaces_local_default_profile_examples_across_lifecycle_commands -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_quick_start_doc_surfaces_local_default_profile_examples_across_lifecycle_commands -- --exact --nocapture
 ```
 
 Green:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test deployment_profile_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test -- --nocapture
 cargo fmt --all --check
-cargo test -p local-minimal-node --offline -- --nocapture
+cargo test -p sdkwork-im-gateway --offline -- --nocapture
 ```
 
 ## Result
 
 - 顶层 README 与快速启动文档已对齐脚本真实能力。
-- `local-default` config 入口与当前共享 runtime-dir 的边界都已公开。
+- `self-hosted.split-services.development` config 入口与当前共享 runtime-dir 的边界都已公开。
 
 ## Boundary
 

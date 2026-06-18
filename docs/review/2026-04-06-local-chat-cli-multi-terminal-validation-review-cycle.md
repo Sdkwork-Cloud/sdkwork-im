@@ -46,7 +46,7 @@ CLI 默认优先顺序：
 1. `--bearer-token`
 2. `--public-bearer-secret`
 3. 环境变量 `SDKWORK_IM_PUBLIC_BEARER_HS256_SECRET`
-4. `.runtime/local-minimal/config/local-minimal.env`
+4. `.runtime/self-hosted.split-services.development/config/self-hosted.split-services.development.env`
 
 ### 4. 是否满足离线构建要求
 
@@ -58,7 +58,7 @@ CLI 默认优先顺序：
 
 1. `watch --exit-after-events` 当前按 `event.window` 次数退出，如果设备存在历史未确认事件，可能先消费 catchup 窗口。
 2. CLI 当前主要面向本地/测试环境，未提供复杂输出格式切换和脚本化批量编排能力。
-3. 目前没有把 CLI 集成进现有 `install-local` 生命周期脚本，只通过独立入口脚本运行。
+3. 目前没有把 CLI 集成进现有 `retired-lifecycle-install` 生命周期脚本，只通过独立入口脚本运行。
 
 ## 下一步建议
 

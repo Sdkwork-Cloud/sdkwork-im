@@ -6,25 +6,25 @@
 
 **Architecture:** Reuse the provider-health route pattern already used by RTC, media, and IoT. Keep route availability separate from provider availability by returning `ProviderHealthSnapshot.status`.
 
-**Tech Stack:** Rust, Axum, Tokio, local-minimal-node integration tests.
+**Tech Stack:** Rust, Axum, Tokio, sdkwork-im-server integration tests.
 
 ---
 
 ### Task 1: Freeze the missing route
 
 **Files:**
-- Create: `services/local-minimal-node/tests/principal_profile_provider_http_test.rs`
+- Create: `services/sdkwork-im-gateway/tests/principal_profile_provider_http_test.rs`
 
 - [ ] **Step 1: Write the failing tests**
-- [ ] **Step 2: Run `cargo test -p local-minimal-node --offline --test principal_profile_provider_http_test -- --nocapture`**
+- [ ] **Step 2: Run `cargo test -p sdkwork-im-gateway --offline --test principal_profile_provider_http_test -- --nocapture`**
 Expected: FAIL with `404 != 200`
 
 ### Task 2: Add the HTTP surface
 
 **Files:**
-- Modify: `services/local-minimal-node/src/node.rs`
-- Modify: `services/local-minimal-node/src/node/build.rs`
-- Modify: `services/local-minimal-node/src/node/principal_profile.rs`
+- Modify: `services/sdkwork-im-gateway/src/node.rs`
+- Modify: `services/sdkwork-im-gateway/src/node/build.rs`
+- Modify: `services/sdkwork-im-gateway/src/node/principal_profile.rs`
 
 - [ ] **Step 1: Add `AppState` principal-profile health accessor**
 - [ ] **Step 2: Add `principal_profile` health handler**
@@ -34,8 +34,8 @@ Expected: FAIL with `404 != 200`
 ### Task 3: Remove env-test leakage
 
 **Files:**
-- Modify: `services/local-minimal-node/tests/principal_profile_provider_http_test.rs`
-- Modify: `services/local-minimal-node/tests/principal_profile_provider_runtime_selection_test.rs`
+- Modify: `services/sdkwork-im-gateway/tests/principal_profile_provider_http_test.rs`
+- Modify: `services/sdkwork-im-gateway/tests/principal_profile_provider_runtime_selection_test.rs`
 
 - [ ] **Step 1: Add a per-binary async mutex**
 - [ ] **Step 2: Guard env-mutating tests**
@@ -49,5 +49,5 @@ Expected: FAIL with `404 != 200`
 - Modify: `docs/架构/README.md`
 
 - [ ] **Step 1: Run `cargo fmt --all --check`**
-- [ ] **Step 2: Run `cargo test -p local-minimal-node --offline -- --nocapture`**
+- [ ] **Step 2: Run `cargo test -p sdkwork-im-gateway --offline -- --nocapture`**
 - [ ] **Step 3: Update review/design/step indexes**

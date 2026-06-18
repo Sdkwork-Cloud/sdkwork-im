@@ -47,7 +47,7 @@
 - 无偏离。
 - 本轮实现继续遵守既有架构边界：
   - `projection-service` 继续拥有 projection observability owner
-  - `local-minimal-node` 只在 startup recovery 主路径上测量并回填 rebuild duration
+  - `sdkwork-im-server` 只在 startup recovery 主路径上测量并回填 rebuild duration
   - `ops-service` 继续只做公开 health / diagnostics 读面
 - 同时，本轮明确了一个原架构文档未完全显式写清、但与设计一致的 as-built 语义：
   - `rebuildDurationMs` 是整次 projection recovery 总时长
@@ -65,18 +65,18 @@
 - 代码：
   - `services/projection-service/src/observability.rs`
   - `services/ops-service/src/lib.rs`
-  - `services/local-minimal-node/src/node.rs`
-  - `services/local-minimal-node/src/node/build.rs`
-  - `services/local-minimal-node/src/node/platform.rs`
+  - `services/sdkwork-im-gateway/src/node.rs`
+  - `services/sdkwork-im-gateway/src/node/build.rs`
+  - `services/sdkwork-im-gateway/src/node/platform.rs`
 - 测试：
   - `services/projection-service/tests/projection_snapshot_test.rs`
   - `services/ops-service/tests/http_smoke_test.rs`
-  - `services/local-minimal-node/tests/domain_recovery_persistence_test.rs`
+  - `services/sdkwork-im-gateway/tests/domain_recovery_persistence_test.rs`
 - 验证：
   - `cargo fmt --all --check`
   - `cargo test -p projection-service --offline`
   - `cargo test -p ops-service --offline`
-  - `cargo test -p local-minimal-node --offline`
+  - `cargo test -p sdkwork-im-gateway --offline`
 
 ## 当前判断
 - `CP09-3`：通过。

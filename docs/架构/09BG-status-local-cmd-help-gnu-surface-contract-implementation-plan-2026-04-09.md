@@ -2,12 +2,12 @@
 
 ## Goal
 
-Make `bin/status-local.cmd --help` surface the GNU-style Windows named flags that operators are expected to use.
+Make `bin/retired-lifecycle-status.cmd --help` surface the GNU-style Windows named flags that operators are expected to use.
 
 ## Implementation
 
 1. Freeze the Windows help surface in `tools/chat-cli/tests/chat_cli_e2e_test.rs`
-2. Patch the `-Help` branch in `bin/status-local.ps1`
+2. Patch the `-Help` branch in `bin/retired-lifecycle-status.ps1`
 3. Keep runtime status behavior unchanged for this loop
 4. Backwrite the operator quick-start doc and loop indexes
 

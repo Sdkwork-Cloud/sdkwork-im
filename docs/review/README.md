@@ -1,5 +1,8 @@
 # Review 索引
 
+> **Topology v2 权威入口：** [docs/topology-greenfield.md](../topology-greenfield.md) · [docs/部署/README.md](../部署/README.md)
+> 本目录归档执行卡与复盘；正文已迁移到 Topology v2。文件名中的历史词仅用于链接定位。
+
 `docs/review` 用于归档执行卡、质量审计、架构兑现、回写决议与阶段/波次总验收证据。
 
 ## 执行卡命名
@@ -92,7 +95,7 @@
   - 对应 step 回写：`docs/step/continuous-optimization-chat-cli-cmd-help-pass-through-contract-2026-04-09.md`
   - 对应架构回写：`docs/架构/09AV-chat-cli-cmd-help-pass-through-contract-implementation-plan-2026-04-09.md`
   - 对应架构设计：`docs/架构/150AV-chat-cli-cmd-help-pass-through-contract-design-2026-04-09.md`
-  - 默认预发布 profile：`local-default`
+  - 默认预发布 profile：`self-hosted.split-services.development`
   - 目标容量环境：`capacity-dedicated`
   - 对应部署文档：`docs/部署/性能与灾备演练场景.md`
   - 对应 gate 模板：`tools/perf/step-11-pre-release-tier-gate.json`、`tools/perf/step-11-capacity-tier-gate.json`
@@ -132,7 +135,7 @@
   - `requiredReports = capacity_report / recovery_report`
   - `requiredOutputs` 以 `scenarioFamily -> artifactKind -> requiredFields` tuple 冻结最小输出契约，代表项包括 `connection -> metrics_json -> runId / connectionCount / successCount`、`restore-recovery -> recovery_json -> runId / restoreRtoSeconds / dataLossRpoEvents / previewDiffAccuracy`
   - `operatorDocPath = docs/部署/性能与灾备演练场景.md`，`scenarioCatalogPath = tools/perf/step-11-scenario-catalog.json`
-  - `profile = local-default / capacity-dedicated`
+  - `profile = self-hosted.split-services.development / capacity-dedicated`
   - `reviewBackwrite = docs/step/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md / docs/review/continuous-optimization-pre-release-capacity-tier-gates-2026-04-09.md / docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md / docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md`
   - `scenarioFamily` 与 `artifactKind` 的对应关系包括 `connection -> metrics_json / capacity_json`、`failover -> drill_json / recovery_json`、`restore-recovery -> drill_json / recovery_json`
   - `scenarioFamily` 与 `requiredFields / requiredSections` 的对应关系包括 `connection -> runId / connectP95Ms`、`failover -> runId / takeoverDurationMs`、`restore-recovery -> runId / restoreRtoSeconds / previewDiffAccuracy`
@@ -154,18 +157,18 @@
 - [wave-d-93-总验收-2026-04-08](./wave-d-93-总验收-2026-04-08.md)
 # 2026-04-09 Step 12 Addendum
 
-- [continuous-optimization-start-local-cmd-help-gnu-surface-contract-2026-04-09](./continuous-optimization-start-local-cmd-help-gnu-surface-contract-2026-04-09.md)
+- [continuous-optimization-retired-lifecycle-start-cmd-help-gnu-surface-contract-2026-04-09](./continuous-optimization-retired-lifecycle-start-cmd-help-gnu-surface-contract-2026-04-09.md)
   - `Step 12`
-  - freeze `bin/start-local.cmd --help` GNU-style discoverability on Windows
-  - step: `docs/step/continuous-optimization-start-local-cmd-help-gnu-surface-contract-2026-04-09.md`
-  - impl: `docs/架构/09BF-start-local-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09.md`
-  - design: `docs/架构/150BF-start-local-cmd-help-gnu-surface-contract-design-2026-04-09.md`
-- [continuous-optimization-status-local-cmd-help-gnu-surface-contract-2026-04-09](./continuous-optimization-status-local-cmd-help-gnu-surface-contract-2026-04-09.md)
+  - freeze `bin/retired-lifecycle-start.cmd --help` GNU-style discoverability on Windows
+  - step: `docs/step/continuous-optimization-retired-lifecycle-start-cmd-help-gnu-surface-contract-2026-04-09.md`
+  - impl: `docs/架构/09BF-retired-lifecycle-start-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09.md`
+  - design: `docs/架构/150BF-retired-lifecycle-start-cmd-help-gnu-surface-contract-design-2026-04-09.md`
+- [continuous-optimization-retired-lifecycle-status-cmd-help-gnu-surface-contract-2026-04-09](./continuous-optimization-retired-lifecycle-status-cmd-help-gnu-surface-contract-2026-04-09.md)
   - `Step 12`
-  - freeze `bin/status-local.cmd --help` GNU-style discoverability on Windows
-  - step: `docs/step/continuous-optimization-status-local-cmd-help-gnu-surface-contract-2026-04-09.md`
-  - impl: `docs/架构/09BG-status-local-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09.md`
-  - design: `docs/架构/150BG-status-local-cmd-help-gnu-surface-contract-design-2026-04-09.md`
+  - freeze `bin/retired-lifecycle-status.cmd --help` GNU-style discoverability on Windows
+  - step: `docs/step/continuous-optimization-retired-lifecycle-status-cmd-help-gnu-surface-contract-2026-04-09.md`
+  - impl: `docs/架构/09BG-retired-lifecycle-status-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09.md`
+  - design: `docs/架构/150BG-retired-lifecycle-status-cmd-help-gnu-surface-contract-design-2026-04-09.md`
 - [continuous-optimization-principal-profile-runtime-provider-selection-2026-04-09](./continuous-optimization-principal-profile-runtime-provider-selection-2026-04-09.md)
   - `Step 12`
   - fix the runtime-selection drift where default app bootstrap could not choose `principal-profile-external-catalog`
@@ -174,7 +177,7 @@
   - design: `docs/架构/150BH-principal-profile-runtime-provider-selection-design-2026-04-09.md`
 - [continuous-optimization-install-deploy-cmd-help-gnu-surface-contract-2026-04-09](./continuous-optimization-install-deploy-cmd-help-gnu-surface-contract-2026-04-09.md)
   - `Step 12`
-  - close the remaining Windows help-surface drift for `install-local.cmd` and `deploy-local.cmd`
+  - close the remaining Windows help-surface drift for `retired-lifecycle-install.cmd` and `retired-lifecycle-deploy.cmd`
   - step: `docs/step/continuous-optimization-install-deploy-cmd-help-gnu-surface-contract-2026-04-09.md`
   - impl: `docs/架构/09BI-install-deploy-cmd-help-gnu-surface-contract-implementation-plan-2026-04-09.md`
   - design: `docs/架构/150BI-install-deploy-cmd-help-gnu-surface-contract-design-2026-04-09.md`
@@ -235,17 +238,17 @@
 
 - [continuous-optimization-shell-process-identity-portability-2026-04-09](./continuous-optimization-shell-process-identity-portability-2026-04-09.md)
   - `Step 10`
-  - close the Bash lifecycle drift where `ps -o comm=` can truncate `local-minimal-node` on BSD/macOS
+  - close the Bash lifecycle drift where `ps -o comm=` can truncate `sdkwork-im-server` on BSD/macOS
   - verification anchored in `test_shell_lifecycle_scripts_use_args_based_process_identity_for_portability`
 - [continuous-optimization-runtime-lifecycle-profile-selection-2026-04-09](./continuous-optimization-runtime-lifecycle-profile-selection-2026-04-09.md)
   - `Step 10`
-  - close the lifecycle/runtime-ops split where `local-default` worked in status/runtime scripts but not in init/install/start/stop/restart
+  - close the lifecycle/runtime-ops split where `self-hosted.split-services.development` worked in status/runtime scripts but not in init/install/start/stop/restart
   - verification anchored in `test_init_config_local_ps1_uses_local_default_profile_when_requested` and `test_restart_local_ps1_forwards_profile_name_to_stop_and_start_scripts`
 - [continuous-optimization-lifecycle-profile-doc-contract-alignment-2026-04-09](./continuous-optimization-lifecycle-profile-doc-contract-alignment-2026-04-09.md)
   - `Step 10`
   - close the operator-doc drift where lifecycle profile support existed in scripts but not in README and quick-start examples
   - verification anchored in `test_quick_start_doc_surfaces_local_default_profile_examples_across_lifecycle_commands`
-- [continuous-optimization-start-local-ps1-health-timeout-test-stability-2026-04-09](./continuous-optimization-start-local-ps1-health-timeout-test-stability-2026-04-09.md)
+- [continuous-optimization-retired-lifecycle-start-ps1-health-timeout-test-stability-2026-04-09](./continuous-optimization-retired-lifecycle-start-ps1-health-timeout-test-stability-2026-04-09.md)
   - `Step 10`
   - close the flaky health-timeout rollback regression caused by an over-compressed test scheduling window
   - verification anchored in `test_start_local_ps1_stops_background_process_and_clears_pid_file_when_health_check_times_out`
@@ -263,7 +266,7 @@
   - verification anchored in `test_inspect_runtime_local_cmd_help_surfaces_gnu_style_named_flags`
 ## 2026-04-09 Addendum
 
-- [continuous-optimization-start-local-ps1-health-timeout-window-recalibration-2026-04-09](./continuous-optimization-start-local-ps1-health-timeout-window-recalibration-2026-04-09.md)
+- [continuous-optimization-retired-lifecycle-start-ps1-health-timeout-window-recalibration-2026-04-09](./continuous-optimization-retired-lifecycle-start-ps1-health-timeout-window-recalibration-2026-04-09.md)
   - `Step 10`
   - re-stabilize the Windows health-timeout rollback test after the prior `5 x 100ms` window remained too small
   - verification anchored in `test_start_local_ps1_stops_background_process_and_clears_pid_file_when_health_check_times_out`

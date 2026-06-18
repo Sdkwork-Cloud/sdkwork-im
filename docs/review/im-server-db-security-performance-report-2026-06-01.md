@@ -1,14 +1,14 @@
 # Sdkwork IM 即时通信服务端与数据库审计报告（2026-06-01）
 
 ## 1. 审计范围
-- 代码范围：`services/*`（重点：`control-plane-api`、`local-minimal-node`、`session-gateway`、`conversation-runtime`、`projection-service`）。
+- 代码范围：`services/*`（重点：`control-plane-api`、`sdkwork-im-server`、`session-gateway`、`conversation-runtime`、`projection-service`）。
 - 数据库范围：`deployments/database/postgres/migrations/001_im_core_schema.sql`。
 - 规范基线：`../../specs/API_SPEC.md`、`../../specs/DATABASE_SPEC.md`。
 
 ## 2. 本轮已完成整改（含验证）
 
 ### 2.1 API 错误模型统一（ProblemDetail）
-- `session-gateway`、`local-minimal-node`、`projection-service`、`control-plane-api` 已统一返回 `application/problem+json`，并保留兼容字段（如 `code/message`，控制面保留 `errorStatus`）。
+- `session-gateway`、`sdkwork-im-server`、`projection-service`、`control-plane-api` 已统一返回 `application/problem+json`，并保留兼容字段（如 `code/message`，控制面保留 `errorStatus`）。
 - 已通过：`cargo test -p projection-service --test http_smoke_test`、`cargo test -p control-plane-api --test http_smoke_test`、`cargo test -p control-plane-api --test openapi_export_test`。
 
 ### 2.2 数据库约束与保留策略补齐
@@ -20,7 +20,7 @@
 ### 2.3 OpenAPI operationId 生成器对齐规范（本轮新增）
 - `crates/sdkwork-im-openapi/src/lib.rs` 已从 `method_path` 改为 `dotted lowerCamel` 资源动作风格，并移除路径参数、处理标准动作词。
 - 新增规范映射单测（覆盖 `sessions.create`、`users.retrieve`、`organizationMemberships.list`、`roles.permissions.delete` 等）。
-- 已通过：`cargo test -p sdkwork-im-openapi`、`cargo check -p local-minimal-node`、`cargo test -p local-minimal-node --test openapi_im_v3_contract_test`。
+- 已通过：`cargo test -p sdkwork-im-openapi`、`cargo check -p sdkwork-im-server`、`cargo test -p sdkwork-im-gateway --test openapi_im_v3_contract_test`。
 
 ## 3. 当前仍存在的问题（按优先级）
 

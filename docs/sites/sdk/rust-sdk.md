@@ -44,7 +44,7 @@ Use `im-sdk` and `ImSdkClient` for normal application code:
 ```rust
 use im_sdk::ImSdkClient;
 
-let client = ImSdkClient::new_with_base_url("http://127.0.0.1:18090")?;
+let client = ImSdkClient::new_with_base_url("http://127.0.0.1:18079")?;
 client.set_auth_token(token);
 ```
 

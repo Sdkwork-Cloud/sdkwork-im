@@ -5,14 +5,14 @@
 - `services/notification-service/src/lib.rs`
 - `services/notification-service/tests/lib_structure_test.rs`
 - `services/notification-service/tests/notification_pipeline_test.rs`
-- `services/local-minimal-node/src/node/effects.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
-- `services/local-minimal-node/tests/http_e2e_test.rs`
+- `services/sdkwork-im-gateway/src/node/effects.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/http_e2e_test.rs`
 
 ## 2. 审计结论
 
 - 审计通过项
-  - message notification fanout orchestration 已开始从 `local-minimal-node` 收口到 `notification-service`
+  - message notification fanout orchestration 已开始从 `sdkwork-im-server` 收口到 `notification-service`
   - notification fanout seam 现在统一拥有 self-filter 与 notification id 生成规则
   - 现有“只 fanout 给其他 active member”的 e2e 行为保持不变
 - 当前裁定
@@ -24,11 +24,11 @@
 
 - 结构红绿测试
   - `notification-service` fanout owner seam
-  - `local-minimal-node` consumer seam
+  - `sdkwork-im-server` consumer seam
 - 行为验证
   - `notification-service` fanout unit test
 - 回归验证
-  - `local-minimal-node` message notification fanout e2e
+  - `sdkwork-im-server` message notification fanout e2e
   - `notification-service` idempotent duplicate request 回归
 - 额外验证
   - `cargo fmt --all`

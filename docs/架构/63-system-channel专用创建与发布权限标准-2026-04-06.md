@@ -181,7 +181,7 @@
 - runtime 专用创建逻辑
 - runtime system-channel 发言权限校验
 - conversation-runtime HTTP 路由
-- local-minimal-node HTTP 路由
+- sdkwork-im-server HTTP 路由
 - 单元测试、HTTP 测试、本地 profile E2E 测试
 
 ## 12. 后续演进

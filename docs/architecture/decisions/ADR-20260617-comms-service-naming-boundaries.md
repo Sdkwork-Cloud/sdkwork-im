@@ -7,7 +7,7 @@ Specs: DOMAIN_SPEC.md, NAMING_SPEC.md, API_SPEC.md, ARCHITECTURE_DECISION_SPEC.m
 
 ## Context
 
-Sdkwork IM is mid-migration from `local-minimal-node` toward split deploy behind `web-gateway`.
+Sdkwork IM uses topology v2 split deploy behind `sdkwork-im-server` (`application.public-ingress`).
 Several boundaries drifted from SDKWork standards:
 
 - `contact-service` and `social-service` both mount `/im/v3/api/social/*`.

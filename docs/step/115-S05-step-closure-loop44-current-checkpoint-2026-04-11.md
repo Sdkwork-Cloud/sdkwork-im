@@ -8,7 +8,7 @@
 
 ## Truth Checked
 - code: `services/control-plane-api/src/lib.rs`
-- tests: `services/control-plane-api/tests/social_friend_request_test.rs` `services/control-plane-api/tests/social_runtime_cli_test.rs` `services/local-minimal-node/tests/deployment_profile_test.rs`
+- tests: `services/control-plane-api/tests/social_friend_request_test.rs` `services/control-plane-api/tests/social_runtime_cli_test.rs` `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 - step_docs: `docs/step/95-*` `docs/step/97-*` `docs/step/113-*` `docs/step/114-*`
 - architecture_docs: `docs/架构/150CJ-*` `docs/架构/151CJ-*` `docs/架构/152CJ-current-*` `docs/架构/152CJ-Loop42补充-*` `docs/架构/152CJ-Loop43补充-*`
 - review_docs: `docs/review/S05-*` `docs/review/S00-S14-*`
@@ -47,7 +47,7 @@
 ## Verification
 - commands:
   - `cargo test -p control-plane-api --offline --tests -- --nocapture`
-  - `cargo test -p local-minimal-node --offline --test deployment_profile_test -- --nocapture`
+  - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test -- --nocapture`
 - results:
   - `control-plane-api --tests = 62 passed`
   - `deployment_profile_test = 64 passed`

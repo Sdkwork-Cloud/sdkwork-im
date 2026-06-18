@@ -34,8 +34,6 @@ import {
 import {
   SDKWORK_IM_SESSION_CHANGED_EVENT,
   readAppSdkSessionTokens,
-  resolveAppSdkOrganizationId,
-  resolveAppSdkTenantId,
   resolveAppSdkUserId,
   type SdkworkChatSession,
 } from '@sdkwork/im-pc-core/sdk/session';
@@ -43,6 +41,7 @@ import type { Chat, Message } from '@sdkwork/im-pc-types';
 import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
 import { contactService } from './ContactService';
 import { createDefaultAvatar } from './DefaultAvatarService';
+import i18n from '../i18n';
 
 type ConversationInboxEntry = InboxResponse['items'][number];
 type TimelineViewEntry = TimelineResponse['items'][number];
@@ -502,7 +501,9 @@ function isVideoRtcMode(value: string | undefined): boolean {
 }
 
 function formatRtcCallMode(value: string | undefined): string {
-  return isVideoRtcMode(value) ? '视频通话' : '语音通话';
+  return isVideoRtcMode(value)
+    ? i18n.t('chat.messageList.rtcCall.videoMode')
+    : i18n.t('chat.messageList.rtcCall.voiceMode');
 }
 
 function formatRtcCallParticipant(value: string | undefined, fallback: string): string {
@@ -658,27 +659,27 @@ function mergeSameIdMessage(existing: Message, incoming: Message, preferIncoming
 
 function buildRtcCallMessageContent(descriptor: RtcCallDescriptor): string {
   const mode = formatRtcCallMode(descriptor.mode);
-  const initiator = formatRtcCallParticipant(descriptor.initiatorId, '发起方');
+  const initiator = formatRtcCallParticipant(descriptor.initiatorId, i18n.t('chat.messageList.rtcCall.initiatorFallback'));
   const receiver = descriptor.receiverId;
-  const actor = formatRtcCallParticipant(descriptor.actorId, '对方');
+  const actor = formatRtcCallParticipant(descriptor.actorId, i18n.t('chat.messageList.rtcCall.actorFallback'));
   const callSubject = receiver
-    ? `${initiator} 向 ${receiver} 发起的${mode}`
-    : `${initiator} 发起的${mode}`;
+    ? i18n.t('chat.messageList.rtcCall.subjectWithReceiver', { initiator, receiver, mode })
+    : i18n.t('chat.messageList.rtcCall.subjectWithoutReceiver', { initiator, mode });
 
   switch (descriptor.state) {
     case 'accepted':
-      return `${callSubject}，${actor} 已接通`;
+      return i18n.t('chat.messageList.rtcCall.accepted', { callSubject, actor });
     case 'rejected':
-      return `${callSubject}，${actor} 已拒绝`;
+      return i18n.t('chat.messageList.rtcCall.rejected', { callSubject, actor });
     case 'ended':
-      return `${callSubject}，${actor} 已挂断`;
+      return i18n.t('chat.messageList.rtcCall.ended', { callSubject, actor });
     case 'started':
       return receiver
-        ? `${initiator} 向 ${receiver} 发起了${mode}`
-        : `${initiator} 发起了${mode}`;
+        ? i18n.t('chat.messageList.rtcCall.startedWithReceiver', { initiator, receiver, mode })
+        : i18n.t('chat.messageList.rtcCall.startedWithoutReceiver', { initiator, mode });
     case 'syncing':
     default:
-      return `${callSubject}正在同步`;
+      return i18n.t('chat.messageList.rtcCall.syncing', { callSubject });
   }
 }
 
@@ -889,14 +890,6 @@ function getDefaultDriveUploader(): Pick<
     driveUploaderClient = createDefaultDriveUploaderClient();
   }
   return driveUploaderClient;
-}
-
-function resolveChatUploadTenantId(session: SdkworkChatSession | null | undefined): string {
-  const tenantId = resolveAppSdkTenantId(session ?? null);
-  if (!tenantId) {
-    throw new Error('Chat media upload requires tenant_id in the authenticated session.');
-  }
-  return tenantId;
 }
 
 function resolveChatUploadUserId(session: SdkworkChatSession | null | undefined): string {
@@ -1110,14 +1103,10 @@ async function uploadChatMediaFile({
   }
 
   const session = getSession();
-  const tenantId = resolveChatUploadTenantId(session);
   const userId = resolveChatUploadUserId(session);
-  const organizationId = resolveAppSdkOrganizationId(session ?? null);
   const originalFileName = resolveMediaUploadFileName(type, file, extraInfo);
   const uploadRequest: DriveUploaderRequest = {
     file,
-    tenantId,
-    ...(organizationId ? { organizationId } : {}),
     userId,
     appId: CHAT_APP_ID,
     appResourceType: CHAT_DRIVE_APP_RESOURCE_TYPE,
@@ -2864,6 +2853,38 @@ class SdkworkChatService implements ChatService {
 
 export function createSdkworkChatService(dependencies?: ChatServiceDependencies | (() => ImSdkClient)): ChatService {
   return new SdkworkChatService(dependencies);
+}
+
+export function projectDirectChatConversationId(
+  currentUserId: string,
+  targetUserId: string,
+): string {
+  return buildDirectChatStableIds(currentUserId, targetUserId).conversationId;
+}
+
+export function resolveIncomingCallWatchConversationIds(
+  chats: Array<{ id: string; conversationId?: string }>,
+  contacts: Array<{ conversationId?: string; id: string }>,
+  currentUserId: string,
+): string[] {
+  const conversationIds = new Set<string>();
+  for (const chat of chats) {
+    const conversationId = chat.conversationId?.trim() || chat.id.trim();
+    if (conversationId) {
+      conversationIds.add(conversationId);
+    }
+  }
+  const normalizedCurrentUserId = currentUserId.trim();
+  if (normalizedCurrentUserId) {
+    for (const contact of contacts) {
+      const conversationId = contact.conversationId?.trim()
+        || projectDirectChatConversationId(normalizedCurrentUserId, contact.id);
+      if (conversationId) {
+        conversationIds.add(conversationId);
+      }
+    }
+  }
+  return [...conversationIds];
 }
 
 export const chatService = createSdkworkChatService();

@@ -11,12 +11,12 @@
 - `docs/架构/139-权限能力模型与协议演进设计-2026-04-06.md`
   - notification id / source event / recipient routing 规则应由单一 owner 维护
 - `docs/架构/147-CCP到Crate与接口模块落地映射设计-2026-04-06.md`
-  - automation result notification seam 应映射到 `notification-service`，而不是由 `local-minimal-node` 平台层继续编排
+  - automation result notification seam 应映射到 `notification-service`，而不是由 `sdkwork-im-server` 平台层继续编排
 
 ## 2. 已兑现
 
 - `notification-service` 现在拥有 `RequestAutomationResultNotification` 与 `request_automation_result_notification(...)`
-- `local-minimal-node` automation platform 路径已改为消费 notification owner seam
+- `sdkwork-im-server` automation platform 路径已改为消费 notification owner seam
 - automation result notification drift 已开始从 service edge 收口
 
 ## 3. 未兑现
@@ -28,7 +28,7 @@
 ## 4. 偏离判断
 
 - 无新的架构偏离
-- 本轮没有在 `local-minimal-node` 再造第二套 automation result notification 组装规则
+- 本轮没有在 `sdkwork-im-server` 再造第二套 automation result notification 组装规则
 - 本轮严格属于 `CP05-4` 的 notification owner 收口增量
 
 ## 5. 回写决议

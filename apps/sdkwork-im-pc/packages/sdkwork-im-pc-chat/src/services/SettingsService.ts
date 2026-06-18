@@ -6,18 +6,12 @@ import {
   getAppSdkClientWithSession,
   type SdkworkImAppClient,
 } from "@sdkwork/im-pc-core/sdk/appSdkClient";
-import {
-  readAppSdkSessionTokens,
-  resolveAppSdkOrganizationId,
-  resolveAppSdkTenantId,
-  resolveAppSdkUserId,
-} from "@sdkwork/im-pc-core/sdk/session";
 import { resolveSdkworkChatPcClientId } from "./ClientIdentityService";
 import {
   ALL_APP_MODULES,
   ALWAYS_CONFIGURABLE_MODULES,
   DEFAULT_SIDEBAR_MODULES,
-} from "@sdkwork/im-pc-shell";
+} from "@sdkwork/im-pc-shell/moduleRegistry";
 
 export { ALL_APP_MODULES, DEFAULT_SIDEBAR_MODULES, ALWAYS_CONFIGURABLE_MODULES };
 
@@ -101,29 +95,6 @@ export interface SettingsService {
 }
 
 type RecordLike = Record<string, unknown>;
-
-interface AiotAppContext {
-  dataScope?: string;
-  organizationId: string;
-  permissionScope: string;
-  tenantId: string;
-  userId?: string;
-}
-
-interface AiotAppRequestParams {
-  xSdkworkTenantId: string;
-  xSdkworkOrganizationId: string;
-  xSdkworkUserId?: string;
-  xSdkworkDataScope?: string;
-  xSdkworkPermissionScope: string;
-  idempotencyKey?: string;
-}
-
-const DEFAULT_AIOT_CONTEXT: AiotAppContext = {
-  tenantId: "20001",
-  organizationId: "30001",
-  permissionScope: "iot.twins.read",
-};
 
 function isRecord(value: unknown): value is RecordLike {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -260,31 +231,6 @@ function collectTwinStateRecords(twin: unknown): RecordLike[] {
   ].filter(isRecord);
 }
 
-function resolveAiotContext(permissionScope: string): AiotAppContext {
-  const session = readAppSdkSessionTokens();
-  return {
-    ...DEFAULT_AIOT_CONTEXT,
-    tenantId: resolveAppSdkTenantId(session) ?? DEFAULT_AIOT_CONTEXT.tenantId,
-    organizationId: resolveAppSdkOrganizationId(session) ?? DEFAULT_AIOT_CONTEXT.organizationId,
-    ...(resolveAppSdkUserId(session) ? { userId: resolveAppSdkUserId(session) } : {}),
-    permissionScope,
-  };
-}
-
-function toAiotRequestParams(
-  context: AiotAppContext,
-  options: { idempotencyKey?: string } = {},
-): AiotAppRequestParams {
-  return {
-    xSdkworkTenantId: context.tenantId,
-    xSdkworkOrganizationId: context.organizationId,
-    xSdkworkUserId: context.userId,
-    xSdkworkDataScope: context.dataScope,
-    xSdkworkPermissionScope: context.permissionScope,
-    idempotencyKey: options.idempotencyKey,
-  };
-}
-
 class SdkworkSettingsService implements SettingsService {
   private get defaultSettings(): AppSettings {
     return {
@@ -382,9 +328,8 @@ class SdkworkSettingsService implements SettingsService {
 
   async getDevices(): Promise<DeviceInfo[]> {
     try {
-      const twin = await this.getAiotClient().iot.devices.twin.retrieve(
+      const twin = await this.getAiotClient().iot.devicesTwinRetrieve(
         this.resolveClientId(),
-        toAiotRequestParams(resolveAiotContext("iot.twins.read")),
       );
       return collectDeviceInfo(...collectTwinStateRecords(twin));
     } catch {
@@ -397,7 +342,7 @@ class SdkworkSettingsService implements SettingsService {
     if (!normalizedDeviceId) {
       throw new Error("Device id is required");
     }
-    await this.getAiotClient().iot.devices.commands.create(
+    await this.getAiotClient().iot.devicesCommandsCreate(
       this.resolveClientId(),
       {
         capabilityName: "login-sessions",
@@ -406,9 +351,7 @@ class SdkworkSettingsService implements SettingsService {
           disabledLoginDeviceIds: [normalizedDeviceId],
         },
       },
-      toAiotRequestParams(resolveAiotContext("iot.commands.execute"), {
-        idempotencyKey: `disable-login-device:${normalizedDeviceId}`,
-      }),
+      `disable-login-device:${normalizedDeviceId}`,
     );
   }
 

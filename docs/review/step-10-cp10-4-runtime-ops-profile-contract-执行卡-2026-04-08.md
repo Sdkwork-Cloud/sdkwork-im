@@ -6,16 +6,16 @@
 - 当前子任务：`CP10-4`
 - 前置状态：
   - `CP10-1` 已冻结统一命令面
-  - `CP10-2` 已冻结 `local-minimal` / `local-default` profile 与配置模板合同
+  - `CP10-2` 已冻结 `self-hosted.split-services.development` / `self-hosted.split-services.development` profile 与配置模板合同
   - `CP10-3` 已完成 Docker/public smoke 的 signed bearer 闭环
   - 当前真实缺口收敛到 runtime ops：
-    - `inspect / repair / list / archive / prune / preview / restore` 脚本仍锁死 `.runtime/local-minimal/config/local-minimal.env`
+    - `inspect / repair / list / archive / prune / preview / restore` 脚本仍锁死 `.runtime/self-hosted.split-services.development/config/self-hosted.split-services.development.env`
     - PowerShell 运行时脚本没有 `-ProfileName`
     - Bash 运行时脚本没有统一 `--profile` 运维合同
 
 ## 本轮为什么做这个增量
 - `docs/step/10-部署脚本与多环境发布治理.md` 明确要求 `CP10-4` 证明“恢复、修复、检查脚本已经纳入标准运维闭环”。
-- `CP10-2` 已经把 `local-default` 冻结为真实 profile 名称，如果 runtime ops 仍只认 `local-minimal`，则 profile 体系仍然是半成品。
+- `CP10-2` 已经把 `self-hosted.split-services.development` 冻结为真实 profile 名称，如果 runtime ops 仍只认 `self-hosted.split-services.development`，则 profile 体系仍然是半成品。
 - 因此本轮最优动作是补齐 runtime ops profile-aware 合同，而不是引入新的 runtime 拓扑。
 
 ## 本轮实际完成
@@ -29,7 +29,7 @@
   - `prune-runtime-archives-local.ps1`
   - `preview-runtime-restore-local.ps1`
   - `restore-runtime-local.ps1`
-  - 统一新增 `-ProfileName <local-minimal|local-default>`
+  - 统一新增 `-ProfileName <self-hosted.split-services.development|self-hosted.split-services.development>`
 - Bash：
   - `inspect-runtime-local.sh`
   - `repair-runtime-local.sh`
@@ -38,20 +38,20 @@
   - `prune-runtime-archives-local.sh`
   - `preview-runtime-restore-local.sh`
   - `restore-runtime-local.sh`
-  - 统一新增 `--profile <local-minimal|local-default>`
+  - 统一新增 `--profile <self-hosted.split-services.development|self-hosted.split-services.development>`
 - CMD：
   - 继续通过 `_cmd-forward-powershell.cmd` 把 `--profile` 归一化为 `-ProfileName`
 
-### 2. `local-default` 运维配置解析已进入显式合同
+### 2. `self-hosted.split-services.development` 运维配置解析已进入显式合同
 - 新增共享 helper：
   - `bin/_runtime-profile-common.ps1`
   - `bin/_runtime-profile-common.sh`
 - 统一解析顺序：
   1. 显式 `RuntimeDir`
-  2. `local-default` 时优先读取 `.runtime/local-default/config/local-default.env`
-  3. 若未落地，则回退 `.runtime/local-minimal/config/local-minimal.env`
-  4. 默认运行目录仍回退到 `.runtime/local-minimal`
-- 该回退与 `docs/部署/多环境Profile与配置模板.md` 当前冻结的“`local-default` 仍复用 `local-minimal` 运行合同”一致
+  2. `self-hosted.split-services.development` 时优先读取 `.runtime/self-hosted.split-services.development/config/self-hosted.split-services.development.env`
+  3. 若未落地，则回退 `.runtime/self-hosted.split-services.development/config/self-hosted.split-services.development.env`
+  4. 默认运行目录仍回退到 `.runtime/self-hosted.split-services.development`
+- 该回退与 `docs/部署/多环境Profile与配置模板.md` 当前冻结的“`self-hosted.split-services.development` 仍复用 `self-hosted.split-services.development` 运行合同”一致
 
 ### 3. PowerShell runtime ops 保持单文件可执行回归模型
 - 共享 helper 存在时优先复用
@@ -61,8 +61,8 @@
 ### 4. 文档与回归门禁已追平
 - `docs/部署/快速启动脚本.md`
   - 新增 runtime ops profile 选择说明
-  - 明确 `local-default` 的 config-first / runtime-contract fallback 口径
-- `services/local-minimal-node/tests/deployment_profile_test.rs`
+  - 明确 `self-hosted.split-services.development` 的 config-first / runtime-contract fallback 口径
+- `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
   - `test_runtime_operation_scripts_expose_profile_selection_contract`
   - `test_inspect_runtime_local_ps1_uses_local_default_profile_config_when_requested`
   - `test_inspect_runtime_local_cmd_supports_profile_switch`
@@ -71,12 +71,12 @@
 ## TDD / Red-Green 证据
 
 ### Red
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test test_runtime_operation_scripts_expose_profile_selection_contract -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_runtime_operation_scripts_expose_profile_selection_contract -- --exact`
   - 初始失败：`inspect-runtime-local.ps1 must expose a profile selector`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test test_inspect_runtime_local_ps1_uses_local_default_profile_config_when_requested -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_inspect_runtime_local_ps1_uses_local_default_profile_config_when_requested -- --exact`
   - 初始失败：实际仍解析到 `runtime-from-local-minimal`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test test_inspect_runtime_local_cmd_supports_profile_switch -- --exact`
-  - 初始失败：CMD 转发后的 PowerShell 仍落到 `.runtime/local-minimal`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_inspect_runtime_local_cmd_supports_profile_switch -- --exact`
+  - 初始失败：CMD 转发后的 PowerShell 仍落到 `.runtime/self-hosted.split-services.development`
 
 ### Green
 - 补齐 profile selector、config 解析顺序、PowerShell 单文件 fallback 与文档合同后，上述 red 用例全部转绿
@@ -84,7 +84,7 @@
 
 ## Fresh 验证
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/inspect-runtime-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/repair-runtime-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/list-runtime-backups-local.ps1 -Help`
@@ -98,7 +98,7 @@
 - `CP10-4`：闭环
 - 已兑现：
   - runtime ops 已纳入统一 profile-aware 运维合同
-  - `local-default` 与 `local-minimal` 的运维入口不再分叉
+  - `self-hosted.split-services.development` 与 `self-hosted.split-services.development` 的运维入口不再分叉
   - PowerShell / CMD / Bash 的 runtime ops 语义已对齐到同一组参数与 fallback 规则
 - 当前仍未兑现：
   - `Step 10` 的整步审计与架构回写

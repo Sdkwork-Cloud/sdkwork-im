@@ -7,13 +7,13 @@
 
 ## Why This Round
 
-- `status-local` belongs to the same local operator flow as `start-local`.
+- `retired-lifecycle-status` belongs to the same local operator flow as `retired-lifecycle-start`.
 - The docs already exposed GNU-style Windows flags for status inspection.
-- The remaining real gap was that `status-local.cmd --help` still only surfaced PowerShell syntax.
+- The remaining real gap was that `retired-lifecycle-status.cmd --help` still only surfaced PowerShell syntax.
 
 ## Closure Target
 
-1. Add a Windows regression for `bin/status-local.cmd --help`.
+1. Add a Windows regression for `bin/retired-lifecycle-status.cmd --help`.
 2. Prove the wrapper currently hides the GNU-style named flags.
 3. Patch only the help text surface.
 4. Backwrite review, step, architecture, and operator docs for this micro-loop.
@@ -22,7 +22,7 @@
 
 - Added `test_status_local_cmd_help_surfaces_gnu_style_named_flags`
 - Reproduced the real help-surface gap first
-- Added a `.cmd` GNU-style usage line to the `-Help` branch in `bin/status-local.ps1`
+- Added a `.cmd` GNU-style usage line to the `-Help` branch in `bin/retired-lifecycle-status.ps1`
 - Updated the local operator quick-start doc
 - Backwrote review and architecture docs for this micro-loop
 
@@ -30,7 +30,7 @@
 
 ```powershell
 cargo test -p sdkwork-im-cli --offline --test chat_cli_e2e_test test_status_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture
-cmd /c .\bin\status-local.cmd --help
+cmd /c .\bin\retired-lifecycle-status.cmd --help
 cargo test -p sdkwork-im-cli --offline -- --nocapture
 cargo fmt --all --check
 ```

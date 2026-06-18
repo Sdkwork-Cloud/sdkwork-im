@@ -1,4 +1,4 @@
-use sdkwork_rtc_core::RtcRecordingArtifact;
+use sdkwork_communication_rtc_service::RtcRecordingArtifact;
 use serde_json::{Value, json};
 
 #[test]
@@ -9,6 +9,7 @@ fn test_rtc_recording_artifact_is_drive_backed_media_resource() {
         "drive": {
             "driveUri": "drive://spaces/space_rtc_recordings/nodes/node_rtc_recording_demo",
             "spaceId": "space_rtc_recordings",
+            "spaceType": "rtc",
             "nodeId": "node_rtc_recording_demo",
             "nodeVersion": "1"
         },

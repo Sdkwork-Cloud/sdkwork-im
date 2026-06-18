@@ -8,10 +8,10 @@ bind_address = "0.0.0.0:18080"
 trust_forwarded_headers = true
 
 [public_endpoints]
-base_url = "https://chat.example.com/sdkwork/chat"
-api_base_url = "https://chat.example.com/sdkwork/chat"
-websocket_base_url = "wss://realtime.example.com/sdkwork/chat"
-docs_base_url = "https://chat.example.com/sdkwork/chat/docs"
+base_url = "https://im.sdkwork.com"
+api_base_url = "https://im.sdkwork.com"
+websocket_base_url = "wss://im.sdkwork.com"
+docs_base_url = "https://im.sdkwork.com/docs"
 
 [paths]
 config_directory = "/etc/sdkwork/chat"

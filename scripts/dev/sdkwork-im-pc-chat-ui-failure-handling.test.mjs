@@ -10,14 +10,6 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
-function sliceBetween(source, startMarker, endMarker, description) {
-  const start = source.indexOf(startMarker);
-  assert.notEqual(start, -1, `${description} must keep ${startMarker} auditable`);
-  const end = source.indexOf(endMarker, start);
-  assert.notEqual(end, -1, `${description} must end before ${endMarker}`);
-  return source.slice(start, end);
-}
-
 const createGroupModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/CreateGroupModal.tsx');
 const allContactsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/contacts/AllContactsContainer.tsx');
 const groupsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/contacts/GroupsContainer.tsx');
@@ -52,7 +44,7 @@ assert.match(
 );
 assert.match(
   allContactsSource,
-  /contactService\.getContacts\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*setLoading\(false\)\s*\)/u,
+  /contactService\.getContacts\(\)[\s\S]*?\.finally\s*\(\s*\(\)\s*=>\s*\{[\s\S]*?setLoading\(false\)/u,
   'All contacts loading must always clear loading after success or failure',
 );
 
@@ -89,12 +81,12 @@ assert.match(
 );
 assert.match(
   newFriendsSource,
-  /await\s+contactService\.handleFriendRequest\(req\.id,\s*'reject'\)/u,
+  /handleReject\s*=\s*async[\s\S]*?await\s+contactService\.handleFriendRequest\(requestId,\s*'reject'\)/u,
   'Rejecting a friend request must await the real SDK mutation before local state changes',
 );
 assert.match(
   newFriendsSource,
-  /await\s+contactService\.handleFriendRequest\(req\.id,\s*'accept'\)/u,
+  /handleAccept\s*=\s*async[\s\S]*?await\s+contactService\.handleFriendRequest\(requestId,\s*'accept'\)/u,
   'Accepting a friend request must await the real SDK mutation before local state changes',
 );
 assert.match(

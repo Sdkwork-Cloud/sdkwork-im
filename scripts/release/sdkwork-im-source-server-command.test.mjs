@@ -63,9 +63,10 @@ fs.writeFileSync(
     '# source deployment test env',
     'export SDKWORK_IM_DEPLOYMENT_MODE=server',
     'SDKWORK_IM_CONFIG_FILE=' + configFile.replaceAll('\\', '/'),
-    'SDKWORK_IM_SERVER_BIND=0.0.0.0:18080',
-    'SDKWORK_IM_SERVER_API_BASE_URL=https://chat.example.com/sdkwork/chat',
-    'SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=wss://chat.example.com/sdkwork/chat',
+    'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:18080',
+    'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https://im.sdkwork.com',
+    'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss://im.sdkwork.com',
+    'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https://api.sdkwork.com',
     'SDKWORK_IM_DATABASE_PASSWORD=secret-password',
     '',
   ].join('\n'),
@@ -74,7 +75,7 @@ fs.writeFileSync(
 const buildPlan = sourceServerModule.createSdkworkImSourceServerPlan({
   action: 'build',
   env: {
-    SDKWORK_IM_SERVER_API_BASE_URL: 'https://override.example.com/sdkwork/chat',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'https://override.example.com',
   },
   envFile,
   platform: 'linux',
@@ -98,13 +99,13 @@ assert.equal(
   'source build plan must load deployment mode from server.env',
 );
 assert.equal(
-  buildPlan.steps[0].env.SDKWORK_IM_SERVER_API_BASE_URL,
-  'https://override.example.com/sdkwork/chat',
+  buildPlan.steps[0].env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  'https://override.example.com',
   'explicit process env must override server.env when building public frontend base URLs',
 );
 assert.equal(
-  buildPlan.steps[0].env.SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL,
-  'wss://chat.example.com/sdkwork/chat',
+  buildPlan.steps[0].env.SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  'wss://im.sdkwork.com',
   'source build plan must load websocket base URL from server.env',
 );
 assert.equal(
@@ -132,9 +133,10 @@ assert.deepEqual(
     'SDKWORK_IM_SERVER_BINARY_PATH',
     'SDKWORK_IM_CONFIG_FILE',
     'SDKWORK_IM_DEPLOYMENT_MODE',
-    'SDKWORK_IM_SERVER_API_BASE_URL',
-    'SDKWORK_IM_SERVER_BIND',
-    'SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL',
+    'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND',
+    'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL',
+    'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL',
+    'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL',
   ],
   'source deployment plan JSON must expose only safe deployment keys and omit secret-bearing env values',
 );
@@ -216,8 +218,8 @@ assert.equal(spawnedSteps[0].command, buildPlan.steps[0].command);
 assert.deepEqual(spawnedSteps[0].args, buildPlan.steps[0].args);
 assert.equal(spawnedSteps[0].cwd, repoRoot);
 assert.equal(
-  spawnedSteps[0].env.SDKWORK_IM_SERVER_API_BASE_URL,
-  'https://override.example.com/sdkwork/chat',
+  spawnedSteps[0].env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  'https://override.example.com',
   'source deploy runner must execute the audited plan with the resolved deployment env',
 );
 
@@ -233,7 +235,7 @@ assert.ok(
   sourceDeployGuide.includes('pnpm run server:source:build')
     && sourceDeployGuide.includes('pnpm run server:source:start')
     && sourceDeployGuide.includes('/etc/sdkwork/chat/server.env')
-    && sourceDeployGuide.includes('SDKWORK_IM_SERVER_API_BASE_URL'),
+    && sourceDeployGuide.includes('SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL'),
   'source deployment guide must document the pnpm workflow and base URL source of truth',
 );
 assert.ok(

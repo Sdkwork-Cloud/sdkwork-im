@@ -1,8 +1,8 @@
 # Step 10 / CP10-1 bin command surface freeze 质量审计与复盘 - 2026-04-08
 
 ## 审计范围
-- `services/local-minimal-node/tests/deployment_profile_test.rs`
-- `bin/status-local.sh`
+- `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
+- `bin/retired-lifecycle-status.sh`
 - `docs/部署/快速启动脚本.md`
 
 ## 审计结论
@@ -11,7 +11,7 @@
 - 这使 `Step 10` 的后续 profile、smoke、恢复闭环有了稳定的命令入口基线。
 
 ## 正向结果
-- `status-local` 的 PowerShell / Bash help 语义已经收敛到同一份 runtime operations contract。
+- `retired-lifecycle-status` 的 PowerShell / Bash help 语义已经收敛到同一份 runtime operations contract。
 - 快启文档不再只覆盖 install/deploy/start，而是完整公开：
   - 初始化
   - 启动
@@ -28,17 +28,17 @@
 - 新增测试已经把“文档是否真的冻结命令面”纳入 `deployment_profile_test`，后续回归若删漏命令面会直接失败。
 
 ## 剩余风险
-- 当前冻结的是 `local-minimal` 命令面，不等于多环境 profile 已经建成。
-- `deploy-local` 与更完整的多环境 profile/template 仍需在 `CP10-2` 中继续收敛。
+- 当前冻结的是 `self-hosted.split-services.development` 命令面，不等于多环境 profile 已经建成。
+- `retired-lifecycle-deploy` 与更完整的多环境 profile/template 仍需在 `CP10-2` 中继续收敛。
 - Bash 脚本在当前 Windows 沙箱中无法直接做 shell 级 `--help` 执行验证；这仍属于环境限制，不构成当前子任务阻塞。
 
 ## 验证证据
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
-- `cargo test -p local-minimal-node --offline test_quick_start_doc_freezes_full_local_command_surface`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/status-local.ps1 -Help`
-- `cmd /c bin\\status-local.cmd --help`
+- `cargo test -p sdkwork-im-gateway --offline test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
+- `cargo test -p sdkwork-im-gateway --offline test_quick_start_doc_freezes_full_local_command_surface`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/retired-lifecycle-status.ps1 -Help`
+- `cmd /c bin\\retired-lifecycle-status.cmd --help`
 
 ## 复盘结论
 - 本轮最关键的决策是没有急着扩 profile，而是先把命令面冻结成“代码 help + 文档矩阵 + 回归测试”三位一体的契约。

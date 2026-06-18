@@ -6,15 +6,15 @@
 - `services/projection-service/src/lib.rs`
 - `services/projection-service/tests/lib_structure_test.rs`
 - `services/projection-service/tests/timeline_projection_test.rs`
-- `services/local-minimal-node/src/node/effects.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
-- `services/local-minimal-node/tests/cluster_realtime_routing_e2e_test.rs`
+- `services/sdkwork-im-gateway/src/node/effects.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/cluster_realtime_routing_e2e_test.rs`
 
 ## 2. 审计结论
 
 - 审计通过项
   - principal -> device realtime fanout target 的解析 owner 已收口到 `projection-service`
-  - `local-minimal-node` side-effect 路径不再直接把 raw `registered_devices(...)` 二次拼装成 fanout target
+  - `sdkwork-im-server` side-effect 路径不再直接把 raw `registered_devices(...)` 二次拼装成 fanout target
   - cross-node realtime routing 行为保持不变，远端 owner node 仍能收到 fanout 事件
 - 当前裁定
   - 本轮推进了 `CP05-4`
@@ -25,12 +25,12 @@
 
 - 结构红绿测试
   - `projection-service` owner seam
-  - `local-minimal-node` consumer seam
+  - `sdkwork-im-server` consumer seam
 - 行为验证
   - `projection-service` principal -> device pair 输出测试
 - 回归验证
   - `projection-service` registered client route / latest sync seq 查询测试
-  - `local-minimal-node` cross-node realtime routing e2e
+  - `sdkwork-im-server` cross-node realtime routing e2e
 - 额外验证
   - `cargo fmt --all`
   - `cargo fmt --all --check`

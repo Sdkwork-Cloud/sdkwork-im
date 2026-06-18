@@ -1,97 +1,53 @@
 ﻿# Docker
 
-Docker deployment is the recommended path for local container validation and demo-style bring-up.
-It is not the formal packaged `sdkwork-im-server` install contract.
+Docker deployment is optional for container validation. The authoritative development entry is
+`pnpm im:dev` with topology profile `self-hosted.split-services.development`.
 
-## Compose Profiles
+The formal packaged install contract is [Server Lifecycle](/deployment/server-lifecycle) using
+`deployments/templates/server.env.example` and `sdkwork-im-server`.
 
-| Profile | Compose file | Current status |
-| --- | --- | --- |
-| `local-minimal` | `deployments/docker-compose/local-minimal.yml` | Fully defined |
-| `local-default` | `deployments/docker-compose/local-default.yml` | Compatibility layer that extends `local-minimal.yml` |
+## Retired Compose Profiles
 
-## `local-minimal` Compose Facts
+`local-minimal` and `local-default` Compose files are removed. Do not reference
+`deployments/docker-compose/local-minimal.yml` or `deploy-local.*` scripts.
 
-The repo Compose profile currently sets:
+## Current Development Path
 
-- container name: `sdkwork-im-local-minimal`
-- `SDKWORK_IM_BIND_ADDR=0.0.0.0:18090`
-- `SDKWORK_IM_FRIEND_REQUEST_CURSOR_HS256_SECRET=local-minimal-friend-request-cursor-dev-secret`
-- `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true`
-- `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET=local-minimal-app-context-signature-dev-secret`
-- port mapping: `18090:18090`
-- healthcheck: `curl -fsS http://127.0.0.1:18090/healthz`
-
-## Recommended Commands
-
-### PowerShell wrapper
-
-```powershell
-./bin/deploy-local.ps1 -ProfileName local-minimal
-./bin/deploy-local.ps1 -ProfileName local-default -SmokeBaseUrl http://127.0.0.1:28090
-./bin/deploy-local.ps1 -Help
-```
-
-### Direct bootstrap
-
-```powershell
-powershell -ExecutionPolicy Bypass -File deployments\scripts\bootstrap-local.ps1 -ProfileName local-minimal
-```
-
-### Direct Compose
+From the repository root:
 
 ```bash
-docker compose -f deployments/docker-compose/local-minimal.yml up -d --build
+pnpm install
+pnpm im:dev
 ```
 
-## What The Bootstrap Script Does
+Default dev listeners:
 
-`deployments/scripts/bootstrap-local.ps1`:
+| Plane | URL |
+| --- | --- |
+| Application ingress | `http://127.0.0.1:18079` |
+| Platform API gateway | `http://127.0.0.1:3900` |
 
-1. verifies the Docker CLI
-2. verifies the Docker daemon
-3. verifies the Docker Compose plugin
-4. runs `docker compose -f <profile>.yml up -d --build`
-5. runs smoke verification unless `-SkipSmoke` is passed
-6. collects `docker compose ps` and `docker compose logs --tail 200` on failure
+Health check:
 
-## Smoke Behavior
-
-By default the Docker bootstrap calls `tools/smoke/local_stack_smoke.ps1`, which:
-
-- waits for `/healthz`
-- sends SDKWork dual-token headers: `Authorization: Bearer <auth-token>` and `Access-Token: <access-token>`
-- creates a conversation
-- posts a message
-- verifies the conversation summary path
-
-## Current Boundary
-
-`local-default.yml` currently contains only an `extends` relationship:
-
-```yaml
-services:
-  local-minimal-node:
-    extends:
-      file: local-minimal.yml
-      service: local-minimal-node
+```bash
+curl http://127.0.0.1:18079/healthz
 ```
 
-So it is a profile compatibility layer, not a separate image, port layout, or service graph.
+## Production Container Notes
 
-For the single-port packaged server, config root layout, PostgreSQL baseline, and service-management
-wrappers, use [Server Lifecycle](/deployment/server-lifecycle).
+Production container images should bind application ingress using topology v2 keys:
 
-For the single-port packaged server, config root layout, PostgreSQL baseline, and service-management wrappers, use [Server Lifecycle](/deployment/server-lifecycle).
+- `SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL`
+- `SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL`
+- `SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND`
+- `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
 
-If you are validating a production-style install shape with the unified `sdkwork-im-gateway` entrypoint,
-runtime OpenAPI discovery, or PostgreSQL-backed storage configuration, switch to
-[Server Lifecycle](/deployment/server-lifecycle).
-
-If you are validating a production-style install shape with the unified `sdkwork-im-gateway` entrypoint, runtime OpenAPI discovery, or PostgreSQL-backed storage configuration, switch to [Server Lifecycle](/deployment/server-lifecycle).
+See [Profiles and Environment](/deployment/profiles-and-env) and
+[Production Domain Binding](/deployment/production-domain-binding).
 
 ## What To Read Next
 
 - [Deployment](/deployment/index)
 - [Profiles and Environment](/deployment/profiles-and-env)
 - [Quick Start](/getting-started/quick-start)
+- [Server Lifecycle](/deployment/server-lifecycle)

@@ -16,7 +16,7 @@ use sdkwork_im_backend_api_generated::{SdkworkImBackendClient, SdkworkConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = SdkworkImBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+    let client = SdkworkImBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18079"))?;
     client.set_auth_token("your-auth-token");
 client.set_access_token("your-access-token");
 
@@ -37,7 +37,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```rust
-let client = SdkworkImBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+let client = SdkworkImBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18079"))?;
 client.set_header("X-Custom-Header", "value");
 ```
 
@@ -97,7 +97,7 @@ println!("{result:?}");
 use sdkwork_im_backend_api_generated::{SdkworkImBackendClient, SdkworkConfig};
 
 
-let client = SdkworkImBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18090"))?;
+let client = SdkworkImBackendClient::new(SdkworkConfig::new("http://127.0.0.1:18079"))?;
 
 let outcome: Result<(), _> = async {
     client.admin().api_key_groups_list().await?;

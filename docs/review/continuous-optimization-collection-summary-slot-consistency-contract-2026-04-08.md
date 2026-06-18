@@ -7,13 +7,13 @@
   - slot 明细已经变化
   - 摘要计数没有同步更新
   - 结构化 evidence index 内部自相矛盾
-- 当前环境依然没有真实 `local-default` 发布后执行窗口，因此本轮继续不伪造真实证据，只把“摘要必须由 slot 明细推导”固定成回归门禁与文档合同。
+- 当前环境依然没有真实 `self-hosted.split-services.development` 发布后执行窗口，因此本轮继续不伪造真实证据，只把“摘要必须由 slot 明细推导”固定成回归门禁与文档合同。
 
 ## 2. 实际落地
 
 ### 2.1 contract gate 已冻结 collectionSummary 与 slot 明细一致性
 
-- 更新：`services/local-minimal-node/tests/deployment_profile_test.rs`
+- 更新：`services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 - 新增：
   - `test_local_default_release_bundle_collection_summary_matches_slot_statuses`
 - 当前门禁已锁定：
@@ -24,9 +24,9 @@
 ### 2.2 operator / release 文档已明确 source-of-truth 关系
 
 - 更新：`artifacts/releases/README.md`
-- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/local-default/README.md`
-- 更新：`docs/部署/local-default发布后验证样本.md`
-- 更新：`docs/部署/local-default发布后验证执行记录模板.md`
+- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development/README.md`
+- 更新：`docs/部署/性能与灾备演练场景.md`
+- 更新：`docs/部署/性能与灾备演练场景.md`
 - 当前文档已明确：
   - `collectionSummary` 不是独立人工计数源
   - 必须直接由 `evidenceSlots[*].required` 与 `evidenceSlots[*].status` 推导
@@ -44,6 +44,6 @@
 
 ## 4. fresh evidence
 
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test test_local_default_release_bundle_collection_summary_matches_slot_statuses -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_local_default_release_bundle_collection_summary_matches_slot_statuses -- --nocapture`
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test -- --nocapture`

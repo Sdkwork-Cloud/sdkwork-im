@@ -2,7 +2,7 @@
 
 ## 1. 目标与范围
 
-本 step 用于把当前分散在 `session-gateway`、`local-minimal-node` 等服务中的连接热路径和在线路由能力，真正抽离为独立的运行时层。
+本 step 用于把当前分散在 `session-gateway`、`sdkwork-im-server` 等服务中的连接热路径和在线路由能力，真正抽离为独立的运行时层。
 
 本 step 的目标是建立：
 
@@ -14,7 +14,7 @@
 ### 1.1 执行输入
 
 - step 03 已冻结的 `CCP` 协议骨架
-- 当前 `session-gateway`、`local-minimal-node` 的连接与 cluster 测试资产
+- 当前 `session-gateway`、`sdkwork-im-server` 的连接与 cluster 测试资产
 - 当前 reconnect / resume / route 相关运行态实现
 - 连接密度和分层扩容的目标架构文档
 
@@ -29,7 +29,7 @@
 - `runtime-link` 骨架与连接热路径抽离
 - `runtime-route` 骨架与 route epoch / drain 模型
 - 连接与路由的关键 smoke / E2E 测试
-- `session-gateway` 与 `local-minimal-node` 的边界收敛起点
+- `session-gateway` 与 `sdkwork-im-server` 的边界收敛起点
 
 ## 2. 架构对齐
 
@@ -47,7 +47,7 @@
 - 连接状态机、实时投递、业务判断可能混在同一服务文件中
 - 路由归属与节点治理还未形成独立 plane
 - `session-gateway` 仍承担过多运行态职责
-- `local-minimal-node` 既做装配，又承载大量细节逻辑
+- `sdkwork-im-server` 既做装配，又承载大量细节逻辑
 
 如果不先抽出 Link / Route Plane，后续扩容、排空、恢复、兼容升级都会很难做稳。
 
@@ -103,7 +103,7 @@
 3. 建立 shard、queue、resume、metrics 子模块
 4. 建立 route epoch、drain、rebalance 模块
 5. 让 `interface-ws` 改为调用 `runtime-link`
-6. 让 `local-minimal-node` 只负责装配和 profile 组合
+6. 让 `sdkwork-im-server` 只负责装配和 profile 组合
 
 ### 5.2 重点路径
 
@@ -113,7 +113,7 @@
 - `services/session-gateway/src/websocket.rs`
 - `services/session-gateway/src/realtime.rs`
 - `services/session-gateway/src/cluster.rs`
-- `services/local-minimal-node/src/lib.rs`
+- `services/sdkwork-im-gateway/src/lib.rs`
 - `services/control-plane-api/`
 
 ### 5.3 运行时拆分建议
@@ -155,9 +155,9 @@
 
 - `services/session-gateway/tests/websocket_smoke_test.rs`
 - `services/session-gateway/tests/cluster_routing_test.rs`
-- `services/local-minimal-node/tests/cluster_realtime_routing_e2e_test.rs`
-- `services/local-minimal-node/tests/cluster_drain_rebalance_e2e_test.rs`
-- `services/local-minimal-node/tests/disconnect_fence_persistence_test.rs`
+- `services/sdkwork-im-gateway/tests/cluster_realtime_routing_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/cluster_drain_rebalance_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/disconnect_fence_persistence_test.rs`
 
 ## 7. 结果验证
 
@@ -165,7 +165,7 @@
 
 - 连接生命周期与业务命令已完成解耦
 - route 迁移与节点排空具备稳定语义
-- `session-gateway` 和 `local-minimal-node` 不再是运行态逻辑黑洞
+- `session-gateway` 和 `sdkwork-im-server` 不再是运行态逻辑黑洞
 - Link Plane 与 Route Plane 可以独立扩容和独立观测
 
 ## 8. 检查点
@@ -173,7 +173,7 @@
 - `CP04-1`：`runtime-link` 与 `runtime-route` 的骨架和职责已明确
 - `CP04-2`：连接热路径已从 `session-gateway` 中抽离
 - `CP04-3`：route ownership / epoch / drain 模型已落地并有测试覆盖
-- `CP04-4`：`local-minimal-node` 已明显朝装配层收敛
+- `CP04-4`：`sdkwork-im-server` 已明显朝装配层收敛
 
 ### 8.1 推荐 review 产物
 

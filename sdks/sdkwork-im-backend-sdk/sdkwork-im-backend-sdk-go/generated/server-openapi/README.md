@@ -21,7 +21,7 @@ import (
 )
 
 func main() {
-    cfg := sdkhttp.NewDefaultConfig("http://127.0.0.1:18090")
+    cfg := sdkhttp.NewDefaultConfig("http://127.0.0.1:18079")
     client := github.com/sdkwork/im-backend-api-generated.NewSdkworkImBackendClientWithConfig(cfg)
     client.SetAuthToken("your-auth-token")
 client.SetAccessToken("your-access-token")
@@ -46,7 +46,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```go
-cfg := sdkhttp.NewDefaultConfig("http://127.0.0.1:18090")
+cfg := sdkhttp.NewDefaultConfig("http://127.0.0.1:18079")
 client := github.com/sdkwork/im-backend-api-generated.NewSdkworkImBackendClientWithConfig(cfg)
 
 // Set custom headers

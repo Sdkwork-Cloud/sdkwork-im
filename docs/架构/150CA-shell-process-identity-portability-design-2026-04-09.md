@@ -8,14 +8,14 @@
 
 - source field: `ps -p "$pid" -o args=`
 - normalization: trim leading whitespace, take argv[0], then take basename
-- expected identity: `local-minimal-node`
+- expected identity: `sdkwork-im-server`
 
 ## Contract
 
-- `bin/start-local.sh`, `bin/status-local.sh`, and `bin/stop-local.sh` must use `ps -o args=`.
+- `pnpm server:dev`, `bin/retired-lifecycle-status.sh`, and `bin/retired-lifecycle-stop.sh` must use `ps -o args=`.
 - They must derive argv[0] before basename comparison.
 - A managed process remains managed even when the platform truncates `comm`.
-- PID ownership checks stay strict: only basename `local-minimal-node` is accepted.
+- PID ownership checks stay strict: only basename `sdkwork-im-server` is accepted.
 
 ## Boundary
 

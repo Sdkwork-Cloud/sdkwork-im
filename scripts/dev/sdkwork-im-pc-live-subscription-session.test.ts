@@ -333,8 +333,7 @@ async function main(): Promise<void> {
     messageSeq: 1,
     senderId: 'friend-user-1',
   });
-  await Promise.resolve();
-  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 50));
   assert.deepEqual(
     chatListUpdates.at(-1),
     ['new-friend-chat-1:hello from a friend'],

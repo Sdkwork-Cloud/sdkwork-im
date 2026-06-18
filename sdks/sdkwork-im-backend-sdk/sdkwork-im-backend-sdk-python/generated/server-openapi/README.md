@@ -14,7 +14,7 @@ pip install sdkwork-im-backend-api-generated
 from sdkwork_im_backend_api_generated import SdkworkImBackendClient, SdkConfig
 
 config = SdkConfig(
-    base_url="http://127.0.0.1:18090",
+    base_url="http://127.0.0.1:18079",
 )
 
 client = SdkworkImBackendClient(config)
@@ -39,7 +39,7 @@ Access-Token: <accessToken>
 from sdkwork_im_backend_api_generated import SdkworkImBackendClient, SdkConfig
 
 config = SdkConfig(
-    base_url="http://127.0.0.1:18090",
+    base_url="http://127.0.0.1:18079",
 )
 
 client = SdkworkImBackendClient(config)

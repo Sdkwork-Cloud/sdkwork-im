@@ -3,19 +3,19 @@
 ## 审计范围
 - `services/projection-service/src/observability.rs`
 - `services/ops-service/src/lib.rs`
-- `services/local-minimal-node/src/node.rs`
-- `services/local-minimal-node/src/node/build.rs`
-- `services/local-minimal-node/src/node/platform.rs`
+- `services/sdkwork-im-gateway/src/node.rs`
+- `services/sdkwork-im-gateway/src/node/build.rs`
+- `services/sdkwork-im-gateway/src/node/platform.rs`
 - `services/projection-service/tests/projection_snapshot_test.rs`
 - `services/ops-service/tests/http_smoke_test.rs`
-- `services/local-minimal-node/tests/domain_recovery_persistence_test.rs`
+- `services/sdkwork-im-gateway/tests/domain_recovery_persistence_test.rs`
 
 ## 审计结论
 - 本轮未发现阻塞当前增量交付的剩余缺陷。
 - `rebuild duration` 的 owner 语义、公开读面和测试证据是一致的，没有把 replay 指标和 rebuild 指标混写成同一含义。
 - 本轮改动符合 `CP09-3` 的最小正确方向：
   - `projection-service` 继续拥有 projection plane observability state
-  - `local-minimal-node` 继续只测 startup recovery 的真实总时长
+  - `sdkwork-im-server` 继续只测 startup recovery 的真实总时长
   - `ops-service` 继续只负责公开 health / diagnostics 视图
 
 ## 正向结果
@@ -50,7 +50,7 @@
 - `cargo fmt --all --check`
 - `cargo test -p projection-service --offline`
 - `cargo test -p ops-service --offline`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 
 ## 复盘结论
 - 到本轮为止，`Projection Plane` 的核心 metrics / tracing / logging 已达到 Step 09 文档要求的“按 plane 基本收口”。

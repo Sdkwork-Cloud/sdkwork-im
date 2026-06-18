@@ -38,20 +38,17 @@ features:
 Sdkwork IM is a Rust workspace with three primary runtime surfaces in the current repository state,
 plus checked-in SDK workspaces built from those services:
 
-- `services/local-minimal-node`, the IM open-platform node that serves Realtime Presence, conversation, message,
-  media, stream, RTC, platform, ops, audit, and provider-health routes.
+- `services/sdkwork-im-gateway`, the unified application ingress that publishes the canonical
+  `sdkwork-im-server` binary, aggregates OpenAPI discovery, and fronts split or unified runtime
+  layouts.
 - `services/control-plane-api`, the separate governance surface for protocol registry, provider
   policy, and node lifecycle operations.
-- `services/sdkwork-im-gateway`, the unified external entrypoint that publishes the canonical
-  `sdkwork-im-server` binary, aggregates OpenAPI discovery, and fronts operator-facing single-port
-  server installs.
 - `sdks/`, which currently contains the IM standard, App API, Backend API, and independent RTC SDK
   families used by product, app-business, backend/operator, admin, governance, and provider-runtime
   integrations.
 
-The default runnable profile is `local-minimal`. The `local-default` profile already has script,
-config, and Docker entry points, but it still reuses the current `local-minimal` runtime contract
-and topology.
+The default development profile is `self-hosted.split-services.development` (`pnpm im:dev`). Topology
+authority lives in `specs/topology.spec.json` and `configs/topology/*.env`.
 
 For most new integrations, the fastest reading order is:
 
@@ -67,7 +64,7 @@ For most new integrations, the fastest reading order is:
 <div class="landing-grid">
   <div class="fact-card">
     <h3>Default App Listener</h3>
-    <p><code>127.0.0.1:18090</code> for local binary workflows, and <code>0.0.0.0:18090</code> inside Docker Compose.</p>
+    <p><code>127.0.0.1:18079</code> for the default development application ingress (<code>pnpm im:dev</code>).</p>
   </div>
   <div class="fact-card">
     <h3>Unified Server Listener</h3>
@@ -91,8 +88,7 @@ For most new integrations, the fastest reading order is:
 
 1. Start with [Getting Started](/getting-started/index) to understand supported runtime modes,
    prerequisites, and auth expectations.
-2. Use [Quick Start](/getting-started/quick-start) to initialize config, build the local node, and
-   verify health or smoke status.
+2. Use [Quick Start](/getting-started/quick-start) to start the development stack and verify health.
 3. Read [Architecture Overview](/architecture/overview) and
    [Runtime Topology](/architecture/runtime-topology) before changing runtime wiring, providers, or
    deployment assumptions.
@@ -144,11 +140,10 @@ such rather than documented as delivered features.
 
 <div class="source-note">
   <strong>Implementation sources:</strong>
-  App routing is aligned to <code>services/local-minimal-node/src/node/build.rs</code>.
+  App routing is aligned to <code>services/sdkwork-im-gateway</code>.
   Control-plane routing is aligned to <code>services/control-plane-api/src/lib.rs</code>.
   Unified gateway and packaged server entry are aligned to <code>services/sdkwork-im-gateway/src/lib.rs</code>,
   <code>services/sdkwork-im-gateway/src/main.rs</code>, and <code>deployments/templates/server.yaml.example</code>.
-  Local lifecycle and deployment behavior is aligned to <code>bin/</code>,
-  <code>deployments/</code>, and the runtime-management entrypoints in
-  <code>services/local-minimal-node/src/main.rs</code>.
+  Development orchestration is aligned to <code>scripts/im-dev.mjs</code>, <code>scripts/im-server-dev.mjs</code>,
+  and <code>configs/topology/*.env</code>.
 </div>

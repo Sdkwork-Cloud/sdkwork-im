@@ -25,16 +25,16 @@
 Red:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_connection_metrics_collected_evidence -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_connection_metrics_collected_evidence -- --exact --nocapture
 ```
 
 Green:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_connection_metrics_collected_evidence -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_materializes_pre_release_connection_metrics_collected_evidence -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test -- --nocapture
-cargo test -p local-minimal-node --offline -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline -- --nocapture
 ```
 
 ## Result

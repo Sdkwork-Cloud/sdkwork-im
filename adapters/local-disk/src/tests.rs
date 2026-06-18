@@ -268,7 +268,7 @@ fn commit_journal_json_lines(events: &[CommitEnvelope]) -> String {
 #[test]
 fn test_file_commit_journal_persists_across_reopen() {
     let file_path = unique_commit_journal_file();
-    let journal = FileCommitJournal::new("local-minimal", &file_path);
+    let journal = FileCommitJournal::new("dev-file-journal", &file_path);
     journal
         .append(CommitEnvelope::minimal(
             "evt_demo_1",
@@ -290,7 +290,7 @@ fn test_file_commit_journal_persists_across_reopen() {
         ))
         .expect("append should succeed");
 
-    let reopened = FileCommitJournal::new("local-minimal", &file_path);
+    let reopened = FileCommitJournal::new("dev-file-journal", &file_path);
     let recorded = reopened.recorded().expect("recorded should succeed");
     assert_eq!(recorded.len(), 2);
     assert_eq!(recorded[0].event_id, "evt_demo_1");
@@ -302,7 +302,7 @@ fn test_file_commit_journal_persists_across_reopen() {
 #[test]
 fn test_file_commit_journal_writes_append_only_json_lines() {
     let file_path = unique_commit_journal_file();
-    let journal = FileCommitJournal::new("local-minimal", &file_path);
+    let journal = FileCommitJournal::new("dev-file-journal", &file_path);
     journal
         .append(CommitEnvelope::minimal(
             "evt_demo_1",
@@ -401,7 +401,7 @@ fn test_file_commit_journal_recovers_pending_tmp_file_on_reopen() {
     )
     .expect("pending temp journal file should be written");
 
-    let reopened = FileCommitJournal::new("local-minimal", &file_path);
+    let reopened = FileCommitJournal::new("dev-file-journal", &file_path);
     let recorded = reopened.recorded().expect("recorded should succeed");
     assert_eq!(recorded.len(), 1);
     assert_eq!(recorded[0].event_id, "evt_demo_tmp");
@@ -444,7 +444,7 @@ fn test_file_commit_journal_prefers_live_file_over_stale_tmp_file() {
     )
     .expect("stale temp journal file should be written");
 
-    let reopened = FileCommitJournal::new("local-minimal", &file_path);
+    let reopened = FileCommitJournal::new("dev-file-journal", &file_path);
     let recorded = reopened.recorded().expect("recorded should succeed");
     assert_eq!(recorded.len(), 1);
     assert_eq!(recorded[0].event_id, "evt_demo_live");

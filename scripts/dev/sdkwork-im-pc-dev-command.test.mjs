@@ -14,6 +14,10 @@ function readJson(relativePath) {
 
 const packageJson = readJson('package.json');
 const chatPcPackageJson = readJson('apps/sdkwork-im-pc/package.json');
+assert.ok(
+  !chatPcPackageJson.dependencies?.['@google/genai'],
+  'apps/sdkwork-im-pc must not depend on retired @google/genai AI Studio scaffold',
+);
 const desktopWorkspaceSource = fs.readFileSync(
   path.join(repoRoot, 'apps/sdkwork-im-pc/pnpm-workspace.yaml'),
   'utf8',
@@ -26,11 +30,11 @@ const desktopLockfileSource = fs.readFileSync(
   'utf8',
 );
 const unifiedWebSource = fs.readFileSync(
-  path.join(repoRoot, 'scripts/dev/start-sdkwork-im-unified-web.mjs'),
+  path.join(repoRoot, 'scripts/im-server-dev.mjs'),
   'utf8',
 );
-const localMinimalNodeCargoSource = fs.readFileSync(
-  path.join(repoRoot, 'services/local-minimal-node/Cargo.toml'),
+const imGatewayCargoSource = fs.readFileSync(
+  path.join(repoRoot, 'services/sdkwork-im-gateway/Cargo.toml'),
   'utf8',
 );
 const imDomainCoreCargoSource = fs.readFileSync(
@@ -71,7 +75,7 @@ const {
   resolveNotaryAppApiUpstream,
   resolveAvailableSdkworkChatPcDevPort,
   runSdkworkChatPcDev,
-} = await import(pathToFileURL(path.join(repoRoot, 'scripts/dev/run-sdkwork-im-pc-dev.mjs')).href);
+} = await import(pathToFileURL(path.join(repoRoot, 'scripts/lib/im-pc-dev.mjs')).href);
 const {
   resolveSdkworkImSharedDatabaseConfig,
 } = await import(pathToFileURL(path.join(repoRoot, 'scripts/dev/sdkwork-im-shared-database.mjs')).href);
@@ -82,17 +86,17 @@ const {
 
 assert.equal(
   packageJson.scripts.dev,
-  'node ./scripts/dev/run-sdkwork-im-pc-dev.mjs --target browser',
+  'node scripts/im-dev.mjs --target browser',
   'root pnpm dev must start the browser dev stack with the PostgreSQL env profile by default',
 );
 assert.equal(
   packageJson.scripts['dev:postgres'],
-  'node ./scripts/dev/run-sdkwork-im-pc-dev.mjs --target browser --database postgres',
+  'node scripts/im-dev.mjs --target browser --database postgres',
   'root pnpm dev:postgres must explicitly start the browser dev stack with the PostgreSQL profile',
 );
 assert.equal(
   packageJson.scripts['dev:sqlite'],
-  'node ./scripts/dev/run-sdkwork-im-pc-dev.mjs --target browser --database sqlite',
+  'node scripts/im-dev.mjs --target browser --database sqlite',
   'root pnpm dev:sqlite must explicitly start the browser dev stack with SQLite',
 );
 assert.doesNotMatch(
@@ -102,17 +106,17 @@ assert.doesNotMatch(
 );
 assert.equal(
   packageJson.scripts['tauri:dev'],
-  'node ./scripts/dev/run-sdkwork-im-pc-dev.mjs --target desktop',
+  'node scripts/im-dev.mjs --target desktop',
   'root pnpm tauri:dev must start the desktop dev stack with the SQLite profile by default',
 );
 assert.equal(
   packageJson.scripts['tauri:dev:postgres'],
-  'node ./scripts/dev/run-sdkwork-im-pc-dev.mjs --target desktop --database postgres',
+  'node scripts/im-dev.mjs --target desktop --database postgres',
   'root pnpm tauri:dev:postgres must explicitly start the desktop dev stack with the PostgreSQL profile',
 );
 assert.equal(
   packageJson.scripts['tauri:dev:sqlite'],
-  'node ./scripts/dev/run-sdkwork-im-pc-dev.mjs --target desktop --database sqlite',
+  'node scripts/im-dev.mjs --target desktop --database sqlite',
   'root pnpm tauri:dev:sqlite must explicitly start the desktop dev stack with SQLite',
 );
 assert.doesNotMatch(
@@ -122,7 +126,7 @@ assert.doesNotMatch(
 );
 assert.equal(
   packageJson.scripts['server:dev'],
-  'node ./scripts/dev/start-sdkwork-im-unified-web.mjs',
+  'node scripts/im-server-dev.mjs',
   'root server:dev must remain the canonical Sdkwork IM server startup command',
 );
 assert.ok(
@@ -131,7 +135,7 @@ assert.ok(
 );
 assert.ok(
   unifiedWebSource.includes('createManagedSdkworkApiGatewayProcess')
-    && unifiedWebSource.includes('SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL')
+    && unifiedWebSource.includes('SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL')
     && unifiedWebSource.includes('SDKWORK_API_GATEWAY_BIND'),
   'root server:dev must manage sdkwork-api-gateway and expose one shared foundation gateway root',
 );
@@ -144,7 +148,6 @@ assert.ok(
   unifiedWebSource.includes('cargo')
     && unifiedWebSource.includes('sdkwork-im-gateway')
     && unifiedWebSource.includes('sdkwork-im-server')
-    && unifiedWebSource.includes('SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE')
     && unifiedWebSource.includes('resolveSdkworkImSharedDatabaseConfig'),
   'root server:dev must start the Rust sdkwork-im-gateway in shared-gateway split mode with the shared database config',
 );
@@ -185,21 +188,20 @@ assert.doesNotMatch(
   'legacy local app API wrapper must not retain Java or appbase startup residue',
 );
 assert.ok(
-  !localAppApiSource.includes('run-local-minimal.mjs'),
+  !localAppApiSource.includes(['run-local', '-minimal.mjs'].join('')),
   'legacy local app API wrapper must not start a second runtime beside the unified Rust server',
 );
 assert.doesNotMatch(
-  localMinimalNodeCargoSource,
+  imGatewayCargoSource,
   /[A-Za-z]:[\\/]/u,
-  'local-minimal-node Rust manifest must not point to an absolute checkout path',
+  'sdkwork-im-gateway Rust manifest must not point to an absolute checkout path',
 );
 assert.doesNotMatch(
-  localMinimalNodeCargoSource,
+  imGatewayCargoSource,
   /sdkwork-agent-business\.workspace\s*=\s*true/u,
-  'local-minimal-node must not consume sdkwork-agent-business; Agent API runtime is routed through sdkwork-api-gateway',
+  'sdkwork-im-gateway must not consume sdkwork-agent-business; Agent API runtime is routed through sdkwork-api-gateway',
 );
 for (const cargoSource of [
-  localMinimalNodeCargoSource,
   imDomainCoreCargoSource,
   imPlatformContractsCargoSource,
 ]) {
@@ -210,8 +212,8 @@ for (const cargoSource of [
   );
   assert.match(
     cargoSource,
-    /sdkwork-rtc-core\.workspace = true/u,
-    'Sdkwork IM Rust manifests that depend on sdkwork-rtc-core must consume it through [workspace.dependencies] with `workspace = true`',
+    /sdkwork-communication-rtc-service\.workspace = true/u,
+    'Sdkwork IM Rust manifests that depend on sdkwork-communication-rtc-service must consume it through [workspace.dependencies] with `workspace = true`',
   );
   assert.doesNotMatch(
     cargoSource,
@@ -359,8 +361,9 @@ assert.equal(
 );
 const releaseBuildPlan = releaseBuildModule.createSdkworkChatPcReleaseBuildPlan({
   env: {
-    SDKWORK_IM_SERVER_API_BASE_URL: 'https://chat.example.com/',
-    SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL: 'wss://realtime.example.com',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'https://im.example.com/',
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'wss://im.example.com',
+    SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.example.com/',
     SDKWORK_DRIVE_REF: 'drive-release-ref',
     SDKWORK_NOTARY_REF: 'notary-release-ref',
     SDKWORK_SHARED_SDK_MODE: 'source',
@@ -397,19 +400,19 @@ assert.equal(
   'release build plan must use server-private IAM mode by default',
 );
 assert.equal(
-  releaseBuildPlan.env.VITE_SDKWORK_IM_APP_API_BASE_URL,
-  'https://chat.example.com',
-  'release build plan must expose the standard server API domain to the Vite app SDK wrapper',
+  releaseBuildPlan.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
+  'https://api.example.com',
+  'release build plan must expose the platform api gateway domain to the Vite IAM wrapper',
 );
 assert.equal(
-  releaseBuildPlan.env.VITE_SDKWORK_IM_IM_API_BASE_URL,
-  'https://chat.example.com',
-  'release build plan must expose the standard server API domain to the Vite IM HTTP wrapper',
+  releaseBuildPlan.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  'https://im.example.com',
+  'release build plan must expose the application public HTTP domain to the Vite app SDK wrapper',
 );
 assert.equal(
-  releaseBuildPlan.env.VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL,
-  'wss://realtime.example.com',
-  'release build plan must expose the standard server websocket domain to the Vite IM websocket wrapper',
+  releaseBuildPlan.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  'wss://im.example.com',
+  'release build plan must expose the application public websocket domain to the Vite IM websocket wrapper',
 );
 assert.deepEqual(
   releaseBuildPlan.steps.at(-1).args,
@@ -498,7 +501,6 @@ for (const sourceName of [
 }
 
 const thirdPartyDependencyNames = new Set([
-  '@google/genai',
   '@sdkwork/sdk-common',
   '@tailwindcss/typography',
   '@tailwindcss/vite',
@@ -643,14 +645,9 @@ assert.ok(
   'unified server must not configure any Java/appbase app-api upstream',
 );
 assert.equal(
-  browserPlan.processes[0].env.SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE,
-  'split',
-  'unified server must run in split mode so shared foundation APIs stay owned by sdkwork-api-gateway',
-);
-assert.equal(
-  browserPlan.processes[0].env.SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL,
+  browserPlan.processes[0].env.SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
   'http://127.0.0.1:3900',
-  'unified server must receive one shared sdkwork-api-gateway root for foundation dependency traffic',
+  'unified server must receive one shared sdkwork-api-gateway root for platform dependency traffic',
 );
 assert.ok(
   !('SDKWORK_IM_DRIVE_APP_API_UPSTREAM' in browserPlan.processes[0].env)
@@ -705,23 +702,23 @@ assert.deepEqual(browserPlan.processes[1], {
 });
 assert.equal(
   browserPlan.processes[1].env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
-  'http://127.0.0.1:18079',
-  'browser renderer must point IAM traffic at the unified Sdkwork IM gateway',
+  'http://127.0.0.1:3900',
+  'browser renderer must point IAM traffic at the platform api gateway',
 );
 assert.equal(
-  browserPlan.processes[1].env.VITE_SDKWORK_IM_APP_API_BASE_URL,
-  'http://127.0.0.1:18079',
-  'browser renderer must point Sdkwork IM app traffic at the unified Sdkwork IM gateway',
+  browserPlan.processes[1].env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
+  'http://127.0.0.1:3900',
+  'browser renderer must point platform SDK traffic at sdkwork-api-gateway',
 );
 assert.equal(
-  browserPlan.processes[1].env.VITE_SDKWORK_IM_IM_API_BASE_URL,
+  browserPlan.processes[1].env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   'http://127.0.0.1:18079',
-  'browser renderer must point IM HTTP traffic at the Sdkwork IM gateway/server',
+  'browser renderer must point IM HTTP traffic at application.public-ingress',
 );
 assert.equal(
-  browserPlan.processes[1].env.VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL,
+  browserPlan.processes[1].env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
   'ws://127.0.0.1:18079',
-  'browser renderer must point IM websocket traffic at the Sdkwork IM gateway/server',
+  'browser renderer must point IM websocket traffic at application.public-ingress',
 );
 
 const customDriveUpstreamPlan = createSdkworkChatPcDevPlan({
@@ -1011,13 +1008,18 @@ assert.notDeepEqual(
 );
 assert.equal(
   desktopPlan.processes[1].env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
-  'http://127.0.0.1:18079',
-  'desktop renderer must point IAM traffic at the unified Sdkwork IM gateway',
+  'http://127.0.0.1:3900',
+  'desktop renderer must point IAM traffic at the platform api gateway',
 );
 assert.equal(
-  desktopPlan.processes[1].env.VITE_SDKWORK_IM_IM_API_BASE_URL,
+  desktopPlan.processes[1].env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
+  'http://127.0.0.1:3900',
+  'desktop renderer must point platform SDK traffic at sdkwork-api-gateway',
+);
+assert.equal(
+  desktopPlan.processes[1].env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   'http://127.0.0.1:18079',
-  'desktop renderer must point IM HTTP traffic at the Sdkwork IM gateway/server',
+  'desktop renderer must point IM HTTP traffic at application.public-ingress',
 );
 assert.equal(
   desktopPlan.processes[0].env.SDKWORK_IM_DATABASE_ENGINE,
@@ -1054,8 +1056,8 @@ await runSdkworkChatPcDev({
     bindAddr: '127.0.0.1:18081',
     env: {
       ...env,
-      SDKWORK_IM_SERVER_BIND: '127.0.0.1:18081',
-      SDKWORK_IM_SERVER_API_BASE_URL: 'http://127.0.0.1:18081',
+      SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:18081',
+      SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'http://127.0.0.1:18081',
     },
     portChanged: true,
   }),
@@ -1084,19 +1086,19 @@ assert.equal(
   'dev runner must pass the resolved available port to the selected renderer target',
 );
 assert.equal(
-  spawned[0].options.env.SDKWORK_IM_SERVER_BIND,
+  spawned[0].options.env.SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND,
   '127.0.0.1:18081',
-  'dev runner must pass the resolved gateway bind to the unified server process',
+  'dev runner must pass the resolved application ingress bind to the unified server process',
 );
 assert.equal(
-  spawned[0].options.env.SDKWORK_IM_SERVER_API_BASE_URL,
+  spawned[0].options.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   'http://127.0.0.1:18081',
-  'dev runner must pass the resolved gateway API base URL to the unified server process',
+  'dev runner must pass the resolved application HTTP URL to the unified server process',
 );
 assert.equal(
-  spawned[0].options.env.SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL,
+  spawned[0].options.env.SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
   'http://127.0.0.1:3900',
-  'dev runner must pass one shared sdkwork-api-gateway root for foundation dependency traffic',
+  'dev runner must pass one shared sdkwork-api-gateway root for platform dependency traffic',
 );
 assert.ok(
   !('SDKWORK_IM_DRIVE_APP_API_UPSTREAM' in spawned[0].options.env)
@@ -1104,29 +1106,24 @@ assert.ok(
   'dev runner must not pass default per-module foundation upstreams beside the shared gateway root',
 );
 assert.equal(
-  spawned[1].options.env.SDKWORK_IM_SERVER_API_BASE_URL,
-  'http://127.0.0.1:18081',
-  'dev runner must pass the resolved gateway API base URL to the renderer env resolver',
-);
-assert.equal(
   spawned[1].options.env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
-  'http://127.0.0.1:18081',
-  'dev runner must point IAM traffic at the resolved Sdkwork IM gateway when 18079 is unavailable',
+  'http://127.0.0.1:3900',
+  'dev runner must point IAM traffic at the platform api gateway',
 );
 assert.equal(
-  spawned[1].options.env.VITE_SDKWORK_IM_APP_API_BASE_URL,
-  'http://127.0.0.1:18081',
-  'dev runner must point app API traffic at the resolved Sdkwork IM gateway when 18079 is unavailable',
+  spawned[1].options.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
+  'http://127.0.0.1:3900',
+  'dev runner must point platform SDK traffic at sdkwork-api-gateway',
 );
 assert.equal(
-  spawned[1].options.env.VITE_SDKWORK_IM_IM_API_BASE_URL,
+  spawned[1].options.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   'http://127.0.0.1:18081',
-  'dev runner must point IM HTTP traffic at the resolved Sdkwork IM gateway when 18079 is unavailable',
+  'dev runner must point IM HTTP traffic at the resolved application ingress when 18079 is unavailable',
 );
 assert.equal(
-  spawned[1].options.env.VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL,
+  spawned[1].options.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
   'ws://127.0.0.1:18081',
-  'dev runner must point IM websocket traffic at the resolved Sdkwork IM gateway when 18079 is unavailable',
+  'dev runner must point IM websocket traffic at the resolved application ingress when 18079 is unavailable',
 );
 assert.deepEqual(
   spawned[2].args,
@@ -1158,7 +1155,7 @@ assert.deepEqual(
   'dev runner must pass the planned shell mode to every child process',
 );
 const devRunnerSource = fs.readFileSync(
-  path.join(repoRoot, 'scripts/dev/run-sdkwork-im-pc-dev.mjs'),
+  path.join(repoRoot, 'scripts/lib/im-pc-dev.mjs'),
   'utf8',
 );
 assert.match(

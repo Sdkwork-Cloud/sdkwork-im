@@ -35,7 +35,7 @@ Two regression tests were added before the fix:
 
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_group_member_governance_over_http_rejects_actor_kind_mismatch`
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
   - `test_group_member_governance_rejects_bearer_actor_kind_mismatch`
 
 Red verification proved the defect:
@@ -43,7 +43,7 @@ Red verification proved the defect:
 - `conversation-runtime` HTTP governance write returned:
   - actual status = `200`
   - expected status = `403`
-- `local-minimal-node` governance write with forged bearer `actor_kind` returned:
+- `sdkwork-im-server` governance write with forged bearer `actor_kind` returned:
   - actual status = `200`
   - expected status = `403`
 
@@ -65,7 +65,7 @@ The chosen design is:
    - reject on mismatch with `PermissionDenied`
 3. route all untrusted ingresses through these actor-kind-aware entry points:
    - `conversation-runtime` HTTP handlers
-   - `local-minimal-node` governance handlers
+   - `sdkwork-im-server` governance handlers
 4. keep legacy id-only runtime methods as compatibility wrappers for trusted/internal callers:
    - they self-normalize actor kind from runtime member truth
    - they do not weaken external ingress boundaries because public adapters no longer use them
@@ -86,7 +86,7 @@ This preserves minimal patch scope while moving the authorization truth to the c
     - `ensure_actor_kind_matches_member(...)`
     - then existing governance permission checks
   - updated HTTP governance handlers to pass `auth.actor_kind`
-- `services/local-minimal-node/src/lib.rs`
+- `services/sdkwork-im-gateway/src/lib.rs`
   - updated governance handlers to call runtime actor-kind-aware methods with raw ingress `auth.actor_kind`
   - existing side-effect normalization remains in place, but unauthorized mismatched writes are now rejected before mutation
 - `services/conversation-runtime/tests/conversation_flow_test.rs`
@@ -95,7 +95,7 @@ This preserves minimal patch scope while moving the authorization truth to the c
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - added:
     - `test_group_member_governance_over_http_rejects_actor_kind_mismatch`
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
   - added:
     - `test_group_member_governance_rejects_bearer_actor_kind_mismatch`
 
@@ -105,14 +105,14 @@ This preserves minimal patch scope while moving the authorization truth to the c
 
 - `cargo test -p conversation-runtime --offline test_group_member_governance_over_http_rejects_actor_kind_mismatch -- --exact`
   - failed with status `200` instead of `403`
-- `cargo test -p local-minimal-node --offline test_group_member_governance_rejects_bearer_actor_kind_mismatch -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_group_member_governance_rejects_bearer_actor_kind_mismatch -- --exact`
   - failed with status `200` instead of `403`
 
 ### Green
 
 - `cargo test -p conversation-runtime --offline test_governance_writes_reject_actor_kind_mismatch -- --exact`
 - `cargo test -p conversation-runtime --offline test_group_member_governance_over_http_rejects_actor_kind_mismatch -- --exact`
-- `cargo test -p local-minimal-node --offline test_group_member_governance_rejects_bearer_actor_kind_mismatch -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_group_member_governance_rejects_bearer_actor_kind_mismatch -- --exact`
 
 ## 6. Remaining Risks
 

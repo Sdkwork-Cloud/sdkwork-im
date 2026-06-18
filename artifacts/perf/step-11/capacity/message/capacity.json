@@ -7,10 +7,10 @@
   "artifactKind": "capacity_json",
   "runId": "step11-capacity-local-message-2026-06-17-doc-capture",
   "collectedAt": "2026-06-17",
-  "sourceProfile": "local-minimal",
+  "sourceProfile": "self-hosted.split-services.development",
   "sourceTier": "CI Smoke Tier",
   "sourceBaselinePath": "tools/perf/step-11-cp11-2-local-baseline.json",
-  "sourceTestPath": "services/local-minimal-node/tests/performance_quant_baseline_test.rs",
+  "sourceTestPath": "services/session-gateway/tests/postgres_realtime_live_runtime_test.rs",
   "sourceReviewId": "step-11-performance-ha-dr-2026-04-08",
   "sourceFieldMapping": {
     "messageTps": "messageTps",

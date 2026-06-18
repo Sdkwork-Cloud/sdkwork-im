@@ -1,6 +1,0 @@
-# Wave D local-default checksum manifest
-# state: template_only_pending_collection
-# path owner: checksumManifestPath
-# line format: sha256:<digest>  <suggestedRelativePath>
-# example:
-# sha256:<digest>  deploy-local/deploy-local.ps1.log

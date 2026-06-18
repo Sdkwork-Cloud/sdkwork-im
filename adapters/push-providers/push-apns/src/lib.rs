@@ -75,7 +75,7 @@ impl ApnsPushProvider {
     fn make_request(
         &self,
         device_token: &str,
-        payload: &serde_json::Value,
+        _payload: &serde_json::Value,
         _message_id: &str,
     ) -> Result<PushDeliveryResult, ContractError> {
         // Validate device token is hexadecimal

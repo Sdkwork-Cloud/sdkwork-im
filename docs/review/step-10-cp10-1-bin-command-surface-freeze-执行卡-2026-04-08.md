@@ -8,7 +8,7 @@
   - `Wave C / 93` 已完成
   - `Step 10` 已进入执行态，但此前还没有真实的 `CP10-1` 交付闭环
   - 仓库中虽然已经存在 `install/start/stop/restart/status/init` 与运行时维护脚本，但仍有两个未冻结缺口：
-    - `status-local.sh` 的 help 语义没有与 `status-local.ps1` 对齐
+    - `retired-lifecycle-status.sh` 的 help 语义没有与 `retired-lifecycle-status.ps1` 对齐
     - `docs/部署/快速启动脚本.md` 仍停留在 install/deploy/start 的早期入口，未冻结完整本地生命周期和 runtime ops loop
 
 ## 本轮为什么做这个子任务
@@ -21,15 +21,15 @@
 
 ## 本轮实际完成
 
-### 1. `status-local` 的跨平台 help 合同已冻结
-- `bin/status-local.sh`
-  - help 首行语义已与 `bin/status-local.ps1` 对齐
+### 1. `retired-lifecycle-status` 的跨平台 help 合同已冻结
+- `bin/retired-lifecycle-status.sh`
+  - help 首行语义已与 `bin/retired-lifecycle-status.ps1` 对齐
   - 现在明确声明：
     - pid / config / stdout / stderr / health
     - inspect / repair / list / archive / prune / preview / restore 后续动作
 
 ### 2. `CP10-1` 已新增可回归测试
-- `services/local-minimal-node/tests/deployment_profile_test.rs`
+- `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
   - 新增 `test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
   - 新增 `test_quick_start_doc_freezes_full_local_command_surface`
 - 这两条测试把“脚本 help 语义统一”和“文档命令面冻结”变成了真实回归门禁，而不再只是人工约定。
@@ -37,13 +37,13 @@
 ### 3. 快启文档已升级为完整命令矩阵
 - `docs/部署/快速启动脚本.md`
   - 现在显式冻结：
-    - `install-local`
+    - `retired-lifecycle-install`
     - `init-config-local`
-    - `start-local`
-    - `status-local`
-    - `restart-local`
-    - `stop-local`
-    - `deploy-local`
+    - `retired-lifecycle-start`
+    - `retired-lifecycle-status`
+    - `retired-lifecycle-restart`
+    - `retired-lifecycle-stop`
+    - `retired-lifecycle-deploy`
     - `open-chat-test`
     - `inspect-runtime-local`
     - `repair-runtime-local`
@@ -62,22 +62,22 @@
 ## TDD 证据
 
 ### Red
-- `cargo test -p local-minimal-node --offline test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
+- `cargo test -p sdkwork-im-gateway --offline test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
   - 失败点与预期一致：
-    - `status-local.sh` 尚未声明与 PowerShell 相同的 runtime ops contract
-- `cargo test -p local-minimal-node --offline test_quick_start_doc_freezes_full_local_command_surface`
+    - `retired-lifecycle-status.sh` 尚未声明与 PowerShell 相同的 runtime ops contract
+- `cargo test -p sdkwork-im-gateway --offline test_quick_start_doc_freezes_full_local_command_surface`
   - 失败点与预期一致：
     - `docs/部署/快速启动脚本.md` 缺少 `init-config-local` 等完整命令面
 
 ### Green
-- `cargo test -p local-minimal-node --offline test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
-- `cargo test -p local-minimal-node --offline test_quick_start_doc_freezes_full_local_command_surface`
+- `cargo test -p sdkwork-im-gateway --offline test_status_local_help_texts_share_runtime_ops_contract_across_platform_scripts`
+- `cargo test -p sdkwork-im-gateway --offline test_quick_start_doc_freezes_full_local_command_surface`
 
 ## 回归验证
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/status-local.ps1 -Help`
-- `cmd /c bin\\status-local.cmd --help`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/retired-lifecycle-status.ps1 -Help`
+- `cmd /c bin\\retired-lifecycle-status.cmd --help`
 
 ## 结论
 - `CP10-1` 现在已经不再只是“脚本文件存在”，而是具备：

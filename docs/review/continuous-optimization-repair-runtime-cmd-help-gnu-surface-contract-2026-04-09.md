@@ -25,12 +25,12 @@
 ## Verification
 
 - Red:
-  - `cargo test -p local-minimal-node --offline --test deployment_profile_test test_repair_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture`
+  - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_repair_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture`
 - Green:
-  - `cargo test -p local-minimal-node --offline --test deployment_profile_test test_repair_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture`
-  - `cargo test -p local-minimal-node --offline --test deployment_profile_test -- --nocapture`
+  - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_repair_runtime_local_cmd_help_surfaces_gnu_style_named_flags -- --exact --nocapture`
+  - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test -- --nocapture`
   - `cargo fmt --all --check`
-  - `cargo test -p local-minimal-node --offline -- --nocapture`
+  - `cargo test -p sdkwork-im-gateway --offline -- --nocapture`
 
 ## Next
 

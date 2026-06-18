@@ -18,7 +18,7 @@ dependencies: [
 import BackendSDK
 import SDKworkCommon
 
-let config = SdkConfig(baseUrl: "http://127.0.0.1:18090")
+let config = SdkConfig(baseUrl: "http://127.0.0.1:18079")
 let client = SdkworkImBackendClient(config: config)
 client.setAuthToken("your-auth-token")
 client.setAccessToken("your-access-token")
@@ -39,7 +39,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```swift
-let config = SdkConfig(baseUrl: "http://127.0.0.1:18090")
+let config = SdkConfig(baseUrl: "http://127.0.0.1:18079")
 let client = SdkworkImBackendClient(config: config)
 
 // Set custom headers

@@ -5,6 +5,8 @@ const DEFAULT_SERVER_HOST = '127.0.0.1';
 const DEFAULT_SERVER_PORT = 18079;
 const DEFAULT_MAX_SERVER_PORT_ATTEMPTS = 50;
 const DEFAULT_RESERVED_SERVER_PORTS = new Set([18080]);
+const APPLICATION_PUBLIC_INGRESS_BIND_ENV = 'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND';
+const APPLICATION_PUBLIC_HTTP_URL_ENV = 'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL';
 
 function normalizeText(value) {
   const normalized = String(value ?? '').trim();
@@ -23,7 +25,7 @@ function normalizePort(value, label = 'port') {
   return port;
 }
 
-function parseBindAddr(value) {
+function parseBindAddr(value, label = APPLICATION_PUBLIC_INGRESS_BIND_ENV) {
   const normalized = normalizeText(value);
   if (!normalized) {
     return undefined;
@@ -31,13 +33,13 @@ function parseBindAddr(value) {
 
   const lastColonIndex = normalized.lastIndexOf(':');
   if (lastColonIndex <= 0 || lastColonIndex === normalized.length - 1) {
-    throw new Error(`SDKWORK_IM_SERVER_BIND must use host:port, got ${normalized}`);
+    throw new Error(`${label} must use host:port, got ${normalized}`);
   }
 
   const host = normalized.slice(0, lastColonIndex).replace(/^\[|\]$/gu, '');
   return {
     host: normalizeText(host) ?? DEFAULT_SERVER_HOST,
-    port: normalizePort(normalized.slice(lastColonIndex + 1), 'SDKWORK_IM_SERVER_BIND'),
+    port: normalizePort(normalized.slice(lastColonIndex + 1), label),
   };
 }
 
@@ -93,15 +95,15 @@ export async function resolveSdkworkImServerBindEnv({
   maxAttempts = DEFAULT_MAX_SERVER_PORT_ATTEMPTS,
   reservedPorts = DEFAULT_RESERVED_SERVER_PORTS,
 } = {}) {
-  const explicitBind = parseBindAddr(env.SDKWORK_IM_SERVER_BIND);
+  const explicitBind = parseBindAddr(env[APPLICATION_PUBLIC_INGRESS_BIND_ENV]);
   if (explicitBind) {
     const bindAddr = `${explicitBind.host}:${explicitBind.port}`;
     return {
       bindAddr,
       env: {
         ...env,
-        SDKWORK_IM_SERVER_BIND: bindAddr,
-        SDKWORK_IM_SERVER_API_BASE_URL: `http://${bindAddr}`,
+        [APPLICATION_PUBLIC_INGRESS_BIND_ENV]: bindAddr,
+        [APPLICATION_PUBLIC_HTTP_URL_ENV]: `http://${bindAddr}`,
       },
       portChanged: false,
     };
@@ -121,8 +123,8 @@ export async function resolveSdkworkImServerBindEnv({
         bindAddr,
         env: {
           ...env,
-          SDKWORK_IM_SERVER_BIND: bindAddr,
-          SDKWORK_IM_SERVER_API_BASE_URL: `http://${bindAddr}`,
+          [APPLICATION_PUBLIC_INGRESS_BIND_ENV]: bindAddr,
+          [APPLICATION_PUBLIC_HTTP_URL_ENV]: `http://${bindAddr}`,
         },
         portChanged: candidatePort !== DEFAULT_SERVER_PORT,
       };

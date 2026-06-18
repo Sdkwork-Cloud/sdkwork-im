@@ -11,13 +11,13 @@
 ### Task 1: Prove the doc drift
 
 **Files:**
-- Modify: `services/local-minimal-node/tests/performance_drill_catalog_test.rs`
+- Modify: `services/sdkwork-im-gateway/tests/performance_drill_catalog_test.rs`
 
 - [ ] Add a regression test that requires the Step 11 step doc to say the catalog gap is closed.
 - [ ] Run:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
 ```
 
 - [ ] Confirm red because the addendum is missing.
@@ -44,7 +44,7 @@ cargo test -p local-minimal-node --offline --test performance_drill_catalog_test
 - [ ] Run:
 
 ```powershell
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test test_continuous_optimization_step11_step_doc_marks_artifact_root_gap_closed -- --exact --nocapture
 cargo fmt --all --check
-cargo test -p local-minimal-node --offline --test performance_drill_catalog_test -- --nocapture
+cargo test -p sdkwork-im-gateway --offline --test performance_drill_catalog_test -- --nocapture
 ```

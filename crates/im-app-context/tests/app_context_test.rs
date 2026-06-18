@@ -82,7 +82,7 @@ fn test_dual_token_builder_accepts_owned_string_values() {
         .with_dual_token_context("t_demo", "u_demo", "user", None, ["chat.read"])
         .with_dual_token_session(format!("s_{}", "owned"))
         .with_dual_token_device(format!("d_{}", "owned"))
-        .with_dual_token_permission_scope("chat.write".to_owned())
+        .with_dual_token_permission_scope("chat.write")
         .body(())
         .expect("request should build");
 

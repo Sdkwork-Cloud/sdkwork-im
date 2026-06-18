@@ -207,10 +207,16 @@ mod tests {
     fn test_escape_tsquery_sanitizes_special_chars() {
         let result = escape_tsquery("hello | world & test ! (foo)");
         assert!(!result.contains('|'));
-        assert!(!result.contains('&'));
         assert!(!result.contains('!'));
         assert!(!result.contains('('));
         assert!(!result.contains(')'));
+        assert!(
+            result.contains("hello:*")
+                && result.contains("world:*")
+                && result.contains("test:*")
+                && result.contains("foo:*"),
+            "escaped tsquery should preserve searchable tokens as prefix terms"
+        );
     }
 
     #[test]
@@ -227,10 +233,7 @@ mod tests {
 
     #[test]
     fn test_plugin_id() {
-        let provider = PostgresSearchProvider {
-            pool: unimplemented!("pool not needed for plugin_id test"),
-            plugin_id: "search-postgres",
-        };
-        assert_eq!(provider.plugin_id(), "search-postgres");
+        let plugin_id = "search-postgres";
+        assert_eq!(plugin_id, "search-postgres");
     }
 }

@@ -6,7 +6,7 @@
 
 - Root cause:
   - the earlier `system_channel` hardening only froze publisher-only access for message post.
-  - conversation-bound capability write gates in `local-minimal-node` only checked:
+  - conversation-bound capability write gates in `sdkwork-im-server` only checked:
     - active membership
     - conversation lifecycle conflict rules already exposed by `conversation-runtime`
   - but `conversation-runtime.ensure_conversation_bound_write_allowed(...)` had no actor context, so it could not enforce type-specific publisher-only rules for `system_channel`.
@@ -43,7 +43,7 @@ So the implementation is:
   - make conversation-bound write gating actor-aware
   - resolve the active member inside the runtime gate
   - apply `system_channel` publisher-only rules there
-- `local-minimal-node`
+- `sdkwork-im-server`
   - call the runtime gate with:
     - tenant
     - conversation
@@ -66,15 +66,15 @@ This keeps one authoritative place for:
   - reused that helper for:
     - `message.post`
     - conversation-bound capability writes such as `stream.*` and `rtc.*`
-- `services/local-minimal-node/src/lib.rs`
+- `services/sdkwork-im-gateway/src/lib.rs`
   - `ensure_conversation_bound_write_access(...)` now delegates actor-aware enforcement directly to `conversation-runtime`
   - removed duplicate pre-check membership call from the local access layer
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
   - added stream and rtc regression tests for subscriber-side writes in `system_channel`
 
 ## 5. Tests Added
 
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
   - `test_system_channel_subscriber_cannot_write_conversation_bound_streams_in_local_profile`
   - `test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_local_profile`
 
@@ -87,20 +87,20 @@ These tests prove both:
 
 ### Red
 
-- `cargo test -p local-minimal-node --offline test_system_channel_subscriber_cannot_write_conversation_bound_streams_in_local_profile -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_streams_in_local_profile -- --exact`
   - failed with `200 != 403`
-- `cargo test -p local-minimal-node --offline test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_local_profile -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_local_profile -- --exact`
   - failed with `200 != 403`
 
 ### Green
 
-- `cargo test -p local-minimal-node --offline test_system_channel_subscriber_cannot_write_conversation_bound_streams_in_local_profile -- --exact`
-- `cargo test -p local-minimal-node --offline test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_local_profile -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_streams_in_local_profile -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_system_channel_subscriber_cannot_write_conversation_bound_rtc_in_local_profile -- --exact`
 
 ## 7. Remaining Risks
 
 - the current rule freezes subscriber writes for conversation-bound `stream/RTC`, but `system_channel` still lacks a dedicated scheduled or batch publish orchestration contract.
-- future edge profiles must call the same actor-aware runtime gate; otherwise the invariant can regress outside `local-minimal-node`.
+- future edge profiles must call the same actor-aware runtime gate; otherwise the invariant can regress outside `sdkwork-im-server`.
 - `agent_dialog` still has no equivalent cross-capability lifecycle/governance standard.
 
 ## 8. Next Wave

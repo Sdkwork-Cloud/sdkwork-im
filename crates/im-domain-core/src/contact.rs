@@ -8,6 +8,8 @@
 //! - `UserProfile`: User profile information
 //! - `UserSettings`: User settings
 
+#![allow(clippy::should_implement_trait)]
+
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------

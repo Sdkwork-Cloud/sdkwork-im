@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Avatar } from '@sdkwork/im-pc-commons';
 import { toast } from './Toast';
 import { chatService } from '../services/ChatService';
@@ -7,6 +8,7 @@ import { ModalWrapper } from './ModalWrapper';
 import type { Chat, Message } from '@sdkwork/im-pc-types';
 
 export const ForwardModal: React.FC<{ isOpen: boolean; onClose: () => void; messages: Message[] }> = ({ isOpen, onClose, messages }) => {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [chats, setChats] = useState<Chat[]>([]);
@@ -22,14 +24,14 @@ export const ForwardModal: React.FC<{ isOpen: boolean; onClose: () => void; mess
         })
         .catch(() => {
           setChats([]);
-          toast('加载会话失败', 'error');
+          toast(t('chat.forwardModal.toast.loadFailed'), 'error');
         })
         .finally(() => setLoading(false));
     } else {
       setSelected(new Set());
       setSearchQuery('');
     }
-  }, [isOpen]);
+  }, [isOpen, t]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selected);
@@ -45,51 +47,51 @@ export const ForwardModal: React.FC<{ isOpen: boolean; onClose: () => void; mess
     setForwarding(true);
     try {
       await chatService.forwardMessages(Array.from(selected), messages);
-      toast(`成功转发给 ${selected.size} 个会话`, 'success');
+      toast(t('chat.forwardModal.toast.success', { count: selected.size }), 'success');
       onClose();
     } catch (error) {
-      toast('转发失败', 'error');
+      toast(t('chat.forwardModal.toast.failed'), 'error');
     } finally {
       setForwarding(false);
     }
   };
 
   return (
-    <ModalWrapper 
-      isOpen={isOpen} 
-      onClose={onClose} 
-      title={`转发 ${messages.length} 条消息`} 
+    <ModalWrapper
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t('chat.forwardModal.title', { count: messages.length })}
       width="w-[480px]"
       footer={
         <>
-          <button onClick={onClose} className="px-4 py-2 rounded bg-white/5 text-gray-300 hover:bg-white/10 transition-colors text-sm">取消</button>
-          <button 
+          <button onClick={onClose} className="px-4 py-2 rounded bg-white/5 text-gray-300 hover:bg-white/10 transition-colors text-sm">{t('chat.modal.actions.cancel')}</button>
+          <button
             disabled={selected.size === 0 || forwarding}
             className={`px-4 py-2 rounded text-white transition-colors text-sm ${selected.size > 0 && !forwarding ? 'bg-[#00b42a] hover:bg-[#009a24]' : 'bg-[#00b42a]/50 cursor-not-allowed'}`}
             onClick={handleForward}
           >
-            {forwarding ? '转发中...' : `发送 (${selected.size})`}
+            {forwarding ? t('chat.forwardModal.forwarding') : t('chat.forwardModal.send', { count: selected.size })}
           </button>
         </>
       }
     >
       <div className="relative mb-4">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-        <input 
-          type="text" 
-          placeholder="搜索会话" 
+        <input
+          type="text"
+          placeholder={t('chat.forwardModal.searchPlaceholder')}
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className="w-full bg-[#181818] border border-white/5 rounded-lg py-2 pl-9 pr-4 text-sm text-gray-200 outline-none focus:border-white/20 transition-colors" 
+          className="w-full bg-[#181818] border border-white/5 rounded-lg py-2 pl-9 pr-4 text-sm text-gray-200 outline-none focus:border-white/20 transition-colors"
         />
       </div>
       <div className="space-y-1">
         {loading ? (
-          <div className="text-center py-8 text-gray-500 text-sm">加载中...</div>
+          <div className="text-center py-8 text-gray-500 text-sm">{t('chat.messageList.loading')}</div>
         ) : filteredChats.length > 0 ? (
           filteredChats.map(chat => (
-            <div 
-              key={chat.id} 
+            <div
+              key={chat.id}
               className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
               onClick={() => toggleSelect(chat.id)}
             >
@@ -101,7 +103,7 @@ export const ForwardModal: React.FC<{ isOpen: boolean; onClose: () => void; mess
             </div>
           ))
         ) : (
-          <div className="text-center py-8 text-gray-500 text-sm">未找到会话</div>
+          <div className="text-center py-8 text-gray-500 text-sm">{t('chat.forwardModal.empty')}</div>
         )}
       </div>
     </ModalWrapper>

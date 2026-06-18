@@ -10,6 +10,8 @@
 //! - `Invitation`: An invitation to join a space/group/channel
 //! - `BanRecord`: A ban record for a user
 
+#![allow(clippy::should_implement_trait)]
+
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------

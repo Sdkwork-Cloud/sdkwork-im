@@ -1,6 +1,7 @@
 use std::any::type_name;
 
 use im_domain_core::rtc::{RtcStateRecord, RtcStateStore};
+use sdkwork_communication_rtc_service::RtcContractError;
 use sdkwork_im_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
 use sdkwork_im_contract_agent::AutomationExecutionStore;
 use sdkwork_im_contract_control::{
@@ -14,7 +15,6 @@ use sdkwork_im_contract_core::{
 use sdkwork_im_contract_message::{CommitJournal, CommitPosition, TimelineProjectionStore};
 use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
-use sdkwork_rtc_core::RtcContractError;
 
 struct NullAdminStore;
 struct NullMetadataStore;

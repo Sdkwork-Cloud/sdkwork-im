@@ -11,15 +11,15 @@
 - `docs/架构/139-权限能力模型与协议演进设计-2026-04-06.md`
   - `notification_id_seed / source_event_type / category / payload` 等默认字段边界应由单一 owner 维护
 - `docs/架构/147-CCP到Crate与接口模块落地映射设计-2026-04-06.md`
-  - 该 seam 应映射到 `notification-service` runtime，而不是 `local-minimal-node` effects
+  - 该 seam 应映射到 `notification-service` runtime，而不是 `sdkwork-im-server` effects
 
 ## 2. 本轮架构兑现
 
 - `notification-service` 新增 `RequestMessagePostedNotifications` 与 `request_message_posted_notifications(...)`。
-- `local-minimal-node` effects 不再直接构造 `RequestNotificationFanout` 的 message-posted 默认字段。
+- `sdkwork-im-server` effects 不再直接构造 `RequestNotificationFanout` 的 message-posted 默认字段。
 - owner / consumer 边界变为：
   - owner：`services/notification-service/src/lib.rs`
-  - consumer：`services/local-minimal-node/src/node/effects.rs`
+  - consumer：`services/sdkwork-im-gateway/src/node/effects.rs`
 
 ## 3. 当前决议
 

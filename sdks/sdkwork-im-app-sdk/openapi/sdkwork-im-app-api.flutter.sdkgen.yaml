@@ -7,7 +7,7 @@ info:
     Dependency capabilities, including sdkwork-appbase identity/session/IAM/QR auth, are consumed through
     sdkDependencies and dependency SDKs instead of being regenerated here.
 servers:
-  - url: http://127.0.0.1:18090
+  - url: http://127.0.0.1:18079
 security:
   - AuthToken: []
     AccessToken: []

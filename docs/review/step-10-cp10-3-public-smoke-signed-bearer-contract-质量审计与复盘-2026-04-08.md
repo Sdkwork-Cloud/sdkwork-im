@@ -1,14 +1,14 @@
 # Step 10 / CP10-3 public smoke signed bearer contract 质量审计与复盘 - 2026-04-08
 
 ## 审计范围
-- `deployments/docker-compose/local-minimal.yml`
+- `(removed compose file)`
 - `tools/smoke/local_stack_smoke.ps1`
 - `tools/smoke/local_stack_smoke.sh`
 - `docs/部署/本地最小安装与运行.md`
 - `docs/部署/快速启动脚本.md`
 - `docs/部署/README.md`
 - `README.md`
-- `services/local-minimal-node/tests/deployment_profile_test.rs`
+- `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 
 ## 审计结论
 - 本轮未发现阻塞 `CP10-3` 通过的剩余缺陷。
@@ -16,7 +16,7 @@
 - 当前增量已经把这个错位修正为可验证、可重复、可文档化的 operator contract。
 
 ## 正向结果
-- Docker `local-minimal` profile 现在具备稳定 public bearer dev secret，不再要求 operator 自行推断 secret 来源。
+- Docker `self-hosted.split-services.development` profile 现在具备稳定 public bearer dev secret，不再要求 operator 自行推断 secret 来源。
 - PowerShell / Bash smoke 脚本共享同一条 secret 解析顺序：
   - 显式 bearer
   - 显式 secret
@@ -36,10 +36,10 @@
 
 ## 验证证据
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test`
-- `cargo test -p local-minimal-node --offline --test public_auth_e2e_test`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File bin/deploy-local.ps1 -Help`
-- `cmd /c bin\\deploy-local.cmd --help`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
+- `cargo test -p sdkwork-im-gateway --offline --test public_auth_e2e_test`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+- `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 - PowerShell parser 成功解析 `tools/smoke/local_stack_smoke.ps1`
 
 ## 复盘结论

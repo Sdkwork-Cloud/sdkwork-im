@@ -63,12 +63,12 @@ impl im_platform_contracts::ConversationSeqAllocator for RedisSeqAllocator {
             .lock()
             .map_err(|_| ContractError::Unavailable("seq_allocator lock poisoned".into()))?;
 
-        if let Some((next_seq, upper_bound)) = batches.get_mut(&key) {
-            if *next_seq <= *upper_bound {
-                let seq = *next_seq;
-                *next_seq = seq.saturating_add(1);
-                return Ok(seq);
-            }
+        if let Some((next_seq, upper_bound)) = batches.get_mut(&key)
+            && *next_seq <= *upper_bound
+        {
+            let seq = *next_seq;
+            *next_seq = seq.saturating_add(1);
+            return Ok(seq);
         }
 
         // Fetch a new batch from Redis
@@ -110,7 +110,8 @@ mod tests {
 
     #[test]
     fn test_default_batch_size_is_reasonable() {
-        assert!(DEFAULT_BATCH_SIZE >= 100);
-        assert!(DEFAULT_BATCH_SIZE <= 10000);
+        const _: () = assert!(DEFAULT_BATCH_SIZE >= 100);
+        const _: () = assert!(DEFAULT_BATCH_SIZE <= 10000);
+        assert_eq!(DEFAULT_BATCH_SIZE, 1000);
     }
 }

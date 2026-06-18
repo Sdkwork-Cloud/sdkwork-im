@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { contactService } from '../services/ContactService';
 import { chatService } from '../services/ChatService';
 import { favoriteService } from '../services/FavoriteService';
@@ -128,8 +129,10 @@ function isVideoRtcMode(value: string | undefined): boolean {
   return Boolean(value && /video/iu.test(value));
 }
 
-function formatRtcCallMode(value: string | undefined): string {
-  return isVideoRtcMode(value) ? '视频通话' : '语音通话';
+type MessageTranslate = (key: string, options?: Record<string, unknown>) => string;
+
+function formatRtcCallMode(value: string | undefined, t: MessageTranslate): string {
+  return isVideoRtcMode(value) ? t('chat.messageList.rtcCall.videoMode') : t('chat.messageList.rtcCall.voiceMode');
 }
 
 function replaceParticipantId(content: string, participantId: string | undefined, displayName: string): string {
@@ -142,40 +145,42 @@ function replaceParticipantId(content: string, participantId: string | undefined
 function formatVideoCallMessageContent(
   message: Message,
   resolveDisplayName: (participantId: string | undefined, fallback: string) => string,
+  t: MessageTranslate,
 ): string {
   const descriptor = readRtcCallDescriptor(message);
   if (!descriptor) {
     return message.content;
   }
 
-  const mode = formatRtcCallMode(descriptor.mode);
-  const initiator = resolveDisplayName(descriptor.initiatorId ?? message.senderId, '发起方');
+  const mode = formatRtcCallMode(descriptor.mode, t);
+  const initiator = resolveDisplayName(descriptor.initiatorId ?? message.senderId, t('chat.messageList.rtcCall.initiatorFallback'));
   const receiver = descriptor.receiverId ? resolveDisplayName(descriptor.receiverId, descriptor.receiverId) : undefined;
-  const actor = resolveDisplayName(descriptor.actorId, '对方');
+  const actor = resolveDisplayName(descriptor.actorId, t('chat.messageList.rtcCall.actorFallback'));
   const callSubject = receiver
-    ? `${initiator} 向 ${receiver} 发起的${mode}`
-    : `${initiator} 发起的${mode}`;
+    ? t('chat.messageList.rtcCall.subjectWithReceiver', { initiator, receiver, mode })
+    : t('chat.messageList.rtcCall.subjectWithoutReceiver', { initiator, mode });
 
   switch (descriptor.state) {
     case 'accepted':
-      return `${callSubject}，${actor} 已接通`;
+      return t('chat.messageList.rtcCall.accepted', { callSubject, actor });
     case 'rejected':
-      return `${callSubject}，${actor} 已拒绝`;
+      return t('chat.messageList.rtcCall.rejected', { callSubject, actor });
     case 'ended':
-      return `${callSubject}，${actor} 已挂断`;
+      return t('chat.messageList.rtcCall.ended', { callSubject, actor });
     case 'started':
       return receiver
-        ? `${initiator} 向 ${receiver} 发起了${mode}`
-        : `${initiator} 发起了${mode}`;
+        ? t('chat.messageList.rtcCall.startedWithReceiver', { initiator, receiver, mode })
+        : t('chat.messageList.rtcCall.startedWithoutReceiver', { initiator, mode });
     case 'syncing':
     default:
-      return `${callSubject}正在同步`;
+      return t('chat.messageList.rtcCall.syncing', { callSubject });
   }
 }
 
 function formatVideoCallMessage(
   message: Message,
   resolveDisplayName: (participantId: string | undefined, fallback: string) => string,
+  t: MessageTranslate,
 ): Message {
   if (message.type !== 'video_call') {
     return message;
@@ -184,7 +189,7 @@ function formatVideoCallMessage(
   if (descriptor) {
     return {
       ...message,
-      content: formatVideoCallMessageContent(message, resolveDisplayName),
+      content: formatVideoCallMessageContent(message, resolveDisplayName, t),
     };
   }
 
@@ -211,6 +216,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   onReply,
   onOpenGroupInvite,
 }) => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [usersMap, setUsersMap] = useState<Record<string, User>>({});
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -264,7 +270,7 @@ export const MessageList: React.FC<MessageListProps> = ({
       } catch {
         if (isMounted) {
           setMessages(fallbackMessages);
-          toast('加载消息失败', 'error');
+          toast(t('chat.messageList.toast.loadFailed'), 'error');
         }
       } finally {
         if (isMounted) {
@@ -352,11 +358,16 @@ export const MessageList: React.FC<MessageListProps> = ({
     try {
       await Promise.all(Array.from(idsToDelete).map((messageId) => chatService.deleteMessage(chatId, messageId)));
       setMessages(prev => prev.filter(msg => !idsToDelete.has(msg.id)));
-      toast(idsToDelete.size > 1 ? `已删除 ${idsToDelete.size} 条消息` : '消息已删除', 'success');
+      toast(
+        idsToDelete.size > 1
+          ? t('chat.messageList.toast.deleteManySuccess', { count: idsToDelete.size })
+          : t('chat.messageList.toast.deleteSuccess'),
+        'success',
+      );
       setIsMultiSelect(false);
       setSelectedIds(new Set());
     } catch {
-      toast('删除消息失败', 'error');
+      toast(t('chat.messageList.toast.deleteFailed'), 'error');
     }
   };
 
@@ -375,7 +386,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     try {
       await onOpenGroupInvite(descriptor.groupId);
     } catch {
-      toast('打开群聊失败', 'error');
+      toast(t('chat.messageList.toast.openGroupFailed'), 'error');
     }
   };
 
@@ -385,22 +396,23 @@ export const MessageList: React.FC<MessageListProps> = ({
     const isFallbackMessage = fallbackMessageIds.has(contextMenu.msg.id);
     const copyItem: ContextMenuItem = {
       id: 'copy',
-      label: '复制',
+      label: t('chat.messageList.contextMenu.copy'),
       icon: <Copy size={14} />,
       onClick: () => {
         navigator.clipboard.writeText(contextMenu.msg.content);
-        toast('已复制', 'success');
+        toast(t('chat.messageList.toast.copySuccess'), 'success');
       },
     };
     if (isFallbackMessage) {
       return [copyItem];
     }
+    const unknownUser = t('chat.messageList.unknownUser');
     return [
       copyItem,
-      { id: 'reply', label: '回复', icon: <Reply size={14} />, onClick: () => { if (onReply) onReply(contextMenu.msg, sender?.name || '未知用户'); } },
-      { id: 'reaction', label: '表情回应', icon: <Smile size={14} />, onClick: () => { void handleReaction(contextMenu.msg.id, '👍'); } },
-      { id: 'forward', label: '转发', icon: <Forward size={14} />, onClick: () => handleForward([contextMenu.msg]) },
-      { id: 'favorite', label: '收藏', icon: <Star size={14} />, onClick: async () => {
+      { id: 'reply', label: t('chat.messageList.contextMenu.reply'), icon: <Reply size={14} />, onClick: () => { if (onReply) onReply(contextMenu.msg, sender?.name || unknownUser); } },
+      { id: 'reaction', label: t('chat.messageList.contextMenu.reaction'), icon: <Smile size={14} />, onClick: () => { void handleReaction(contextMenu.msg.id, '👍'); } },
+      { id: 'forward', label: t('chat.messageList.contextMenu.forward'), icon: <Forward size={14} />, onClick: () => handleForward([contextMenu.msg]) },
+      { id: 'favorite', label: t('chat.messageList.contextMenu.favorite'), icon: <Star size={14} />, onClick: async () => {
           try {
             await favoriteService.addFavorite({
                type: contextMenu.msg.type === 'link' || contextMenu.msg.type === 'music' ? 'link' : contextMenu.msg.type === 'image' || contextMenu.msg.type === 'video' ? 'image' : contextMenu.msg.type === 'file' ? 'file' : 'chat',
@@ -408,16 +420,16 @@ export const MessageList: React.FC<MessageListProps> = ({
                content: contextMenu.msg.content,
                conversationId: contextMenu.msg.chatId ?? chatId,
                messageId: contextMenu.msg.id,
-               source: sender?.name || '未知用户'
+               source: sender?.name || unknownUser
             });
-            toast('已收藏', 'success');
+            toast(t('chat.messageList.toast.favoriteSuccess'), 'success');
           } catch {
-            toast('收藏失败', 'error');
+            toast(t('chat.messageList.toast.favoriteFailed'), 'error');
           }
       } },
-      { id: 'select', label: '多选', icon: <CheckSquare size={14} />, onClick: () => { setIsMultiSelect(true); setSelectedIds(new Set([contextMenu.msg.id])); } },
+      { id: 'select', label: t('chat.messageList.contextMenu.multiSelect'), icon: <CheckSquare size={14} />, onClick: () => { setIsMultiSelect(true); setSelectedIds(new Set([contextMenu.msg.id])); } },
       { id: 'div1', label: '', divider: true, onClick: () => {} },
-      { id: 'delete', label: '删除', icon: <Trash2 size={14} />, danger: true, onClick: () => handleDelete(new Set([contextMenu.msg.id])) },
+      { id: 'delete', label: t('chat.messageList.contextMenu.delete'), icon: <Trash2 size={14} />, danger: true, onClick: () => handleDelete(new Set([contextMenu.msg.id])) },
     ];
   };
 
@@ -438,7 +450,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     id: m.id,
     type: m.type as 'image' | 'video',
     src: m.content || '',
-    name: m.fileName || (m.type === 'image' ? '图片' : '视频')
+    name: m.fileName || (m.type === 'image' ? t('chat.messageList.media.image') : t('chat.messageList.media.video'))
   }));
 
   const handleMediaClick = (msg: Message) => {
@@ -460,7 +472,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         await chatService.addReaction(chatId, messageId, emoji);
       }
     } catch {
-      toast('表情回应失败', 'error');
+      toast(t('chat.messageList.toast.reactionFailed'), 'error');
       return;
     }
     
@@ -494,7 +506,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col bg-[#1e1e1e] custom-scrollbar relative">
-      {loading && <div className="text-center text-[12px] text-gray-500 my-4">加载中...</div>}
+      {loading && <div className="text-center text-[12px] text-gray-500 my-4">{t('chat.messageList.loading')}</div>}
       {!loading && filteredMessages.length > 0 && <div className="text-center text-[12px] text-gray-500 my-4">{formatTime(filteredMessages[0].timestamp)}</div>}
       
       <AnimatePresence initial={false}>
@@ -515,7 +527,7 @@ export const MessageList: React.FC<MessageListProps> = ({
             ?? usersMap[participantId]?.name
             ?? fallback;
         };
-        const displayMessage = formatVideoCallMessage(msg, resolveDisplayName);
+        const displayMessage = formatVideoCallMessage(msg, resolveDisplayName, t);
 
         return (
           <React.Fragment key={msg.id}>
@@ -620,21 +632,21 @@ export const MessageList: React.FC<MessageListProps> = ({
 
       {isMultiSelect && (
         <div className="sticky bottom-4 left-1/2 -translate-x-1/2 w-max bg-[#2b2b2d] border border-white/10 rounded-full shadow-2xl px-6 py-3 flex items-center gap-6 z-50 mx-auto mt-auto">
-          <span className="text-sm text-gray-300">已选择 {selectedIds.size} 条</span>
+          <span className="text-sm text-gray-300">{t('chat.messageList.multiSelect.selected', { count: selectedIds.size })}</span>
           <div className="w-px h-4 bg-white/10" />
           <button 
             className="flex items-center gap-2 text-sm text-gray-300 hover:text-white transition-colors disabled:opacity-50" 
             onClick={() => handleForward(messages.filter(m => selectedIds.has(m.id)))}
             disabled={selectedIds.size === 0}
           >
-            <Forward size={16} /> 转发
+            <Forward size={16} /> {t('chat.messageList.multiSelect.forward')}
           </button>
           <button 
             className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50" 
             onClick={() => handleDelete(selectedIds)}
             disabled={selectedIds.size === 0}
           >
-            <Trash2 size={16} /> 删除
+            <Trash2 size={16} /> {t('chat.messageList.multiSelect.delete')}
           </button>
           <div className="w-px h-4 bg-white/10" />
           <button className="p-1 text-gray-400 hover:text-white transition-colors" onClick={() => { setIsMultiSelect(false); setSelectedIds(new Set()); }}>

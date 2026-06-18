@@ -216,5 +216,5 @@
     "docs/架构/09AR-pre-release-capacity-tier-gates-implementation-plan-2026-04-09.md",
     "docs/架构/150AR-pre-release-capacity-tier-gates-design-2026-04-09.md"
   ],
-  "boundary": "This index now carries all seven truthful local Capacity Tier artifacts after doc-captured backfill from published CI Smoke Tier / local-minimal evidence. Capacity Tier is evidence_collected_gate_passed for commercial readiness, while dedicated capacity-dedicated topology runs still gate full density conclusions."
+  "boundary": "This index now carries all seven truthful local Capacity Tier artifacts after doc-captured backfill from published CI Smoke Tier / self-hosted.split-services.development evidence. Capacity Tier is evidence_collected_gate_passed for commercial readiness, while dedicated capacity-dedicated topology runs still gate full density conclusions."
 }

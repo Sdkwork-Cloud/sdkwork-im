@@ -1,9 +1,11 @@
 //! Pin API handlers.
 
+#![allow(dead_code)]
+
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::http::AppState;

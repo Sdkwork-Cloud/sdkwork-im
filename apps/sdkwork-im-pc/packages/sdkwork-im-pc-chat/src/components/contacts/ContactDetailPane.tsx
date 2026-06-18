@@ -29,8 +29,13 @@ export const ContactDetailPane: React.FC<{
   const { t } = useTranslation();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
+  const [displayName, setDisplayName] = useState(user.name);
   const { promptConfig, customPrompt, closePrompt } = usePrompt();
   const displayUserChatId = user.chatId ?? '';
+
+  useEffect(() => {
+    setDisplayName(user.name);
+  }, [user.id, user.name]);
 
   useEffect(() => {
     contactService.getStarredContacts()
@@ -128,6 +133,10 @@ export const ContactDetailPane: React.FC<{
                             try {
                               if (name?.trim()) {
                                 await contactService.setContactRemark(user.id, name.trim());
+                                const updatedUser = await contactService.getUserById(user.id);
+                                if (updatedUser?.name) {
+                                  setDisplayName(updatedUser.name);
+                                }
                                 toast(t('contacts.detail.toast.remarkUpdated'), 'success');
                               }
                             } catch {
@@ -210,7 +219,7 @@ export const ContactDetailPane: React.FC<{
             </motion.div>
 
             <h2 className="z-10 mb-1 flex items-center gap-2 text-2xl font-semibold text-gray-100">
-              {user.name}
+              {displayName}
             </h2>
             <div className="z-10 mb-6 text-sm font-medium text-indigo-400">{user.position || t('contacts.detail.unknownPosition')}</div>
 

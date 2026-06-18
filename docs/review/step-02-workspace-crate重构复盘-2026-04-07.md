@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | `services/session-gateway/src/lib.rs` | `639` | 通过 |
 | `services/conversation-runtime/src/lib.rs` | `3` | 通过 |
-| `services/local-minimal-node/src/lib.rs` | `3` | 通过 |
+| `services/sdkwork-im-gateway/src/lib.rs` | `3` | 通过 |
 | `services/projection-service/src/lib.rs` | `965` | 通过，需重点盯防 |
 | `adapters/local-disk/src/lib.rs` | `24` | 通过 |
 | `tools/chat-cli/src/lib.rs` | `848` | 通过 |
@@ -37,7 +37,7 @@ Step 02 已把核心能力从大文件中下沉为独立模块：
   - `runtime/policy.rs`
   - `runtime/recovery.rs`
   - `runtime/support.rs`
-- `local-minimal-node`
+- `sdkwork-im-server`
   - `node/access.rs`
   - `node/effects.rs`
   - `node/platform.rs`

@@ -60,10 +60,14 @@ function Resolve-BaseUrl {
         return $RequestedBaseUrl
     }
 
-    $configFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".runtime\local-minimal\config\local-minimal.env"
-    $bindAddress = Read-ConfigValue -ConfigFile $configFile -Key "SDKWORK_IM_BIND_ADDR"
+    $configFile = Join-Path (Split-Path -Parent $PSScriptRoot) "configs\topology\self-hosted.split-services.development.env"
+    $httpUrl = Read-ConfigValue -ConfigFile $configFile -Key "SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL"
+    if (-not [string]::IsNullOrWhiteSpace($httpUrl)) {
+        return $httpUrl.TrimEnd('/')
+    }
+    $bindAddress = Read-ConfigValue -ConfigFile $configFile -Key "SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND"
     if ([string]::IsNullOrWhiteSpace($bindAddress)) {
-        return "http://127.0.0.1:18090"
+        return "http://127.0.0.1:18079"
     }
 
     $segments = $bindAddress -split ':'

@@ -324,13 +324,18 @@ assert.match(
   /manualChunks/u,
   'Vite release build must define manual chunks for stable dependency packaging',
 );
-for (const chunkName of ['react-vendor', 'editor-vendor', 'ai-vendor']) {
+for (const chunkName of ['react-vendor', 'editor-vendor']) {
   assert.match(
     viteConfig,
     new RegExp(chunkName, 'u'),
     `Vite release build must expose a ${chunkName} chunk`,
   );
 }
+assert.doesNotMatch(
+  viteConfig,
+  /ai-vendor|@google\/genai|GEMINI_API_KEY|AI Studio/u,
+  'Vite release build must not retain AI Studio or Gemini vendor chunk wiring',
+);
 assert.doesNotMatch(
   viteConfig,
   /return ['"]sdkwork-shared['"]/u,
@@ -346,10 +351,10 @@ const resolvedEnv = iamEnvModule.resolveSdkworkChatIamCommandEnv({
 assert.deepEqual(resolvedEnv.errors, []);
 assert.equal(resolvedEnv.env.SDKWORK_IAM_MODE, 'local');
 assert.equal(resolvedEnv.env.VITE_SDKWORK_DEPLOYMENT_MODE, 'local');
-assert.equal(resolvedEnv.env.VITE_SDKWORK_IAM_APP_API_BASE_URL, 'http://127.0.0.1:18079');
-assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_APP_API_BASE_URL, 'http://127.0.0.1:18079');
-assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_IM_API_BASE_URL, 'http://127.0.0.1:18079');
-assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL, 'ws://127.0.0.1:18079');
+assert.equal(resolvedEnv.env.VITE_SDKWORK_IAM_APP_API_BASE_URL, 'http://127.0.0.1:3900');
+assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL, 'http://127.0.0.1:3900');
+assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL, 'http://127.0.0.1:18079');
+assert.equal(resolvedEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL, 'ws://127.0.0.1:18079');
 assert.equal(resolvedEnv.env.SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED, '123456');
 
 const webBuildSameOriginEnv = iamEnvModule.resolveSdkworkChatIamCommandEnv({
@@ -360,168 +365,158 @@ assert.deepEqual(webBuildSameOriginEnv.errors, []);
 assert.equal(webBuildSameOriginEnv.env.SDKWORK_IAM_MODE, 'private');
 assert.equal(webBuildSameOriginEnv.env.VITE_SDKWORK_DEPLOYMENT_MODE, 'private');
 assert.equal(
-  webBuildSameOriginEnv.env.VITE_SDKWORK_IM_APP_API_BASE_URL,
+  webBuildSameOriginEnv.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
   undefined,
-  'web release builds without explicit domain binding must not bake localhost app API URLs into the bundle',
+  'web release builds without explicit domain binding must not bake localhost platform gateway URLs into the bundle',
 );
 assert.equal(
-  webBuildSameOriginEnv.env.VITE_SDKWORK_IM_IM_API_BASE_URL,
+  webBuildSameOriginEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   undefined,
   'web release builds without explicit domain binding must let the runtime resolve IM HTTP from window.location.origin',
 );
 assert.equal(
-  webBuildSameOriginEnv.env.VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL,
+  webBuildSameOriginEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
   undefined,
   'web release builds without explicit domain binding must let the runtime derive IM websocket from the public origin',
 );
 
 const releaseDomainEnv = iamEnvModule.resolveSdkworkChatIamCommandEnv({
   env: {
-    SDKWORK_IM_APP_API_BASE_URL: 'https://chat.example.com/',
-    SDKWORK_IM_IM_API_BASE_URL: 'https://chat.example.com',
-    SDKWORK_IM_IM_WEBSOCKET_BASE_URL: 'wss://chat.example.com',
+    SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.sdkwork.com/',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'https://im.sdkwork.com',
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'wss://im.sdkwork.com',
   },
   target: 'server-build',
 });
 assert.deepEqual(releaseDomainEnv.errors, []);
-assert.equal(releaseDomainEnv.env.VITE_SDKWORK_IM_APP_API_BASE_URL, 'https://chat.example.com');
-assert.equal(releaseDomainEnv.env.VITE_SDKWORK_IM_IM_API_BASE_URL, 'https://chat.example.com');
-assert.equal(releaseDomainEnv.env.VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL, 'wss://chat.example.com');
+assert.equal(releaseDomainEnv.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL, 'https://api.sdkwork.com');
+assert.equal(releaseDomainEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL, 'https://im.sdkwork.com');
+assert.equal(releaseDomainEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL, 'wss://im.sdkwork.com');
 
 const releaseServerDomainEnv = iamEnvModule.resolveSdkworkChatIamCommandEnv({
   env: {
-    SDKWORK_IM_SERVER_API_BASE_URL: 'https://chat.example.com/',
-    SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL: 'wss://chat.example.com/im',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'https://im.sdkwork.com/',
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'wss://im.sdkwork.com/im',
   },
   target: 'server-build',
 });
 assert.deepEqual(releaseServerDomainEnv.errors, []);
 assert.equal(
-  releaseServerDomainEnv.env.VITE_SDKWORK_IM_APP_API_BASE_URL,
-  'https://chat.example.com',
-  'release builds must bind app API traffic from the standard server api domain env',
+  releaseServerDomainEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  'https://im.sdkwork.com',
+  'release builds must bind IM HTTP traffic from the application public HTTP env',
 );
 assert.equal(
-  releaseServerDomainEnv.env.VITE_SDKWORK_IM_IM_API_BASE_URL,
-  'https://chat.example.com',
-  'release builds must bind IM HTTP traffic from the standard server api domain env',
-);
-assert.equal(
-  releaseServerDomainEnv.env.VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL,
-  'wss://chat.example.com/im',
-  'release builds must bind IM websocket traffic from the standard server websocket domain env',
+  releaseServerDomainEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  'wss://im.sdkwork.com/im',
+  'release builds must bind IM websocket traffic from the application public websocket env',
 );
 
 const releaseCanonicalServerDomainEnv = iamEnvModule.resolveSdkworkChatIamCommandEnv({
   env: {
-    SDKWORK_IM_SERVER_API_BASE_URL: 'https://chat.example.com/sdkwork/chat/',
-    SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL: 'wss://chat.example.com/sdkwork/chat',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'https://im.sdkwork.com/im/v3/api/',
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'wss://im.sdkwork.com/im/v3/api/realtime/ws',
   },
   target: 'server-build',
 });
 assert.deepEqual(releaseCanonicalServerDomainEnv.errors, []);
 assert.equal(
-  releaseCanonicalServerDomainEnv.env.VITE_SDKWORK_IM_APP_API_BASE_URL,
-  'https://chat.example.com/sdkwork/chat',
-  'release builds must bind app API traffic from the canonical SDKWORK_CHAT server API env',
+  releaseCanonicalServerDomainEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  'https://im.sdkwork.com',
+  'release IM API base URL must strip the SDK-owned /im/v3/api contract prefix',
 );
 assert.equal(
-  releaseCanonicalServerDomainEnv.env.VITE_SDKWORK_IM_IM_API_BASE_URL,
-  'https://chat.example.com/sdkwork/chat',
-  'release builds must bind IM HTTP traffic from the canonical SDKWORK_CHAT server API env',
-);
-assert.equal(
-  releaseCanonicalServerDomainEnv.env.VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL,
-  'wss://chat.example.com/sdkwork/chat',
-  'release builds must bind IM websocket traffic from the canonical SDKWORK_CHAT server websocket env',
+  releaseCanonicalServerDomainEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  'wss://im.sdkwork.com',
+  'release IM websocket base URL must strip the SDK-owned realtime websocket path',
 );
 
 const releaseServerApiOnlyDomainEnv = iamEnvModule.resolveSdkworkChatIamCommandEnv({
   env: {
-    SDKWORK_IM_SERVER_API_BASE_URL: 'https://api.chat.example.com/',
+    SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.sdkwork.com/',
   },
   target: 'server-build',
 });
 assert.deepEqual(releaseServerApiOnlyDomainEnv.errors, []);
 assert.equal(
-  releaseServerApiOnlyDomainEnv.env.VITE_SDKWORK_IM_APP_API_BASE_URL,
-  'https://api.chat.example.com',
-  'release builds must bind app API traffic when only the standard server API domain is configured',
+  releaseServerApiOnlyDomainEnv.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
+  'https://api.sdkwork.com',
+  'release builds must bind platform SDK traffic when only the platform gateway URL is configured',
 );
 assert.equal(
-  releaseServerApiOnlyDomainEnv.env.VITE_SDKWORK_IM_IM_API_BASE_URL,
-  'https://api.chat.example.com',
-  'release builds must bind IM HTTP traffic when only the standard server API domain is configured',
-);
-assert.equal(
-  releaseServerApiOnlyDomainEnv.env.VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL,
-  'wss://api.chat.example.com',
-  'release builds must derive IM websocket base URL from the server API domain when no websocket domain is configured',
+  releaseServerApiOnlyDomainEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  undefined,
+  'release builds without application public HTTP must not invent IM HTTP URLs',
 );
 
 const releaseFullContractPathEnv = iamEnvModule.resolveSdkworkChatIamCommandEnv({
   env: {
-    SDKWORK_IM_APP_API_BASE_URL: 'https://chat.example.com/app/v3/api/',
-    SDKWORK_IM_IM_API_BASE_URL: 'https://chat.example.com/im/v3/api/',
-    SDKWORK_IM_IM_WEBSOCKET_BASE_URL: 'wss://chat.example.com/im/v3/api/realtime/ws',
+    SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.sdkwork.com/app/v3/api/',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'https://im.sdkwork.com/im/v3/api/',
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'wss://im.sdkwork.com/im/v3/api/realtime/ws',
   },
   target: 'server-build',
 });
 assert.deepEqual(releaseFullContractPathEnv.errors, []);
 assert.equal(
-  releaseFullContractPathEnv.env.VITE_SDKWORK_IM_APP_API_BASE_URL,
-  'https://chat.example.com',
-  'release app API base URL must strip the SDK-owned /app/v3/api contract prefix',
+  releaseFullContractPathEnv.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
+  'https://api.sdkwork.com',
+  'release platform gateway URL must strip the SDK-owned /app/v3/api contract prefix',
 );
 assert.equal(
-  releaseFullContractPathEnv.env.VITE_SDKWORK_IM_IM_API_BASE_URL,
-  'https://chat.example.com',
+  releaseFullContractPathEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  'https://im.sdkwork.com',
   'release IM API base URL must strip the SDK-owned /im/v3/api contract prefix',
 );
 assert.equal(
-  releaseFullContractPathEnv.env.VITE_SDKWORK_IM_IM_WEBSOCKET_BASE_URL,
-  'wss://chat.example.com',
+  releaseFullContractPathEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  'wss://im.sdkwork.com',
   'release IM websocket base URL must strip the SDK-owned realtime websocket path',
 );
 
 const invalidReleaseDomainEnv = iamEnvModule.resolveSdkworkChatIamCommandEnv({
   env: {
-    SDKWORK_IM_SERVER_API_BASE_URL: 'chat.example.com',
-    SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL: 'https://chat.example.com',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'im.sdkwork.com',
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: 'https://im.sdkwork.com',
   },
   target: 'server-build',
 });
 assert.match(
   invalidReleaseDomainEnv.errors.join('\n'),
-  /SDKWORK_IM_SERVER_API_BASE_URL/u,
-  'release builds must fail when an explicit server API domain is not an absolute http(s) URL',
+  /SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL/u,
+  'release builds must fail when an explicit application HTTP domain is not an absolute http(s) URL',
 );
 assert.match(
   invalidReleaseDomainEnv.errors.join('\n'),
-  /SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL/u,
-  'release builds must fail when an explicit server websocket domain is not a ws(s) URL',
+  /SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL/u,
+  'release builds must fail when an explicit application websocket domain is not a ws(s) URL',
 );
 
 const serverEnvTemplate = read('deployments/templates/server.env.example');
 const quickstartServerEnvTemplate = read('deployments/templates/quickstart-server-compose.env.example');
+assert.match(
+  serverEnvTemplate,
+  /SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL=https:\/\/im\.sdkwork\.com/u,
+  'server env template must document the canonical IM application public HTTP host',
+);
+assert.match(
+  serverEnvTemplate,
+  /SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=wss:\/\/im\.sdkwork\.com/u,
+  'server env template must document the canonical IM application public websocket host',
+);
+assert.match(
+  serverEnvTemplate,
+  /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=https:\/\/api\.sdkwork\.com/u,
+  'server env template must document the platform api gateway host',
+);
 assert.doesNotMatch(
   serverEnvTemplate,
-  /SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=.*\/im\/v3\/api\/realtime\/ws/u,
+  /SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=.*\/im\/v3\/api\/realtime\/ws/u,
   'server env template must document websocket base URL, not the SDK-owned realtime websocket endpoint',
-);
-assert.match(
-  serverEnvTemplate,
-  /SDKWORK_IM_SERVER_API_BASE_URL=https:\/\/chat\.example\.com\/sdkwork\/chat/u,
-  'server env template must document the canonical /sdkwork/chat mount root',
-);
-assert.match(
-  serverEnvTemplate,
-  /SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=wss:\/\/realtime\.example\.com\/sdkwork\/chat/u,
-  'server env template must document the canonical websocket mount root',
 );
 assert.doesNotMatch(
   quickstartServerEnvTemplate,
-  /SDKWORK_IM_SERVER_WEBSOCKET_BASE_URL=.*\/im\/v3\/api\/realtime\/ws/u,
+  /SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL=.*\/im\/v3\/api\/realtime\/ws/u,
   'quickstart env template must document websocket base URL, not the SDK-owned realtime websocket endpoint',
 );
 
@@ -705,6 +700,28 @@ assert.doesNotMatch(
   /\b(Authorization|Access-Token|X-API-Key)\b/u,
   'Drive package must not assemble auth or API-key headers manually',
 );
+assert.doesNotMatch(
+  driveServiceSource,
+  /\btenantId\b/u,
+  'Drive service must not pass tenantId in SDK requests; server context comes from AuthToken and Access-Token',
+);
+assert.doesNotMatch(
+  driveServiceSource,
+  /resolveAppSdkTenantId|resolveAppSdkOrganizationId/u,
+  'Drive service must not derive tenant or organization scope in the frontend',
+);
+
+const aiotAppSdkClientSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/aiotAppSdkClient.ts');
+assert.doesNotMatch(
+  aiotAppSdkClientSource,
+  /createAiotSdkPermissionParams|xSdkworkTenantId|xSdkworkOrganizationId/u,
+  'AIoT app SDK wrapper must not map tenant or organization scope into generated SDK params',
+);
+assert.match(
+  aiotAppSdkClientSource,
+  /createSdkworkChatRequestContextInterceptors/u,
+  'AIoT app SDK wrapper must install the shared generated-SDK request interceptor',
+);
 
 assert.match(
   agentAppSdkClientSource,
@@ -815,8 +832,16 @@ assert.doesNotMatch(
   /buildSdkworkChatAppContextHeaders/u,
   'IM wrapper must not use an AppContext header builder',
 );
-assert.match(pcImSdkClientSource, /http:\/\/127\.0\.0\.1:18079/u, 'IM wrapper local dev fallback HTTP base URL must point at Sdkwork IM IM API');
-assert.match(pcImSdkClientSource, /ws:\/\/127\.0\.0\.1:18079/u, 'IM wrapper local dev fallback websocket base URL must point at Sdkwork IM IM API');
+assert.match(
+  pcImSdkClientSource,
+  /DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL/u,
+  'IM wrapper local dev fallback HTTP base URL must use topology APPLICATION_PUBLIC default',
+);
+assert.match(
+  pcImSdkClientSource,
+  /DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL/u,
+  'IM wrapper local dev fallback websocket base URL must use topology APPLICATION_PUBLIC default',
+);
 assert.match(pcImSdkClientSource, /window\.location\.origin/u, 'IM wrapper must support release same-origin HTTP domain binding');
 assert.match(pcImSdkClientSource, /protocol\s*===\s*['"]https:['"]/u, 'IM wrapper must derive wss websocket URLs from https release origins');
 assert.match(pcImSdkClientSource, /if\s*\(\s*!import\.meta\.env\.DEV\s*\)/u, 'IM wrapper must keep localhost defaults in Vite-prunable dev-only branches');
@@ -1063,8 +1088,8 @@ assert.match(
 );
 assert.match(
   settingsServiceSource,
-  /\.iot\.devices\.twin\.retrieve\s*\(/u,
-  'settings service device list must read device state through sdkwork-aiot iot.devices.twin.retrieve',
+  /\.iot\.devicesTwinRetrieve\s*\(/u,
+  'settings service device list must read device state through sdkwork-aiot iot.devicesTwinRetrieve',
 );
 assertNoImDeviceApiUsage(settingsServiceSource, 'settings service');
 assert.doesNotMatch(
@@ -1074,6 +1099,11 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(settingsServiceSource, /class\s+MockSettingsService/u, 'settings service must not be mock-backed');
 assert.doesNotMatch(settingsServiceSource, /\bfetch\s*\(/u, 'settings service must not use raw fetch');
+assert.doesNotMatch(
+  settingsServiceSource,
+  /\btenantId\b|\borganizationId\b|resolveAppSdkTenantId|resolveAppSdkOrganizationId|xSdkworkTenantId|createAiotSdkPermissionParams/u,
+  'settings service must not pass tenant or organization scope to sdkwork-aiot requests',
+);
 assert.doesNotMatch(settingsServiceSource, /\/api\/config\/modules/u, 'settings service must not hand-code module config paths');
 assert.ok(
   !fs.existsSync(path.join(repoRoot, 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/DeviceSyncFeedService.ts')),
@@ -1093,13 +1123,23 @@ assert.match(
 );
 assert.match(
   pcDevicesServiceSource,
-  /\.iot\.devices\.commands\.create\s*\(/u,
+  /\.iot\.devicesCommandsCreate\s*\(/u,
   'pc-devices user actions must submit real AIoT app SDK device commands',
 );
 assert.doesNotMatch(
   pcDevicesServiceSource,
   /@sdkwork\/aiot-backend-sdk|backendClient|BackendClient|getBackendClient|\.iot\.devices\.twin\.update|\.iot\.devices\.delete\s*\(/u,
   'pc-devices non-admin service must not import, configure, or route through backend SDK clients',
+);
+assert.match(
+  pcDevicesServiceSource,
+  /\.iot\.devicesList\s*\(/u,
+  'pc-devices service must list devices through the generated AIoT app SDK',
+);
+assert.doesNotMatch(
+  pcDevicesServiceSource,
+  /\btenantId\b|\borganizationId\b|resolveAppSdkTenantId|resolveAppSdkOrganizationId|xSdkworkTenantId|createAiotSdkPermissionParams/u,
+  'pc-devices service must not pass tenant or organization scope to sdkwork-aiot requests',
 );
 const pcDevicesBindModalSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/src/components/BindAgentModal.tsx');
 const pcDevicesDetailPanelSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-devices/src/components/DeviceDetailPanel.tsx');
@@ -1127,6 +1167,16 @@ assert.match(
 );
 assert.doesNotMatch(chatServiceSource, /class MockChatService/u, 'chat service must not be mock-backed');
 assert.doesNotMatch(chatServiceSource, /mockChats|mockMessages/u, 'chat service must not keep mock branches');
+assert.doesNotMatch(
+  chatServiceSource,
+  /\btenantId\s*:/u,
+  'chat service must not pass tenantId in SDK requests; server context comes from AuthToken and Access-Token',
+);
+assert.doesNotMatch(
+  chatServiceSource,
+  /resolveAppSdkTenantId/u,
+  'chat service must not derive tenant scope in the frontend',
+);
 for (const requiredOperation of [
   'messages.reactions.create',
   'messages.reactions.delete',
@@ -2016,8 +2066,18 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /\.social\.contacts\.list\s*\(/u,
-  'contact service getContacts must list contacts through the generated IM social contacts SDK',
+  /getContacts\s*\([\s\S]*?this\.listAllContacts\s*\(/u,
+  'contact service getContacts must list contacts through the generated IM chat contacts SDK',
+);
+assert.match(
+  contactServiceSource,
+  /syncContacts\s*\([\s\S]*?this\.listAllContacts\s*\(/u,
+  'contact service syncContacts must list contacts through the generated IM chat contacts SDK',
+);
+assert.match(
+  contactServiceSource,
+  /\.chat\.contacts\.list\s*\(/u,
+  'contact service must page contacts through chat.contacts.list',
 );
 assert.match(
   contactServiceSource,
@@ -2026,8 +2086,13 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
-  /addFriendBySearchQuery\s*\([\s\S]*?this\.searchContacts\s*\(\s*normalizedQuery\s*\)[\s\S]*?this\.addFriend\s*\(\s*targetUser\.id\s*\)/u,
+  /addFriendBySearchQuery\s*\([\s\S]*?this\.findAddFriendTarget\s*\(\s*normalizedQuery\s*\)[\s\S]*?this\.assertRelationshipAllowsFriendRequest\s*\([\s\S]*?this\.client\(\)\.social\.friendRequests\.create/u,
   'contact service direct add-by-input must resolve a real searched user before submitting a friend request',
+);
+assert.match(
+  contactServiceSource,
+  /findAddFriendTarget\s*\([\s\S]*?this\.client\(\)\.social\.users\.list/u,
+  'contact service add-by-input search must query users through the generated IM SDK social user search endpoint',
 );
 assert.match(
   contactServiceSource,
@@ -2076,6 +2141,16 @@ assert.match(
 );
 assert.match(
   contactServiceSource,
+  /listAllFriendRequests\(\s*['"]incoming['"],\s*['"]pending['"]\s*\)/u,
+  'contact service getFriendRequests must list only pending incoming friend requests',
+);
+assert.match(
+  contactServiceSource,
+  /listAllFriendRequests\(\s*['"]outgoing['"],\s*['"]pending['"]\s*\)/u,
+  'contact service getFriendRequests must list only pending outgoing friend requests',
+);
+assert.match(
+  contactServiceSource,
   /nextCursor/u,
   'contact service friend request sync must continue through SDK cursor windows',
 );
@@ -2088,6 +2163,21 @@ assert.match(
   contactServiceSource,
   /\.social\.friendRequests\.decline\s*\(/u,
   'contact service handleFriendRequest must decline friend requests through the generated IM SDK',
+);
+assert.match(
+  contactServiceSource,
+  /cancelFriendRequest\s*\(/u,
+  'contact service must expose cancelFriendRequest for outgoing pending requests',
+);
+assert.match(
+  contactServiceSource,
+  /\.social\.friendRequests\.cancel\s*\(/u,
+  'contact service cancelFriendRequest must cancel friend requests through the generated IM SDK',
+);
+assert.match(
+  contactServiceSource,
+  /direction:\s*isOutgoing\s*\?\s*['"]outgoing['"]\s*:\s*['"]incoming['"]/u,
+  'contact service must expose friend request direction for incoming versus outgoing UI actions',
 );
 assert.match(
   contactServiceSource,
@@ -2207,8 +2297,18 @@ assert.match(
 assertNoImDeviceApiUsage(contactServiceSource, 'contact service');
 assert.match(
   contactServiceSource,
-  /\.social\.contacts\.list\s*\(/u,
-  'contact service sync must refresh contacts through the generated IM social contacts SDK',
+  /syncContacts\s*\([\s\S]*?this\.listAllContacts\s*\(/u,
+  'contact service sync must refresh contacts through the generated IM chat contacts SDK',
+);
+assert.match(
+  contactServiceSource,
+  /deleteContact\s*\([\s\S]*?this\.dispatchFriendRequestChange\s*\(/u,
+  'contact service deleteContact must notify contact consumers after removing a friendship',
+);
+assert.match(
+  contactServiceSource,
+  /addToBlacklist\s*\([\s\S]*?this\.dispatchFriendRequestChange\s*\(/u,
+  'contact service addToBlacklist must notify contact consumers after blocking a contact',
 );
 assert.doesNotMatch(contactServiceSource, /class\s+MockContactService/u, 'contact service must not be mock-backed');
 assert.doesNotMatch(contactServiceSource, /mockUsers|mockFriendRequests/u, 'contact service must not keep mock contacts or friend requests');
@@ -2636,6 +2736,11 @@ assert.match(
   newFriendsContainerSource,
   /Avatar\s+src=\{req\.avatar\}/u,
   'new friends list must render avatars resolved from real friend request peer profiles',
+);
+assert.match(
+  newFriendsContainerSource,
+  /SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT/u,
+  'new friends list must refresh on friend request change events',
 );
 assert.doesNotMatch(
   newFriendsContainerSource,
@@ -3138,6 +3243,53 @@ assert.doesNotMatch(enterpriseServiceSource, /mockEnterprises|dice(?:bear)/u, 'e
 assert.doesNotMatch(enterpriseServiceSource, /\bfetch\s*\(/u, 'enterprise service must not use raw fetch');
 assert.doesNotMatch(enterpriseServiceSource, /\/(?:im|app|backend)\/v3/u, 'enterprise service must not hand-code SDK-owned API paths');
 assert.doesNotMatch(enterpriseServiceSource, /\b(Authorization|Access-Token|X-API-Key)\b/u, 'enterprise service must not assemble auth headers manually');
+const workspaceServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/services/WorkspaceService.ts');
+const workspaceViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-workspace/src/index.tsx');
+assert.match(
+  workspaceServiceSource,
+  /getAppSdkClientWithSession/u,
+  'workspace service must use the shared generated im-app-sdk client wrapper',
+);
+assert.match(
+  workspaceServiceSource,
+  /getDriveAppSdkClientWithSession/u,
+  'workspace service must use the shared drive app SDK client wrapper for recent documents',
+);
+assert.match(
+  workspaceServiceSource,
+  /class\s+SdkworkWorkspaceService/u,
+  'workspace service must expose an SDK-backed workspace catalog implementation',
+);
+assert.match(
+  workspaceServiceSource,
+  /\.portal\.home\.retrieve\s*\(\s*\)/u,
+  'workspace service must load the backend portal home snapshot through the generated im-app-sdk',
+);
+assert.match(
+  workspaceServiceSource,
+  /\.drive\.recent\.list\s*\(/u,
+  'workspace service must load recent documents through the generated drive app SDK',
+);
+assert.match(
+  workspaceViewSource,
+  /workspaceService\.getApps\s*\(\s*\)/u,
+  'workspace view must render apps from the SDK-backed workspace service',
+);
+assert.match(
+  workspaceViewSource,
+  /workspaceService\.getRecentDocuments\s*\(\s*\)/u,
+  'workspace view must render recent documents from the SDK-backed workspace service',
+);
+assert.doesNotMatch(workspaceServiceSource, /class\s+WorkspaceCatalogService/u, 'workspace service must not be mock-backed');
+assert.doesNotMatch(workspaceServiceSource, /setTimeout|mockMails|recentDocumentCatalog/u, 'workspace service must not keep mock catalog branches');
+assert.doesNotMatch(workspaceServiceSource, /\bfetch\s*\(/u, 'workspace service must not use raw fetch');
+assert.doesNotMatch(workspaceServiceSource, /\/(?:im|app|backend)\/v3/u, 'workspace service must not hand-code SDK-owned API paths');
+assert.doesNotMatch(workspaceServiceSource, /\b(Authorization|Access-Token|X-API-Key)\b/u, 'workspace service must not assemble auth headers manually');
+assert.doesNotMatch(
+  workspaceServiceSource,
+  /\btenantId\b/u,
+  'workspace service must not pass tenantId in SDK requests; server context comes from AuthToken and Access-Token',
+);
 assert.match(
   chatLayoutSource,
   /<AddGroupMembersModal[\s\S]*?chat=\{activeChat\}[\s\S]*?onAdded=\{async\s*\(\)\s*=>\s*\{[\s\S]*?groupService\.getGroups\s*\(\s*\)/u,
@@ -3447,6 +3599,11 @@ assert.match(
 const messageListSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/MessageList.tsx');
 assert.match(
   messageListSource,
+  /useTranslation\s*\(/u,
+  'message list user-facing failures must use react-i18next',
+);
+assert.match(
+  messageListSource,
   /chatService\.subscribeMessages|chatService\.subscribeConversationMessages/u,
   'message list must subscribe to SDK realtime updates',
 );
@@ -3707,6 +3864,26 @@ assert.match(
   chatLayoutSource,
   /conversationId=\{callTarget\.id\}/u,
   'chat layout must pass the active conversation id into CallOverlay for RTC session creation',
+);
+assert.match(
+  chatLayoutSource,
+  /resolveIncomingCallWatchConversationIds/u,
+  'chat layout must watch incoming RTC calls for both hydrated chats and projected direct-contact conversations',
+);
+assert.match(
+  chatLayoutSource,
+  /SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT/u,
+  'chat layout must refresh chat projections after friend/contact changes',
+);
+assert.match(
+  chatServiceSource,
+  /resolveIncomingCallWatchConversationIds/u,
+  'chat service must expose incoming call watch conversation id resolution for contact-only direct chats',
+);
+assert.match(
+  chatServiceSource,
+  /projectDirectChatConversationId/u,
+  'chat service must expose stable direct-chat conversation id projection for RTC watch coverage',
 );
 
 const serviceFiles = listFiles('apps/sdkwork-im-pc/packages', (candidate) => {

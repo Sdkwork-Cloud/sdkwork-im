@@ -2,7 +2,6 @@
 
 declare module '*.css';
 
-declare module '@google/genai';
 declare module 'react-qr-code';
 declare module 'tiptap-markdown';
 

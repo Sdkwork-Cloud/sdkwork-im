@@ -29,7 +29,7 @@ import com.sdkwork.im.app.api.generated.model.*;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        Types.SdkConfig config = new Types.SdkConfig("http://127.0.0.1:18090");
+        Types.SdkConfig config = new Types.SdkConfig("http://127.0.0.1:18079");
         SdkworkImAppClient client = new SdkworkImAppClient(config);
         client.setAuthToken("your-auth-token");
 client.setAccessToken("your-access-token");
@@ -52,7 +52,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```java
-Types.SdkConfig config = new Types.SdkConfig("http://127.0.0.1:18090");
+Types.SdkConfig config = new Types.SdkConfig("http://127.0.0.1:18079");
 SdkworkImAppClient client = new SdkworkImAppClient(config);
 
 // Set custom headers

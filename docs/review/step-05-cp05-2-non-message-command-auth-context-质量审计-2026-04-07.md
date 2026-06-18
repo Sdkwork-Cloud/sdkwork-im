@@ -4,26 +4,26 @@
 
 - `services/conversation-runtime/src/runtime.rs`
 - `services/conversation-runtime/src/runtime/http.rs`
-- `services/local-minimal-node/src/node/conversation.rs`
-- `services/local-minimal-node/src/node/handoff.rs`
-- `services/local-minimal-node/src/node/membership.rs`
-- `services/local-minimal-node/src/node/projection.rs`
+- `services/sdkwork-im-gateway/src/node/conversation.rs`
+- `services/sdkwork-im-gateway/src/node/handoff.rs`
+- `services/sdkwork-im-gateway/src/node/membership.rs`
+- `services/sdkwork-im-gateway/src/node/projection.rs`
 - `services/conversation-runtime/tests/authority_command_test.rs`
 - `services/conversation-runtime/tests/conversation_domain_structure_test.rs`
-- `services/local-minimal-node/tests/lib_structure_test.rs`
+- `services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 
 ## 2. 本轮主要质量判断
 
 ### 2.1 已消除的风险
 
-- 已消除非 message command 在 HTTP 和 local-minimal-node 入口重复采集 `tenant_id / actor_id` 的问题。
+- 已消除非 message command 在 HTTP 和 sdkwork-im-server 入口重复采集 `tenant_id / actor_id` 的问题。
 - 已消除 create/member/handoff/read-cursor 命令在多个入口分别内联 authority field 的结构漂移风险。
 - 已把非 message command authority capture 与 message mutation authority capture 放到同一个 runtime command-boundary 模式下，减少 Step 05 内部边界分叉。
 
 ### 2.2 本轮未发现的回归
 
 - 未发现 `conversation-runtime` HTTP 写路径因替换为 `from_auth_context(...)` 构造器而产生结构性回归。
-- 未发现 local-minimal-node conversation/handoff/membership/projection 路径因替换命令构造方式而出现调用缺口。
+- 未发现 sdkwork-im-server conversation/handoff/membership/projection 路径因替换命令构造方式而出现调用缺口。
 - 未发现新增构造器覆盖后，非 message command 的 `tenant_id / actor_id` identity 映射出现字段丢失。
 
 ## 3. 仍然存在的真实风险
@@ -59,13 +59,13 @@
 
 - `cargo test -p conversation-runtime --test conversation_domain_structure_test test_non_message_commands_offer_auth_context_constructors --offline`
 - `cargo test -p conversation-runtime --test authority_command_test test_non_message_commands_from_auth_context_preserve_authority_identity --offline`
-- `cargo test -p local-minimal-node --test lib_structure_test test_local_minimal_node_non_message_paths_use_auth_context_command_constructors --offline`
+- `cargo test -p sdkwork-im-gateway --test lib_structure_test test_local_minimal_node_non_message_paths_use_auth_context_command_constructors --offline`
 
 ### 4.2 全量受影响服务验证
 
-- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/authority_command_test.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/local-minimal-node/src/node/conversation.rs services/local-minimal-node/src/node/handoff.rs services/local-minimal-node/src/node/membership.rs services/local-minimal-node/src/node/projection.rs services/local-minimal-node/tests/lib_structure_test.rs`
+- `rustfmt --edition 2024 --check services/conversation-runtime/src/runtime.rs services/conversation-runtime/src/runtime/http.rs services/conversation-runtime/tests/authority_command_test.rs services/conversation-runtime/tests/conversation_domain_structure_test.rs services/sdkwork-im-gateway/src/node/conversation.rs services/sdkwork-im-gateway/src/node/handoff.rs services/sdkwork-im-gateway/src/node/membership.rs services/sdkwork-im-gateway/src/node/projection.rs services/sdkwork-im-gateway/tests/lib_structure_test.rs`
 - `cargo test -p conversation-runtime --offline`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 - `cargo test -p projection-service --offline`
 
 ## 5. 审计结论

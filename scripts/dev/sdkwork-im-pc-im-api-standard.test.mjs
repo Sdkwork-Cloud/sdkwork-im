@@ -27,7 +27,7 @@ const imSdkClientSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/s
 const appAuthServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appAuthService.ts');
 const viteConfigSource = read('apps/sdkwork-im-pc/vite.config.ts');
 const localApiSource = read('apps/sdkwork-im-pc/local-api.ts');
-const devCommandSource = read('scripts/dev/run-sdkwork-im-pc-dev.mjs');
+const devCommandSource = read('scripts/lib/im-pc-dev.mjs');
 const localAppApiSource = read('scripts/dev/start-sdkwork-im-local-app-api.mjs');
 const sharedDatabaseSource = read('scripts/dev/sdkwork-im-shared-database.mjs');
 const releaseSources = readJson('config/shared-sdk-release-sources.json');
@@ -155,6 +155,16 @@ assert.doesNotMatch(imSdkClientSource, /\bfetch\s*\(/u);
 
 assert.match(viteConfigSource, /sdkworkChatLocalApiPlugin/u);
 assert.match(viteConfigSource, /handleSdkworkChatLocalApiRequest/u);
+assert.doesNotMatch(
+  viteConfigSource,
+  /GEMINI_API_KEY|AI Studio|@google\/genai/u,
+  'vite config must not retain AI Studio or Gemini scaffold wiring',
+);
+assert.doesNotMatch(
+  localApiSource,
+  /GEMINI_API_KEY|AI Studio|@google\/genai/u,
+  'local-api must not retain AI Studio or Gemini scaffold dependencies',
+);
 for (const localShellEndpoint of ['/api/config/modules', '/api/agent/doc', '/api/agent/icon']) {
   assert.match(localSpec, new RegExp(localShellEndpoint.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'));
   assert.match(localApiSource, new RegExp(localShellEndpoint.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'u'));
@@ -179,8 +189,7 @@ assert.match(sharedDatabaseSource, /SDKWORK_IM_DATABASE_ENGINE/u);
 assert.match(sharedDatabaseSource, /SDKWORK_IM_DATABASE_SSL_MODE/u);
 assert.match(sharedDatabaseSource, /postgres(?:ql)?:/u);
 assert.match(devCommandSource, /resolveSdkworkImSharedDatabaseConfig/u);
-assert.match(devCommandSource, /SDKWORK_IM_WEB_GATEWAY_RUNTIME_MODE:\s*['"]split['"]/u);
-assert.match(devCommandSource, /SDKWORK_IM_FOUNDATION_API_GATEWAY_BASE_URL/u);
+assert.match(devCommandSource, /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL/u);
 assert.doesNotMatch(
   devCommandSource,
   /SDKWORK_IM_DRIVE_APP_API_UPSTREAM:\s*resolveDriveAppApiUpstream|SDKWORK_IM_NOTARY_APP_API_UPSTREAM:\s*resolveNotaryAppApiUpstream/u,

@@ -7,7 +7,7 @@
   - 证据文件是否已经真正落盘
   - 归档物是否被截断
   - 不同执行窗口之间是否拿到了同一份文件
-- 当前环境依然没有真实 `local-default` 发布后执行窗口，因此本轮继续不伪造真实证据文件，而是先把 `sizeBytes` 固定为模板态 contract。
+- 当前环境依然没有真实 `self-hosted.split-services.development` 发布后执行窗口，因此本轮继续不伪造真实证据文件，而是先把 `sizeBytes` 固定为模板态 contract。
 
 ## 2. 实际落地
 
@@ -25,7 +25,7 @@
 
 ### 2.2 当前 evidence index 已显式保留模板态 `sizeBytes`
 
-- 更新：`artifacts/releases/wave-d-2026-04-08/local-default-post-release-evidence-index.json`
+- 更新：`artifacts/releases/wave-d-2026-04-08/self-hosted.split-services.development-post-release-evidence-index.json`
 - 当前每个 slot 都已显式携带：
   - `sizeBytes: null`
 - 这延续了前几轮的边界决策：
@@ -34,10 +34,10 @@
 
 ### 2.3 operator / release 文档已同步 size contract
 
-- 更新：`docs/部署/local-default发布后验证样本.md`
-- 更新：`docs/部署/local-default发布后验证执行记录模板.md`
+- 更新：`docs/部署/性能与灾备演练场景.md`
+- 更新：`docs/部署/性能与灾备演练场景.md`
 - 更新：`artifacts/releases/README.md`
-- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/local-default/README.md`
+- 更新：`artifacts/releases/wave-d-2026-04-08/evidence/self-hosted.split-services.development/README.md`
 - 当前文档已明确：
   - `sizeBytes` 用于记录归档文件的实际字节数
   - 当前模板态 evidence index 统一保留 `null`
@@ -45,7 +45,7 @@
 
 ### 2.4 contract gate 已冻结
 
-- 更新：`services/local-minimal-node/tests/deployment_profile_test.rs`
+- 更新：`services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 - 新增：
   - `test_local_default_release_bundle_freezes_evidence_slot_size_bytes_contract`
 - 当前回归门禁已锁定：
@@ -66,6 +66,6 @@
 
 ## 4. fresh evidence
 
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test test_local_default_release_bundle_freezes_evidence_slot_size_bytes_contract -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test test_local_default_release_bundle_freezes_evidence_slot_size_bytes_contract -- --nocapture`
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline --test deployment_profile_test -- --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test -- --nocapture`

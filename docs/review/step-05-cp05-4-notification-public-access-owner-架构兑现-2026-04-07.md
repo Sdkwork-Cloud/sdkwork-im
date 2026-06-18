@@ -11,12 +11,12 @@
 - `docs/架构/139-权限能力模型与协议演进设计-2026-04-06.md`
   - cross-recipient `notification.write` 校验需要一个统一 owner
 - `docs/架构/147-CCP到Crate与接口模块落地映射设计-2026-04-06.md`
-  - notification request public-access seam 应映射到 `notification-service`，而不是由 `local-minimal-node` 本地重建
+  - notification request public-access seam 应映射到 `notification-service`，而不是由 `sdkwork-im-server` 本地重建
 
 ## 2. 已兑现
 
 - `NotificationRuntime` 现在拥有 public notification request access owner seam
-- `notification-service` HTTP 与 `local-minimal-node` platform 已共同消费这一条 owner seam
+- `notification-service` HTTP 与 `sdkwork-im-server` platform 已共同消费这一条 owner seam
 - notification public access owner 漂移已开始收口
 
 ## 3. 未兑现

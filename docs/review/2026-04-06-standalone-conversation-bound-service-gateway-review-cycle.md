@@ -5,7 +5,7 @@
 ### 1.1 High: standalone streaming and RTC services accepted conversation-bound requests without conversation authorization
 
 - Root cause:
-  - `local-minimal-node` already acted as the authorizing adapter for:
+  - `sdkwork-im-server` already acted as the authorizing adapter for:
     - conversation-bound stream writes
     - conversation-bound RTC writes
   - however the standalone service HTTP apps still exposed the same conversation-bound request shapes directly:
@@ -41,7 +41,7 @@ Red evidence:
 
 The bug is at the standalone service adapter boundary, not in the shared runtime:
 
-- `local-minimal-node` legitimately reuses the same runtimes after conversation authorization succeeds
+- `sdkwork-im-server` legitimately reuses the same runtimes after conversation authorization succeeds
 - if the runtime itself rejected conversation-bound sessions globally, the authorized integrated profile would break
 
 Chosen design:

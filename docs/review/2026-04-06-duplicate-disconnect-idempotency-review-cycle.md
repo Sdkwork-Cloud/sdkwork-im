@@ -6,7 +6,7 @@
 
 - Affected services:
   - `services/session-gateway`
-  - `services/local-minimal-node`
+  - `services/sdkwork-im-gateway`
 - Root cause:
   - the previous wave correctly introduced a reconnect-required fence after disconnect
   - `session.disconnect` still reused the ordinary non-`resume` bind path
@@ -35,7 +35,7 @@ Red coverage was added first in:
 
 - `services/session-gateway/tests/http_smoke_test.rs`
   - `test_session_gateway_treats_duplicate_disconnect_as_idempotent_for_same_session`
-- `services/local-minimal-node/tests/http_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/http_e2e_test.rs`
   - `test_local_minimal_profile_treats_duplicate_disconnect_as_idempotent_for_same_session`
 
 Red evidence:
@@ -44,7 +44,7 @@ Red evidence:
   - failed with:
     - expected status: `200`
     - actual status: `409`
-- `cargo test -p local-minimal-node --offline test_local_minimal_profile_treats_duplicate_disconnect_as_idempotent_for_same_session -- --exact --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline test_local_minimal_profile_treats_duplicate_disconnect_as_idempotent_for_same_session -- --exact --nocapture`
   - failed with:
     - expected status: `200`
     - actual status: `409`
@@ -68,11 +68,11 @@ This is a narrow carve-out, not a rollback of the reconnect-required standard.
 - `services/session-gateway/src/lib.rs`
   - `disconnect_session(...)` now short-circuits duplicate same-session retries
   - duplicate retry returns the existing offline snapshot without re-binding any route
-- `services/local-minimal-node/src/lib.rs`
+- `services/sdkwork-im-gateway/src/lib.rs`
   - same idempotent duplicate-disconnect short-circuit for the local profile
 - `services/session-gateway/tests/http_smoke_test.rs`
   - added duplicate disconnect regression
-- `services/local-minimal-node/tests/http_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/http_e2e_test.rs`
   - added duplicate disconnect regression
 
 ## 6. Verification
@@ -83,7 +83,7 @@ This is a narrow carve-out, not a rollback of the reconnect-required standard.
   - failed:
     - left: `409`
     - right: `200`
-- `cargo test -p local-minimal-node --offline test_local_minimal_profile_treats_duplicate_disconnect_as_idempotent_for_same_session -- --exact --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline test_local_minimal_profile_treats_duplicate_disconnect_as_idempotent_for_same_session -- --exact --nocapture`
   - failed:
     - left: `409`
     - right: `200`
@@ -91,7 +91,7 @@ This is a narrow carve-out, not a rollback of the reconnect-required standard.
 ### Green
 
 - `cargo test -p session-gateway --offline test_session_gateway_treats_duplicate_disconnect_as_idempotent_for_same_session -- --exact --nocapture`
-- `cargo test -p local-minimal-node --offline test_local_minimal_profile_treats_duplicate_disconnect_as_idempotent_for_same_session -- --exact --nocapture`
+- `cargo test -p sdkwork-im-gateway --offline test_local_minimal_profile_treats_duplicate_disconnect_as_idempotent_for_same_session -- --exact --nocapture`
 - `cargo test -p session-gateway --offline disconnect_fence_requires_resume_until_cleared -- --nocapture`
 
 Observed green result:

@@ -4,30 +4,34 @@ Sdkwork IM is a multi-service Rust workspace, not a single binary with optional 
 documentation is easiest to understand through five architectural lenses:
 
 1. The workspace layout and contract crates
-2. The IM open-platform `local-minimal-node`
+2. Topology v2 connectivity planes (`application.public-ingress` + `platform.api-gateway`)
 3. The separate `control-plane-api`
-4. The unified `sdkwork-im-gateway` / `sdkwork-im-server` external boundary
+4. The unified `sdkwork-im-gateway` / `sdkwork-im-server` application ingress
 5. The runtime-directory persistence contract and shared storage baseline
 
 ## Core Architecture Facts
 
 | Fact | Current implementation |
 | --- | --- |
-| Default app runtime | `services/local-minimal-node` |
-| Unified server binary | `services/sdkwork-im-gateway` with `[[bin]] name = "sdkwork-im-server"` |
+| Application ingress binary | `services/sdkwork-im-gateway` with `[[bin]] name = "sdkwork-im-server"` |
 | Default IM open-platform prefix | `/im/v3/api/*` |
 | Default app-development prefix | `/app/v3/api/*` |
 | Default backend/operator prefix | `/backend/v3/api/*` |
-| Default local app bind address | `127.0.0.1:18090` |
+| Default dev application ingress | `127.0.0.1:18079` (`self-hosted.split-services.development`) |
+| Default dev platform gateway | `127.0.0.1:3900` (sibling `sdkwork-api-gateway`) |
+| Production IM host | `im.sdkwork.com` |
+| Production platform gateway | `api.sdkwork.com` |
 | Standalone control-plane bind address | `127.0.0.1:18081` |
 | Public auth model | SDKWork dual token at appbase boundary; verified AppContext projection inside sdkwork-im |
-| Default local runtime directory | `.runtime/local-minimal` |
 | Control-plane permissions | `control.read` and `control.write` |
 
-## App Runtime
+## Application Ingress
 
-`services/local-minimal-node` is the current default business runtime. It assembles the following
-domains into one HTTP process:
+`sdkwork-im-server` is the packaged application ingress. In `split-services` layouts it proxies to
+internal IM services declared in `specs/topology.spec.json`. In `unified-process` layouts it runs the
+assembled runtime in one process for smoke and local verification.
+
+Domains exposed through the ingress include:
 
 - client route recovery, presence, and realtime delivery
 - conversation lifecycle, inbox projection, membership, and read state
@@ -35,7 +39,7 @@ domains into one HTTP process:
 - notifications, automation, audit, and operator diagnostics
 - principal-profile, object-storage, RTC, and IoT-related provider health surfaces
 
-The main routing surface is declared in `services/local-minimal-node/src/node/build.rs`.
+Routing is implemented in `services/sdkwork-im-gateway`.
 
 ## Control Plane
 
@@ -52,7 +56,7 @@ binary that binds `127.0.0.1:18081` in `services/control-plane-api/src/main.rs`.
 
 ## Unified Gateway And Packaged Server
 
-`services/sdkwork-im-gateway` publishes the packaged single-port server boundary. Its discovery surface
+`services/sdkwork-im-gateway` publishes the packaged application ingress boundary. Its discovery surface
 includes `GET /openapi.json`, `GET /openapi/index.json`, and `GET /openapi/runtime-summary.json`,
 along with rendered docs and per-service OpenAPI proxies.
 
@@ -97,17 +101,10 @@ The platform-default provider registry currently selects these defaults:
 These defaults come from the platform provider registry contract and are surfaced through runtime
 tests for app, ops, and control-plane endpoints.
 
-## Why `local-default` Is Not Yet Its Own Topology
+## Retired Local Profiles
 
-The repository already includes `local-default` script, config, and Docker entry points, but the
-profile still reuses the current `local-minimal` service contract:
-
-- `deployments/docker-compose/local-default.yml` extends `local-minimal.yml`
-- the profile helper falls back to `.runtime/local-minimal`
-- `deployments/templates/local-default.env.example` still points at `.runtime/local-minimal`
-
-The docs therefore treat `local-default` as a compatibility and naming layer, not as a separate
-completed topology.
+`local-minimal-node`, `local-minimal`, and `local-default` are removed. Use topology profile ids under
+`configs/topology/` and `pnpm im:dev` / `pnpm server:dev` for development.
 
 ## What To Read Next
 

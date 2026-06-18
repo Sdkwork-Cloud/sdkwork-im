@@ -9,7 +9,7 @@
     - message post
     - message edit
     - message recall
-  - but `local-minimal-node` access gates for conversation-bound sub-capabilities only validated active membership:
+  - but `sdkwork-im-server` access gates for conversation-bound sub-capabilities only validated active membership:
     - `ensure_stream_open_access(...)`
     - `ensure_stream_session_conversation_member(...)`
     - `ensure_rtc_create_access(...)`
@@ -45,7 +45,7 @@ So the implementation is split as:
 
 - `conversation-runtime`
   - expose a reusable capability check based on durable conversation lifecycle truth
-- `local-minimal-node`
+- `sdkwork-im-server`
   - keep membership enforcement
   - additionally consult the runtime lifecycle gate before allowing conversation-bound write paths
 
@@ -62,7 +62,7 @@ This keeps the fix minimal while freezing the most dangerous mutation paths.
   - added `ensure_conversation_bound_write_allowed(...)`
   - introduced internal rule:
     - closed `agent_handoff` rejects further conversation-bound capability writes with `RuntimeError::Conflict`
-- `services/local-minimal-node/src/lib.rs`
+- `services/sdkwork-im-gateway/src/lib.rs`
   - added `ensure_conversation_bound_write_access(...)`
   - added `ensure_stream_session_write_access(...)`
   - renamed the RTC mutation gate behavior to enforce lifecycle-aware access for:
@@ -82,7 +82,7 @@ This keeps the fix minimal while freezing the most dangerous mutation paths.
 
 ## 5. Tests Added
 
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
   - `test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_local_profile`
   - `test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local_profile`
 
@@ -95,20 +95,20 @@ These tests prove both:
 
 ### Red
 
-- `cargo test -p local-minimal-node --offline test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_local_profile -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_local_profile -- --exact`
   - failed with `200 != 409`
-- `cargo test -p local-minimal-node --offline test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local_profile -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local_profile -- --exact`
   - failed with `200 != 409`
 
 ### Green
 
-- `cargo test -p local-minimal-node --offline test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_local_profile -- --exact`
-- `cargo test -p local-minimal-node --offline test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local_profile -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_stream_writes_in_local_profile -- --exact`
+- `cargo test -p sdkwork-im-gateway --offline test_closed_agent_handoff_blocks_conversation_bound_rtc_writes_in_local_profile -- --exact`
 
 ## 7. Remaining Risks
 
 - read-only `stream` history access after close is still allowed for active members; whether that should remain readable as audit/history or also freeze with lifecycle needs an explicit decision.
-- the new gate is currently enforced in `local-minimal-node`; any future gateway/edge profile must adopt the same invariant.
+- the new gate is currently enforced in `sdkwork-im-server`; any future gateway/edge profile must adopt the same invariant.
 - `agent_dialog` and `system_channel` still do not have equivalent cross-service lifecycle/capability rules.
 
 ## 8. Next Wave

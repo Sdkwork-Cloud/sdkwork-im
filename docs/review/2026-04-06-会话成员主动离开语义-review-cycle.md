@@ -41,7 +41,7 @@
 问题表现：
 
 - `conversation-runtime` 测试已进入 red，声明了 `/members/leave` 路由但未完成 handler
-- `local-minimal-node` 未挂接 `/members/leave`，导致 HTTP 直接返回 `404`
+- `sdkwork-im-server` 未挂接 `/members/leave`，导致 HTTP 直接返回 `404`
 
 风险：
 
@@ -100,7 +100,7 @@
 
 ### 5.3 接入层
 
-- `services/local-minimal-node/src/lib.rs`
+- `services/sdkwork-im-gateway/src/lib.rs`
   - 新增 `/im/v3/api/chat/conversations/{conversation_id}/members/leave`
   - 新增 `leave_conversation(...)`
   - 新增审计动作 `conversation.member_left`
@@ -113,7 +113,7 @@
   - `test_direct_conversation_rejects_leave_for_now`
 - `services/conversation-runtime/tests/http_smoke_test.rs`
   - `test_group_member_can_leave_roster_over_http`
-- `services/local-minimal-node/tests/access_control_e2e_test.rs`
+- `services/sdkwork-im-gateway/tests/access_control_e2e_test.rs`
   - `test_group_member_can_leave_and_then_loses_conversation_access`
 
 ## 7. 验证结果
@@ -122,11 +122,11 @@
 
 - `cargo test -p conversation-runtime --test conversation_flow_test --offline`
 - `cargo test -p conversation-runtime --test http_smoke_test --offline`
-- `cargo test -p local-minimal-node --test access_control_e2e_test --offline`
+- `cargo test -p sdkwork-im-gateway --test access_control_e2e_test --offline`
 - `cargo fmt --all`
 - `cargo test -p conversation-runtime --offline`
 - `cargo test -p projection-service --offline`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 - `cargo test --workspace --offline`
 
 ## 8. 当前剩余风险

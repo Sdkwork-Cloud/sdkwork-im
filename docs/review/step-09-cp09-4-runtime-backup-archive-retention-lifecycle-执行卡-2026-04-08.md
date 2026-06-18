@@ -25,7 +25,7 @@
 ## 本轮实际完成
 
 ### 1. archive 现在会写出正式 lifecycle metadata
-- `services/local-minimal-node/src/node/runtime_dir.rs`
+- `services/sdkwork-im-gateway/src/node/runtime_dir.rs`
   - 新增 `archive_runtime_backup_with_policy(...)`
   - archived snapshot 现在会写出 `archive-metadata.json`
   - `RuntimeDirArchiveView` 与 `RuntimeDirBackupCatalogItemView` 现已公开：
@@ -38,7 +38,7 @@
 - 这使 archive 不再只是“重命名一个目录”，而是开始具备生命周期语义。
 
 ### 2. retention / legal hold / prune 已有 owner seam
-- `services/local-minimal-node/src/node/runtime_dir.rs`
+- `services/sdkwork-im-gateway/src/node/runtime_dir.rs`
   - 新增 `prune_archived_runtime_backups(...)`
   - prune 只处理 archived snapshot
   - 缺 metadata 的 archived snapshot 会被明确跳过
@@ -47,7 +47,7 @@
 - 这意味着 archive 现在第一次具备“何时允许清理、何时必须保留”的真实治理路径。
 
 ### 3. CLI 与脚本已完整接通 lifecycle 动作
-- `services/local-minimal-node/src/main.rs`
+- `services/sdkwork-im-gateway/src/main.rs`
   - `archive-runtime-backup` 现已支持：
     - `--retention-days <days>`
     - `--legal-hold`
@@ -60,12 +60,12 @@
 - 更新脚本：
   - `bin/archive-runtime-backup-local.ps1`
   - `bin/archive-runtime-backup-local.sh`
-  - `bin/status-local.ps1`
-  - `bin/status-local.sh`
+  - `bin/retired-lifecycle-status.ps1`
+  - `bin/retired-lifecycle-status.sh`
   - `bin/_cmd-forward-powershell.cmd`
 
 ### 4. 自动化测试证明 archive lifecycle 行为正确
-- `services/local-minimal-node/tests/runtime_dir_backup_catalog_test.rs`
+- `services/sdkwork-im-gateway/tests/runtime_dir_backup_catalog_test.rs`
   - 先写红测，再验证：
     - 新函数不存在
     - 新 catalog 字段不存在
@@ -78,18 +78,18 @@
 ## TDD 证据
 
 ### Red
-- `cargo test -p local-minimal-node --offline --test runtime_dir_backup_catalog_test`
+- `cargo test -p sdkwork-im-gateway --offline --test runtime_dir_backup_catalog_test`
 - 红测失败点与预期一致：
   - 缺 `archive_runtime_backup_with_policy(...)`
   - 缺 `prune_archived_runtime_backups(...)`
   - 缺 archive lifecycle catalog fields
 
 ### Green
-- `cargo test -p local-minimal-node --offline --test runtime_dir_backup_catalog_test`
+- `cargo test -p sdkwork-im-gateway --offline --test runtime_dir_backup_catalog_test`
 
 ## 回归验证
 - `cargo fmt --all --check`
-- `cargo test -p local-minimal-node --offline`
+- `cargo test -p sdkwork-im-gateway --offline`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/archive-runtime-backup-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/prune-runtime-archives-local.ps1 -Help`
 

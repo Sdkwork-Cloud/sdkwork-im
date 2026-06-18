@@ -447,7 +447,7 @@ for (const requiredText of [
   'automation-service',
   'control-plane-api',
   'ops-service',
-  'local-minimal-node calls runtime',
+  'sdkwork-im-gateway calls runtime',
   'Flexible Distributed Deployment',
   'single-process local mode',
   'split service mode',

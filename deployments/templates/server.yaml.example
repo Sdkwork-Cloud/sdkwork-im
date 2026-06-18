@@ -20,10 +20,10 @@ network:
   trustForwardedHeaders: true
 
 publicEndpoints:
-  baseUrl: https://chat.example.com/sdkwork/chat
-  apiBaseUrl: https://chat.example.com/sdkwork/chat
-  websocketBaseUrl: wss://realtime.example.com/sdkwork/chat
-  docsBaseUrl: https://chat.example.com/sdkwork/chat/docs
+  baseUrl: https://im.sdkwork.com
+  apiBaseUrl: https://im.sdkwork.com
+  websocketBaseUrl: wss://im.sdkwork.com
+  docsBaseUrl: https://im.sdkwork.com/docs
 
 database:
   engine: postgresql
@@ -46,5 +46,5 @@ redis:
   tls: false
   maxConnections: 16
 
-storage:
-  postgresqlConfig: /etc/sdkwork/chat/postgresql.yaml
+browserOrigins:
+  - https://im.sdkwork.com

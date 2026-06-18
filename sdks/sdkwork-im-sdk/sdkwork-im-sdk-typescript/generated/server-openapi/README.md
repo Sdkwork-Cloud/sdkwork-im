@@ -18,7 +18,7 @@ pnpm add @sdkwork/im-sdk-generated
 import { SdkworkImClient } from '@sdkwork/im-sdk-generated';
 
 const client = new SdkworkImClient({
-  baseUrl: 'http://127.0.0.1:18090',
+  baseUrl: 'http://127.0.0.1:18079',
   timeout: 30000,
 });
 
@@ -44,7 +44,7 @@ Access-Token: <accessToken>
 import { SdkworkImClient } from '@sdkwork/im-sdk-generated';
 
 const client = new SdkworkImClient({
-  baseUrl: 'http://127.0.0.1:18090',
+  baseUrl: 'http://127.0.0.1:18079',
   timeout: 30000, // Request timeout in ms
   headers: {      // Custom headers
     'X-Custom-Header': 'value',
