@@ -25,7 +25,6 @@ use sdkwork_im_gateway_observability::{
 use sdkwork_im_openapi::{OpenApiServiceSpec, render_docs_html};
 use sdkwork_im_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
 use serde::Deserialize;
-use serde::Serialize;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeSet;
 use std::time::Duration;
@@ -35,6 +34,8 @@ use tokio_tungstenite::{
 };
 use tower::ServiceExt;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
+
+mod web_framework;
 
 const BROWSER_ORIGINS_ENV: &str = "SDKWORK_IM_BROWSER_ORIGINS";
 const IM_REALTIME_WEBSOCKET_PATH: &str = "/im/v3/api/realtime/ws";
@@ -68,13 +69,6 @@ struct GatewayState {
     product_runtime_router: Option<Router>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GatewayHealthResponse {
-    status: &'static str,
-    service: &'static str,
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct WebsocketAuthInitFrame {
@@ -102,9 +96,7 @@ pub fn build_app_with_registry_and_product_runtime(
     registry: RouteRegistry,
     product_runtime_router: Option<Router>,
 ) -> Router {
-    Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
+    let business_router = Router::new()
         .route("/openapi.json", get(openapi_json))
         .route("/openapi/index.json", get(openapi_index_json))
         .route(
@@ -124,22 +116,9 @@ pub fn build_app_with_registry_and_product_runtime(
             config,
             registry,
             product_runtime_router,
-        })
-        .layer(build_browser_cors_layer())
-}
+        });
 
-async fn healthz() -> Json<GatewayHealthResponse> {
-    Json(GatewayHealthResponse {
-        status: "ok",
-        service: "sdkwork-im-gateway",
-    })
-}
-
-async fn readyz() -> Json<GatewayHealthResponse> {
-    Json(GatewayHealthResponse {
-        status: "ok",
-        service: "sdkwork-im-gateway",
-    })
+    web_framework::wrap_gateway_router(business_router).layer(build_browser_cors_layer())
 }
 
 async fn openapi_json(State(state): State<GatewayState>) -> Result<Json<Value>, Response> {

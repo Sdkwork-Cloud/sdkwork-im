@@ -3,7 +3,7 @@
   "title": "SDKWork IM SDK",
   "apiVersion": "0.1.0",
   "openapiVersion": "3.1.0",
-  "authoritySpec": "openapi/sdkwork-im-im.openapi.yaml",
+  "authoritySpec": "../../apis/open-api/im/sdkwork-im-im.openapi.yaml",
   "generationInputSpec": "openapi/sdkwork-im-im.sdkgen.yaml",
   "derivedSpecs": {
     "default": "openapi/sdkwork-im-im.sdkgen.yaml",

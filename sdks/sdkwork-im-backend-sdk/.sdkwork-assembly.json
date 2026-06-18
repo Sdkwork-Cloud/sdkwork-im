@@ -3,7 +3,7 @@
   "title": "SDKWork IM Backend API SDK",
   "apiVersion": "0.1.0",
   "openapiVersion": "3.1.2",
-  "authoritySpec": "openapi/sdkwork-im-backend-api.openapi.yaml",
+  "authoritySpec": "../../apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml",
   "generationInputSpec": "openapi/sdkwork-im-backend-api.sdkgen.yaml",
   "derivedSpecs": {
     "default": "openapi/sdkwork-im-backend-api.sdkgen.yaml"

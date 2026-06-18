@@ -17,7 +17,8 @@ fn main() {
         .join("rpc")
         .join("sdkwork-im-rpc.manifest.json");
     let proto_root = repo_root
-        .join("proto")
+        .join("apis")
+        .join("rpc")
         .join("sdkwork")
         .join("communication");
 

@@ -51,6 +51,26 @@
       "purpose": "Database table naming, table profiles, schema registry, and prefix governance."
     },
     {
+      "file": "WEB_FRAMEWORK_SPEC.md",
+      "path": "../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
+      "purpose": "Mandatory sdkwork-web-framework integration for HTTP gateway and API runtimes."
+    },
+    {
+      "file": "WEB_BACKEND_SPEC.md",
+      "path": "../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "purpose": "HTTP handler, service, repository, and request-context layering."
+    },
+    {
+      "file": "SDKWORK_WORKSPACE_SPEC.md",
+      "path": "../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md",
+      "purpose": "Repository root directory dictionary, .sdkwork workspace, and agent discovery rules."
+    },
+    {
+      "file": "GITHUB_WORKFLOW_SPEC.md",
+      "path": "../sdkwork-specs/GITHUB_WORKFLOW_SPEC.md",
+      "purpose": "sdkwork.workflow.json packaging, release, and GitHub Actions integration."
+    },
+    {
       "file": "DEPLOYMENT_SPEC.md",
       "path": "../sdkwork-specs/DEPLOYMENT_SPEC.md",
       "purpose": "SaaS/private/local runtime parity and deployment rules."
@@ -345,6 +365,14 @@
   "verification": {
     "commands": [
       "cargo test --workspace",
+      "pnpm test:sdkwork-workspace-structure-standard",
+      "pnpm test:web-framework-standard",
+      "pnpm test:database-framework-standard",
+      "pnpm test:topology-baggage",
+      "pnpm test:runtime-standard",
+      "pnpm test:rtc-signaling-boundary",
+      "pnpm test:rpc-contract",
+      "pnpm check:dependency-management",
       "node scripts/dev/sdkwork-im-database-naming-standard.test.mjs"
     ]
   },

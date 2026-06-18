@@ -59,7 +59,7 @@
   ],
   "contracts": {
     "rpcManifest": "rpc/sdkwork-im-rpc.manifest.json",
-    "protoRoot": "../../proto",
+    "protoRoot": "../../apis/rpc",
     "protoPackages": [
       "sdkwork.communication.app.v3",
       "sdkwork.communication.backend.v3",

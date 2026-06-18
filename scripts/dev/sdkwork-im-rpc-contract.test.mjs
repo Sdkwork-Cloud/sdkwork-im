@@ -57,19 +57,19 @@ function parseProtoMethods(relativePath) {
 }
 
 const requiredFiles = [
-  'proto/buf.yaml',
-  'proto/sdkwork/common/v1/context.proto',
-  'proto/sdkwork/common/v1/media.proto',
-  'proto/sdkwork/communication/app/v3/conversation_service.proto',
-  'proto/sdkwork/communication/app/v3/message_service.proto',
-  'proto/sdkwork/communication/app/v3/realtime_service.proto',
-  'proto/sdkwork/communication/app/v3/social_service.proto',
-  'proto/sdkwork/communication/app/v3/stream_service.proto',
-  'proto/sdkwork/communication/app/v3/call_service.proto',
-  'proto/sdkwork/communication/app/v3/notification_service.proto',
-  'proto/sdkwork/communication/app/v3/automation_service.proto',
-  'proto/sdkwork/communication/backend/v3/admin_service.proto',
-  'proto/sdkwork/communication/internal/v1/distributed_runtime_service.proto',
+  'apis/rpc/buf.yaml',
+  'apis/rpc/sdkwork/common/v1/context.proto',
+  'apis/rpc/sdkwork/common/v1/media.proto',
+  'apis/rpc/sdkwork/communication/app/v3/conversation_service.proto',
+  'apis/rpc/sdkwork/communication/app/v3/message_service.proto',
+  'apis/rpc/sdkwork/communication/app/v3/realtime_service.proto',
+  'apis/rpc/sdkwork/communication/app/v3/social_service.proto',
+  'apis/rpc/sdkwork/communication/app/v3/stream_service.proto',
+  'apis/rpc/sdkwork/communication/app/v3/call_service.proto',
+  'apis/rpc/sdkwork/communication/app/v3/notification_service.proto',
+  'apis/rpc/sdkwork/communication/app/v3/automation_service.proto',
+  'apis/rpc/sdkwork/communication/backend/v3/admin_service.proto',
+  'apis/rpc/sdkwork/communication/internal/v1/distributed_runtime_service.proto',
   'sdks/sdkwork-im-rpc-sdk/.sdkwork-assembly.json',
   'sdks/sdkwork-im-rpc-sdk/README.md',
   'sdks/sdkwork-im-rpc-sdk/rpc/sdkwork-im-rpc.manifest.json',
@@ -126,7 +126,7 @@ assert.equal(assembly.workspace, 'sdkwork-im-rpc-sdk');
 assert.equal(assembly.domain, 'communication');
 assert.equal(assembly.capability, 'chat');
 assert.deepEqual(assembly.discoverySurface.generatedProtocols, ['rpc']);
-assert.equal(assembly.discoverySurface.protoRoot, '../../proto');
+assert.equal(assembly.discoverySurface.protoRoot, '../../apis/rpc');
 assert.equal(assembly.rpcManifest, 'rpc/sdkwork-im-rpc.manifest.json');
 assert.equal(assembly.httpFamilyMapping.openApiSdkFamily, 'sdkwork-im-sdk');
 assert.equal(assembly.httpFamilyMapping.appApiSdkFamily, 'sdkwork-im-app-sdk');
@@ -306,7 +306,7 @@ assert.equal(manifest.domain, 'communication');
 assert.equal(manifest.sdkFamily, 'sdkwork-im-rpc-sdk');
 
 for (const relativePath of [
-  ...listFiles('proto').filter((entryPath) => entryPath.endsWith('.proto')),
+  ...listFiles('apis/rpc').filter((entryPath) => entryPath.endsWith('.proto')),
   ...listFiles('sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-typescript/generated/proto').filter(isRpcGeneratedTextSource),
   ...listFiles('sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-go/generated/proto').filter(isRpcGeneratedTextSource),
   ...listFiles('sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-java/generated/proto').filter(isRpcGeneratedTextSource),
@@ -375,16 +375,16 @@ for (const [packageName, services] of Object.entries(expectedServices)) {
 }
 
 for (const [relativePath, packageName] of [
-  ['proto/sdkwork/communication/app/v3/conversation_service.proto', 'sdkwork.communication.app.v3'],
-  ['proto/sdkwork/communication/app/v3/message_service.proto', 'sdkwork.communication.app.v3'],
-  ['proto/sdkwork/communication/app/v3/realtime_service.proto', 'sdkwork.communication.app.v3'],
-  ['proto/sdkwork/communication/app/v3/social_service.proto', 'sdkwork.communication.app.v3'],
-  ['proto/sdkwork/communication/app/v3/stream_service.proto', 'sdkwork.communication.app.v3'],
-  ['proto/sdkwork/communication/app/v3/call_service.proto', 'sdkwork.communication.app.v3'],
-  ['proto/sdkwork/communication/app/v3/notification_service.proto', 'sdkwork.communication.app.v3'],
-  ['proto/sdkwork/communication/app/v3/automation_service.proto', 'sdkwork.communication.app.v3'],
-  ['proto/sdkwork/communication/backend/v3/admin_service.proto', 'sdkwork.communication.backend.v3'],
-  ['proto/sdkwork/communication/internal/v1/distributed_runtime_service.proto', 'sdkwork.communication.internal.v1'],
+  ['apis/rpc/sdkwork/communication/app/v3/conversation_service.proto', 'sdkwork.communication.app.v3'],
+  ['apis/rpc/sdkwork/communication/app/v3/message_service.proto', 'sdkwork.communication.app.v3'],
+  ['apis/rpc/sdkwork/communication/app/v3/realtime_service.proto', 'sdkwork.communication.app.v3'],
+  ['apis/rpc/sdkwork/communication/app/v3/social_service.proto', 'sdkwork.communication.app.v3'],
+  ['apis/rpc/sdkwork/communication/app/v3/stream_service.proto', 'sdkwork.communication.app.v3'],
+  ['apis/rpc/sdkwork/communication/app/v3/call_service.proto', 'sdkwork.communication.app.v3'],
+  ['apis/rpc/sdkwork/communication/app/v3/notification_service.proto', 'sdkwork.communication.app.v3'],
+  ['apis/rpc/sdkwork/communication/app/v3/automation_service.proto', 'sdkwork.communication.app.v3'],
+  ['apis/rpc/sdkwork/communication/backend/v3/admin_service.proto', 'sdkwork.communication.backend.v3'],
+  ['apis/rpc/sdkwork/communication/internal/v1/distributed_runtime_service.proto', 'sdkwork.communication.internal.v1'],
 ]) {
   const source = read(relativePath);
   assert.match(source, /syntax = "proto3";/u, `${relativePath} must use proto3.`);
@@ -631,6 +631,12 @@ const methodManifestSource = read('crates/sdkwork-im-rpc-service-rust/src/method
 assert.match(methodManifestSource, /RPC_METHOD_BINDINGS/u, 'Rust RPC service scaffold must expose RPC_METHOD_BINDINGS.');
 
 const serviceBindingSource = read('crates/sdkwork-im-rpc-service-rust/src/service_binding.rs');
+const rpcServiceBuildScript = read('crates/sdkwork-im-rpc-service-rust/build.rs');
+assert.match(
+  rpcServiceBuildScript,
+  /apis[\s\S]*rpc[\s\S]*sdkwork[\s\S]*communication/u,
+  'Rust RPC service build script must read proto sources from apis/rpc/sdkwork/communication.',
+);
 for (const requiredText of [
   'RpcRuntimeAdapter',
   'RpcServiceBinding',

@@ -187,19 +187,22 @@ fn test_resolve_app_context_for_request_exposes_appbase_context() {
     let resolved =
         resolve_app_context_for_request(&headers, "/app/v3/api/messages", "POST").expect("context");
 
-    assert_eq!(resolved.app_request_context.path, "/app/v3/api/messages");
-    assert_eq!(resolved.app_request_context.method, "POST");
-    assert!(resolved.app_request_context.auth_token_present);
-    assert!(resolved.app_request_context.access_token_present);
+    assert_eq!(
+        resolved.app_request_context.transport.path,
+        "/app/v3/api/messages"
+    );
+    assert_eq!(resolved.app_request_context.transport.method, "POST");
+    assert!(resolved.app_request_context.transport.auth_token_present);
+    assert!(resolved.app_request_context.transport.access_token_present);
     let principal = resolved
         .app_request_context
         .principal
         .as_ref()
         .expect("principal");
-    assert_eq!(principal.tenant_id, "t_demo");
-    assert_eq!(principal.organization_id.as_deref(), Some("o_demo"));
-    assert_eq!(principal.user_id, "u_demo");
-    assert_eq!(principal.app_id, "sdkwork-im");
+    assert_eq!(principal.tenant_id(), "t_demo");
+    assert_eq!(principal.organization_id(), Some("o_demo"));
+    assert_eq!(principal.user_id(), "u_demo");
+    assert_eq!(principal.app_id(), "sdkwork-im");
 }
 
 #[test]

@@ -38,6 +38,8 @@
     "test:topology-baggage": "node scripts/dev/sdkwork-im-topology-baggage.test.mjs",
     "test:workflow-commercial-gates": "node scripts/run-commercial-gates-governance-node-tests.mjs",
     "test:sdkwork-workspace-structure-standard": "node scripts/sdkwork-workspace-structure-standard.test.mjs",
+    "test:web-framework-standard": "node scripts/dev/sdkwork-im-web-framework-standard.test.mjs",
+    "test:database-framework-standard": "node scripts/dev/sdkwork-im-database-framework-standard.test.mjs",
     "test:sdkwork-im-pc-dev-command": "node scripts/dev/sdkwork-im-pc-dev-command.test.mjs",
     "test:sdkwork-im-pc-i18n": "node scripts/dev/sdkwork-im-pc-i18n.test.mjs",
     "test:sdkwork-im-pc-message-actions": "node scripts/dev/sdkwork-im-pc-message-actions.test.mjs",

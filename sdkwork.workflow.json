@@ -46,6 +46,13 @@
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
+      "id": "sdkwork-web-framework",
+      "repository": "Sdkwork-Cloud/sdkwork-web-framework",
+      "ref": "main",
+      "refInput": "SDKWORK_WEB_FRAMEWORK_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
       "id": "sdkwork-ui",
       "repository": "Sdkwork-Cloud/sdkwork-ui",
       "ref": "672b9a990cdd077422f60651fbc9413b44343ab2",

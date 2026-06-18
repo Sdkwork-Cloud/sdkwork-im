@@ -7,6 +7,7 @@ members = [
     "adapters/redis-cache",
     "adapters/social-postgres",
     "adapters/object-storage-s3",
+    "crates/sdkwork-im-database-pool",
     "crates/sdkwork-im-contract-admin",
     "crates/sdkwork-im-contract-agent",
     "crates/sdkwork-im-contract-control",
@@ -99,10 +100,12 @@ sdkwork-api-config = { path = "crates/sdkwork-api-config" }
 # implement.
 sdkwork_id = { path = "../sdkwork-appbase/crates/sdkwork-platform-id-service", package = "sdkwork-platform-id-service" }
 sdkwork_web_core = { path = "../sdkwork-web-framework/crates/sdkwork-web-core", package = "sdkwork-web-core" }
+sdkwork_web_axum = { path = "../sdkwork-web-framework/crates/sdkwork-web-axum", package = "sdkwork-web-axum" }
+sdkwork_web_bootstrap = { path = "../sdkwork-web-framework/crates/sdkwork-web-bootstrap", package = "sdkwork-web-bootstrap" }
 # DATABASE_SPEC §33: unified database config (env, pool, table prefix).
-# All PostgreSQL adapters consume this; the sqlx pool builder lives in a
-# companion crate `sdkwork-database-sqlx` that is not required here.
 sdkwork_database_config = { path = "../sdkwork-database/crates/sdkwork-database-config", package = "sdkwork-database-config" }
+sdkwork_database_sqlx = { path = "../sdkwork-database/crates/sdkwork-database-sqlx", package = "sdkwork-database-sqlx" }
+sdkwork_iam_web_adapter = { path = "../sdkwork-appbase/crates/sdkwork-iam-web-adapter", package = "sdkwork-iam-web-adapter" }
 # IM consumes RTC media/provider runtime from the canonical `sdkwork-rtc`
 # authority workspace. Signaling remains IM-owned; RTC must not depend back on IM.
 sdkwork-communication-rtc-service = { path = "../sdkwork-rtc/crates/sdkwork-communication-rtc-service" }

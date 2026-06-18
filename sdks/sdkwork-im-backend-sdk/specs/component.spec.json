@@ -139,7 +139,7 @@
     "apiAuthority": {
       "name": "sdkwork-im-backend-api",
       "prefix": "/backend/v3/api",
-      "authorityOpenApi": "openapi/sdkwork-im-backend-api.openapi.yaml",
+      "authorityOpenApi": "../../apis/backend-api/communication/sdkwork-im-backend-api.openapi.yaml",
       "derivedOpenApi": [
         "openapi/sdkwork-im-backend-api.sdkgen.yaml"
       ],

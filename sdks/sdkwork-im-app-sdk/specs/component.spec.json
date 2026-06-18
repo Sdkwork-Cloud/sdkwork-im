@@ -139,7 +139,7 @@
     "apiAuthority": {
       "name": "sdkwork-im-app-api",
       "prefix": "/app/v3/api",
-      "authorityOpenApi": "openapi/sdkwork-im-app-api.openapi.yaml",
+      "authorityOpenApi": "../../apis/app-api/communication/sdkwork-im-app-api.openapi.yaml",
       "derivedOpenApi": [
         "openapi/sdkwork-im-app-api.sdkgen.yaml",
         "openapi/sdkwork-im-app-api.flutter.sdkgen.yaml"

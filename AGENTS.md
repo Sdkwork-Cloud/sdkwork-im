@@ -39,8 +39,15 @@ Read `sdkwork.app.config.json` before changing application behavior, runtime con
 - `.sdkwork/`: reserved local dictionary folder; create only for local skills, plugins, manifests, or AI workspace metadata.
 - `specs/`: local application/component contracts and narrowing rules.
 - `sdks/`: SDK families, OpenAPI authorities, route manifests, and generated SDK artifacts.
+- `apis/`: authored OpenAPI and RPC contract authorities.
+- `configs/`: runtime topology and deployment profile templates.
+- `sdkwork.workflow.json`: GitHub packaging/release workflow manifest (`GITHUB_WORKFLOW_SPEC.md`).
 - `package.json`, `Cargo.toml`: language/build manifests.
-- Local directories to inspect first when relevant: `.github/`, `adapters/`, `apps/`, `artifacts/`, `bin/`, `config/`, `crates/`, `deployments/`, `docs/`, `external/`, `scripts/`, `sdks/`.
+- Standard SDKWork directories: `apis/`, `apps/`, `crates/`, `sdks/`, `jobs/`, `tools/`, `plugins/`, `examples/`, `configs/`, `deployments/`, `scripts/`, `docs/`, `tests/`.
+- Legacy layout retained during migration: `services/`, `adapters/`, `bin/`, `config/`, `artifacts/`, `external/`.
+- Platform frameworks (sibling repos, declared in `Cargo.toml` and `sdkwork.workflow.json`):
+  `../sdkwork-web-framework` for HTTP `*-api` runtimes, `../sdkwork-database` for persistence pools.
+  `../sdkwork-discovery` is deferred until hosted gRPC RPC service processes ship.
 
 ## Spec Resolution Order
 
@@ -90,6 +97,11 @@ Run commands from this directory unless a command explicitly targets another pat
 - `pnpm run test:sdkwork-im-pc-i18n`: run the configured test suite for this scope.
 - `pnpm run test:sdkwork-im-pc-sidebar-modules`: run the configured test suite for this scope.
 - `pnpm run test:workflow-commercial-gates`: run the configured test suite for this scope.
+- `pnpm run test:sdkwork-workspace-structure-standard`: verify SDKWork workspace dictionary and manifests.
+- `pnpm run test:web-framework-standard`: verify `sdkwork-web-framework` gateway integration.
+- `pnpm run test:database-framework-standard`: verify `sdkwork-database` pool integration.
+- `pnpm run test:rpc-contract`: verify RPC proto/manifest/SDK contract alignment.
+- `pnpm run check:dependency-management`: verify sibling framework dependency declarations.
 - `cargo fmt --all --check`: verify Rust formatting across workspace crates.
 - `cargo test --workspace`: run workspace Rust tests.
 - `cargo clippy --workspace --tests -- -D warnings`: lint Rust tests and crates with warnings denied.

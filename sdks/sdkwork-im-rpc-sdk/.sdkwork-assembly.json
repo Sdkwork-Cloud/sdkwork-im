@@ -8,7 +8,7 @@
   "rpcManifest": "rpc/sdkwork-im-rpc.manifest.json",
   "discoverySurface": {
     "sdkTarget": "communication-rpc",
-    "protoRoot": "../../proto",
+    "protoRoot": "../../apis/rpc",
     "generatedProtocols": [
       "rpc"
     ],

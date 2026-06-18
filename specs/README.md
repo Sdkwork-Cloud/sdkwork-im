@@ -33,6 +33,16 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 - Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
 - Generated SDK language outputs are represented at their SDK family root instead of duplicating local specs in generated folders.
 
+## Platform Framework Alignment
+
+| Framework | Status | Integration point |
+| --- | --- | --- |
+| `sdkwork-web-framework` | **Integrated** | `Cargo.toml` workspace deps (`sdkwork-web-core`, `sdkwork-web-axum`, `sdkwork-web-bootstrap`, `sdkwork-iam-web-adapter`); gateway wraps routers in `services/sdkwork-im-gateway/src/web_framework.rs`. Verified by `pnpm test:web-framework-standard`. |
+| `sdkwork-database` | **Integrated** | `Cargo.toml` workspace deps (`sdkwork-database-config`, `sdkwork-database-sqlx`); pool bootstrap in `crates/sdkwork-im-database-pool`; postgres adapters consume unified pool config. Verified by `pnpm test:database-framework-standard`. |
+| `sdkwork-discovery` | **Deferred** | RPC contracts live under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`, but no hosted gRPC server is deployed yet. Integrate discovery when `RUST_RPC_SPEC.md` service hosts ship. |
+
+Sibling checkout and release refs are declared in `sdkwork.workflow.json` (`sdkwork-web-framework`, `sdkwork-database`).
+
 ## Canonical Specs
 
 | Spec | Applies Because |
@@ -42,6 +52,8 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | [COMPONENT_SPEC.md](../sdkwork-specs/COMPONENT_SPEC.md) | Local component specs directory and manifest rules. |
 | [CONFIG_SPEC.md](../sdkwork-specs/CONFIG_SPEC.md) | Runtime configuration, environment, SDK bootstrap, and feature flag rules. |
 | [DATABASE_SPEC.md](../sdkwork-specs/DATABASE_SPEC.md) | Database table naming, table profiles, schema registry, and prefix governance. |
+| [WEB_FRAMEWORK_SPEC.md](../sdkwork-specs/WEB_FRAMEWORK_SPEC.md) | Mandatory `sdkwork-web-framework` integration for HTTP gateway and API runtimes. |
+| [WEB_BACKEND_SPEC.md](../sdkwork-specs/WEB_BACKEND_SPEC.md) | HTTP handler/service/repository layering after the web framework boundary. |
 | [DEPENDENCY_MANAGEMENT_SPEC.md](../sdkwork-specs/DEPENDENCY_MANAGEMENT_SPEC.md) | Native workspace dependency declarations, sibling SDKWork source paths, and Git-backed release dependency refs. |
 | [DEPLOYMENT_SPEC.md](../sdkwork-specs/DEPLOYMENT_SPEC.md) | SaaS/private/local runtime parity and deployment rules. |
 | [DOCUMENTATION_SPEC.md](../sdkwork-specs/DOCUMENTATION_SPEC.md) | Module README, examples, ADR, changelog, and runbook rules. |
@@ -85,9 +97,14 @@ Historical `sdkwork-clawchat-*` package names were retired by the
 ## Verification
 
 - `cargo test --workspace`
+- `pnpm test:sdkwork-workspace-structure-standard`
+- `node scripts/sdkwork-workspace-structure-standard.test.mjs`
+- `pnpm test:web-framework-standard`
+- `pnpm test:database-framework-standard`
 - `pnpm test:topology-baggage`
 - `pnpm test:runtime-standard`
 - `pnpm test:rtc-signaling-boundary`
+- `pnpm test:rpc-contract`
+- `pnpm check:dependency-management`
 - `node scripts/dev/sdkwork-im-database-naming-standard.test.mjs`
-- `node scripts/sdkwork-workspace-structure-standard.test.mjs`
 - `node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json`

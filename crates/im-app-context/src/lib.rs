@@ -9,12 +9,12 @@ use axum::{
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use hmac::{Hmac, Mac};
-use sdkwork_web_core::{
-    classify_api_surface, new_request_id, ServerRequestId, WebAuthLevel, WebAuthMode,
-    WebDeploymentMode, WebEnvironment, WebLoginScope, WebRequestContext, WebRequestContextProfile,
-    WebRequestPrincipal, WebSubjectType, WebTransportFacts,
-};
 use sdkwork_im_ccp_core::{CcpActor, CcpAuthority, CcpSender};
+use sdkwork_web_core::{
+    ServerRequestId, WebAuthLevel, WebAuthMode, WebDeploymentMode, WebEnvironment, WebLoginScope,
+    WebRequestContext, WebRequestContextProfile, WebRequestPrincipal, WebSubjectType,
+    WebTransportFacts, classify_api_surface, new_request_id,
+};
 use serde_json::{Value, json};
 use sha2::Sha256;
 
@@ -511,6 +511,7 @@ where
     } else {
         "TENANT"
     };
+    let organization_id = dual_token_organization_id_claim(login_scope, &context.organization_id);
     let session_id = context
         .session_id
         .clone()
@@ -522,7 +523,7 @@ where
 
     let auth_token = encode_local_jwt_claims(json!({
         "tenant_id": context.tenant_id,
-        "organization_id": context.organization_id,
+        "organization_id": organization_id,
         "login_scope": login_scope,
         "user_id": context.user_id,
         "session_id": session_id,
@@ -532,7 +533,7 @@ where
     }));
     let access_token = encode_local_jwt_claims(json!({
         "tenant_id": context.tenant_id,
-        "organization_id": context.organization_id,
+        "organization_id": organization_id,
         "login_scope": login_scope,
         "user_id": context.user_id,
         "session_id": session_id,
@@ -595,6 +596,7 @@ pub fn resolve_app_context_for_request(
             auth_token_present: true,
             access_token_present: true,
             api_key_present: false,
+            oauth_bearer_present: false,
         },
         locale: None,
     };
@@ -692,13 +694,17 @@ fn resolve_principal(
                 .or_else(|| access_claims.optional(&["session_id", "sessionId", "sid"])),
         )
         .app_id(access_claims.required(&["app_id", "appId", "azp", "aud"], "access token app_id")?)
-        .environment(parse_environment(access_claims.optional(&["environment", "env"])))
+        .environment(parse_environment(
+            access_claims.optional(&["environment", "env"]),
+        ))
         .deployment_mode(parse_deployment_mode(
             access_claims.optional(&["deployment_mode", "deploymentMode"]),
         ))
-        .auth_level(parse_auth_level(
-            auth_claims.optional(&["auth_level", "authLevel", "acr"]),
-        ))
+        .auth_level(parse_auth_level(auth_claims.optional(&[
+            "auth_level",
+            "authLevel",
+            "acr",
+        ])))
         .data_scope(scope_vec(
             access_claims
                 .optional(&["data_scope", "dataScope"])
@@ -894,6 +900,16 @@ fn decode_jwt_payload(raw: &str) -> Result<Option<Value>, AppContextError> {
         AppContextError::invalid(format!("invalid token payload json: {error}"))
     })?;
     Ok(Some(value))
+}
+
+fn dual_token_organization_id_claim(login_scope: &str, organization_id: &str) -> String {
+    if login_scope.eq_ignore_ascii_case("TENANT") {
+        let trimmed = organization_id.trim();
+        if trimmed.is_empty() || trimmed == "default" {
+            return "0".to_owned();
+        }
+    }
+    organization_id.to_owned()
 }
 
 fn encode_local_jwt_claims(claims: Value) -> String {

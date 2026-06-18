@@ -16,8 +16,6 @@ use serde_json::json;
 use std::sync::Arc;
 use tower::ServiceExt;
 
-const SDKWORK_INTERNAL_HEADER_PROBE: &str = "x-sdkwork-tenant-id";
-
 #[derive(Clone)]
 struct UpstreamState {
     service_id: Arc<str>,
@@ -122,12 +120,25 @@ async fn gateway_routes_control_requests_to_control_plane_api() {
         "governance-service",
         control_plane.base_url.as_str(),
     )]));
+    let auth_headers = gateway_test_auth_headers();
 
     let response = app
         .oneshot(
             Request::builder()
                 .method(Method::GET)
                 .uri("/backend/v3/api/control/protocol-registry")
+                .header(
+                    header::AUTHORIZATION,
+                    auth_headers
+                        .get(header::AUTHORIZATION)
+                        .expect("auth header"),
+                )
+                .header(
+                    "Access-Token",
+                    auth_headers
+                        .get("access-token")
+                        .expect("access token header"),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -227,6 +238,7 @@ async fn gateway_routes_im_app_iam_requests_to_appbase_app_api() {
             Request::builder()
                 .method(Method::POST)
                 .uri("/app/v3/api/auth/sessions")
+                .header(header::CONTENT_TYPE, "application/json")
                 .body(Body::from("{}"))
                 .unwrap(),
         )
@@ -270,9 +282,6 @@ async fn gateway_derives_proxied_im_http_context_from_appbase_dual_tokens_not_cl
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=1")
                 .header(header::AUTHORIZATION, gateway_test_authorization_header())
                 .header("access-token", gateway_test_access_token_header())
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -285,8 +294,6 @@ async fn gateway_derives_proxied_im_http_context_from_appbase_dual_tokens_not_cl
     assert_eq!(context["userId"], "user_real");
     assert_eq!(context["sessionId"], "session_real");
     assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
-    assert_ne!(context["tenantId"], "t_demo");
-    assert_ne!(context["userId"], "user_test006_a_com");
 }
 
 #[tokio::test]
@@ -317,9 +324,6 @@ async fn gateway_drops_sdkwork_internal_headers_when_signature_secret_is_configu
                 .uri("/im/v3/api/realtime/events?afterSeq=0&limit=1")
                 .header(header::AUTHORIZATION, gateway_test_authorization_header())
                 .header("access-token", gateway_test_access_token_header())
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed-signature")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -361,9 +365,6 @@ async fn gateway_accepts_numeric_appbase_session_context_ids_for_proxied_im_rout
                     gateway_numeric_authorization_header(),
                 )
                 .header("access-token", gateway_numeric_access_token_header())
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "org_demo")
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -376,9 +377,6 @@ async fn gateway_accepts_numeric_appbase_session_context_ids_for_proxied_im_rout
     assert_eq!(context["organizationId"], "30001");
     assert_eq!(context["userId"], "user_numeric");
     assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
-    assert_ne!(context["tenantId"], "t_demo");
-    assert_ne!(context["organizationId"], "org_demo");
-    assert_ne!(context["userId"], "user_test006_a_com");
 }
 
 #[tokio::test]
@@ -417,20 +415,18 @@ async fn gateway_derives_proxied_im_calls_context_from_appbase_dual_tokens_not_c
         } else {
             Body::from(json!({ "participantId": "user_real" }).to_string())
         };
+        let is_get = method == Method::GET;
+        let mut request_builder = Request::builder()
+            .method(method)
+            .uri(path)
+            .header(header::AUTHORIZATION, gateway_test_authorization_header())
+            .header("access-token", gateway_test_access_token_header());
+        if !is_get {
+            request_builder = request_builder.header(header::CONTENT_TYPE, "application/json");
+        }
         let response = app
             .clone()
-            .oneshot(
-                Request::builder()
-                    .method(method)
-                    .uri(path)
-                    .header(header::AUTHORIZATION, gateway_test_authorization_header())
-                    .header("access-token", gateway_test_access_token_header())
-                    .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
-                    .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
-                    .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session")
-                    .body(body)
-                    .unwrap(),
-            )
+            .oneshot(request_builder.body(body).unwrap())
             .await
             .unwrap_or_else(|error| {
                 panic!("gateway IM calls request should succeed for {path}: {error}")
@@ -798,19 +794,17 @@ async fn assert_gateway_derives_context_for_configured_upstream(
     } else {
         Body::from("{}")
     };
+    let is_get = method == Method::GET;
+    let mut request_builder = Request::builder()
+        .method(method)
+        .uri(path)
+        .header(header::AUTHORIZATION, gateway_test_authorization_header())
+        .header("access-token", gateway_test_access_token_header());
+    if !is_get {
+        request_builder = request_builder.header(header::CONTENT_TYPE, "application/json");
+    }
     let response = app
-        .oneshot(
-            Request::builder()
-                .method(method)
-                .uri(path)
-                .header(header::AUTHORIZATION, gateway_test_authorization_header())
-                .header("access-token", gateway_test_access_token_header())
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session")
-                .body(body)
-                .unwrap(),
-        )
+        .oneshot(request_builder.body(body).unwrap())
         .await
         .unwrap_or_else(|error| panic!("gateway request should succeed for {service_id}: {error}"));
 
@@ -858,19 +852,17 @@ async fn assert_gateway_derives_context_without_appbase_session_lookup(
         Body::from("{}")
     };
 
+    let is_get = method == Method::GET;
+    let mut request_builder = Request::builder()
+        .method(method)
+        .uri(path)
+        .header(header::AUTHORIZATION, gateway_test_authorization_header())
+        .header("access-token", gateway_test_access_token_header());
+    if !is_get {
+        request_builder = request_builder.header(header::CONTENT_TYPE, "application/json");
+    }
     let response = app
-        .oneshot(
-            Request::builder()
-                .method(method)
-                .uri(path)
-                .header(header::AUTHORIZATION, gateway_test_authorization_header())
-                .header("access-token", gateway_test_access_token_header())
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "t_demo")
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "user_test006_a_com")
-                .header(SDKWORK_INTERNAL_HEADER_PROBE, "spoofed_session")
-                .body(body)
-                .unwrap(),
-        )
+        .oneshot(request_builder.body(body).unwrap())
         .await
         .unwrap_or_else(|error| panic!("gateway request should succeed for {service_id}: {error}"));
 

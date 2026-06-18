@@ -30,4 +30,4 @@ SDKWork Chat maintainers.
 
 ## Verification
 
-Run `pnpm run test:sdkwork-workspace-structure-standard` from the repository root.
+Run `pnpm run test:sdkwork-workspace-structure-standard`, `pnpm run test:web-framework-standard`, and `pnpm run test:database-framework-standard` from the repository root.

@@ -5,7 +5,7 @@ This component defines the Sdkwork IM communication gRPC SDK family. Root SDKWor
 ## Contract
 
 - RPC manifest: `../rpc/sdkwork-im-rpc.manifest.json`
-- Proto root: `../../../proto`
+- Proto root: `../../../apis/rpc`
 - Canonical packages: `sdkwork.communication.app.v3`, `sdkwork.communication.backend.v3`, `sdkwork.communication.internal.v1`, and `sdkwork.common.v1`
 
 ## Generated SDK Workspaces
