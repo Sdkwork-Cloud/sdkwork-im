@@ -1,5 +1,5 @@
 use im_platform_contracts::{
-    CommitJournal, CommitPosition, ContractError, LeaseGrant, LeaseStore, MetadataStore,
+    CommitEnvelope, CommitJournal, CommitPosition, ContractError, LeaseGrant, LeaseStore, MetadataStore,
     ObjectDescriptor, ObjectPutRequest, ObjectStore, RealtimeDisconnectFenceRecord,
     RealtimeDisconnectFenceStore, TimelineProjectionStore,
 };
@@ -14,7 +14,7 @@ struct NullDisconnectFenceStore;
 impl CommitJournal for NullJournal {
     fn append(
         &self,
-        _envelope: im_domain_events::CommitEnvelope,
+        _envelope: CommitEnvelope,
     ) -> Result<CommitPosition, ContractError> {
         Ok(CommitPosition::new("p0", 1))
     }
@@ -116,7 +116,7 @@ fn test_contract_types_are_usable_without_binding_to_a_vendor() {
     let projection = NullProjection;
     let disconnect_fence_store = NullDisconnectFenceStore;
     let lease_store = NullLeaseStore;
-    let position = journal.append(im_domain_events::CommitEnvelope::minimal(
+    let position = journal.append(CommitEnvelope::minimal(
         "evt_demo",
         "t_demo",
         "message.posted",

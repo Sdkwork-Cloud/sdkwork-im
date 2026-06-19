@@ -12,13 +12,12 @@ sdkwork-im-contract-core.workspace = true
 sdkwork-im-contract-message.workspace = true
 sdkwork-im-contract-notification.workspace = true
 sdkwork-im-contract-stream.workspace = true
-im-domain-core.workspace = true
-im-domain-events.workspace = true
 im-time.workspace = true
 sdkwork-communication-rtc-service.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
+im-domain-core.workspace = true
 sdkwork-im-ccp-binding-http.workspace = true
 sdkwork-im-ccp-binding-mqtt.workspace = true
 sdkwork-im-ccp-binding-sse.workspace = true

@@ -8,7 +8,6 @@ mod push_provider;
 mod search_provider;
 mod seq_allocator;
 
-pub use im_domain_core::rtc::{RtcStateRecord, RtcStateStore};
 pub use provider::*;
 pub use sdkwork_im_contract_admin::{AdminCapabilityProfileRecord, AdminCapabilityProfileStore};
 pub use sdkwork_im_contract_agent::{

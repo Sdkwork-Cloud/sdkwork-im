@@ -12,7 +12,7 @@ use sdkwork_im_contract_control::{
 use sdkwork_im_contract_core::{
     ContractError, MetadataStore, ObjectDescriptor, ObjectPutRequest, ObjectStore,
 };
-use sdkwork_im_contract_message::{CommitJournal, CommitPosition, TimelineProjectionStore};
+use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition, TimelineProjectionStore};
 use sdkwork_im_contract_notification::{NotificationTaskRecord, NotificationTaskStore};
 use sdkwork_im_contract_stream::{StreamStateRecord, StreamStateStore};
 
@@ -66,7 +66,7 @@ impl ObjectStore for NullObjectStore {
 impl CommitJournal for NullCommitJournal {
     fn append(
         &self,
-        _envelope: im_domain_events::CommitEnvelope,
+        _envelope: CommitEnvelope,
     ) -> Result<CommitPosition, ContractError> {
         Ok(CommitPosition::new("message", 1))
     }
@@ -365,7 +365,7 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         })
         .expect("object put should succeed");
     let position = journal
-        .append(im_domain_events::CommitEnvelope::minimal(
+        .append(CommitEnvelope::minimal(
             "evt_contract_split",
             "t_demo",
             "message.posted",
@@ -412,9 +412,11 @@ fn test_step03_contract_split_exposes_real_crates_and_keeps_compatibility_facade
         type_name::<StreamStateRecord>(),
         type_name::<im_platform_contracts::StreamStateRecord>()
     );
+    // RtcStateRecord lives in im-domain-core::rtc; im-platform-contracts no
+    // longer re-exports it to keep the contract layer independent of domain.
     assert_eq!(
         type_name::<RtcStateRecord>(),
-        type_name::<im_platform_contracts::RtcStateRecord>()
+        type_name::<im_domain_core::rtc::RtcStateRecord>()
     );
     assert_eq!(
         type_name::<NotificationTaskRecord>(),
