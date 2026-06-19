@@ -547,6 +547,31 @@ assert.equal(workflowConfig.release?.changelog?.source, 'auto');
 assert.equal(workflowConfig.publish?.githubRelease, true);
 assert.equal(workflowConfig.publish?.workflowArtifact, true);
 assert.equal(workflowConfig.security?.artifactAttestations, true);
+assert.equal(workflowConfig.security?.sbomRequired, true, 'sdkwork.workflow.json must require SBOM when sdkwork.app.config.json does');
+assert.equal(workflowConfig.security?.signingRequired, true, 'sdkwork.workflow.json must require signing when sdkwork.app.config.json does');
+assert.ok(
+  Array.isArray(workflowConfig.lifecycle?.sbom) && workflowConfig.lifecycle.sbom.length > 0,
+  'sdkwork.workflow.json lifecycle.sbom must declare at least one step',
+);
+assert.ok(
+  Array.isArray(workflowConfig.lifecycle?.sign) && workflowConfig.lifecycle.sign.length > 0,
+  'sdkwork.workflow.json lifecycle.sign must declare at least one step',
+);
+assert.match(
+  workflowConfig.lifecycle?.sbom?.map((step) => step.run).join('\n') ?? '',
+  /SBOM generation is configured by release environment/u,
+  'sdkwork.workflow.json lifecycle.sbom must delegate SBOM generation to the release environment when sbomRequired is true',
+);
+assert.doesNotMatch(
+  workflowConfig.lifecycle?.sbom?.map((step) => step.run).join('\n') ?? '',
+  /SBOM generation is not required/u,
+  'sdkwork.workflow.json lifecycle.sbom must not contradict security.sbomRequired=true',
+);
+
+const appManifest = JSON.parse(readText('sdkwork.app.config.json'));
+assert.equal(appManifest.security?.sbomRequired, true, 'sdkwork.app.config.json must require SBOM evidence');
+assert.equal(appManifest.security?.signatureRequired, true, 'sdkwork.app.config.json must require release signatures');
+assert.equal(appManifest.security?.checksumRequired, true, 'sdkwork.app.config.json must require checksum evidence');
 assert.match(
   workflowConfig.lifecycle?.install?.map((step) => step.run).join('\n') ?? '',
   /SDKWORK_SHARED_SDK_GITHUB_TOKEN/u,

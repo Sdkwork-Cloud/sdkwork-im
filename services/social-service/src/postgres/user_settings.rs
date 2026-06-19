@@ -1,13 +1,17 @@
 //! User settings API handlers.
 
 use axum::Json;
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::extract::{Extension, Path, State};
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
+use im_app_context::AppContext;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use im_adapters_social_postgres::user_settings_store::UserSettingsStore;
+
 use crate::postgres::http::PostgresAppState;
+use crate::postgres::service_http::require_request_scope;
 
 #[derive(Debug, Serialize)]
 pub struct UserSettingsResponse {
@@ -20,20 +24,47 @@ pub struct UpdateUserSettingsRequest {
 }
 
 pub async fn get_user_settings(
-    State(_state): State<PostgresAppState>,
-    Path(_user_id): Path<String>,
+    State(state): State<PostgresAppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
+    Path(user_id): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    // TODO: Implement
-    Ok(Json(UserSettingsResponse {
-        settings: HashMap::new(),
-    }))
+    let scope = require_request_scope(auth, &headers)?;
+    if scope.user_id != user_id {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    match state.user_settings_store.list_by_user(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        user_id.as_str(),
+    ) {
+        Ok(settings) => Ok(Json(UserSettingsResponse { settings })),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 pub async fn update_user_settings(
-    State(_state): State<PostgresAppState>,
-    Path(_user_id): Path<String>,
-    Json(_request): Json<UpdateUserSettingsRequest>,
+    State(state): State<PostgresAppState>,
+    headers: HeaderMap,
+    auth: Option<Extension<AppContext>>,
+    Path(user_id): Path<String>,
+    Json(request): Json<UpdateUserSettingsRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    // TODO: Implement
-    Ok(StatusCode::NO_CONTENT)
+    let scope = require_request_scope(auth, &headers)?;
+    if scope.user_id != user_id {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    match state.user_settings_store.upsert_settings(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        user_id.as_str(),
+        &request.settings,
+        now.as_str(),
+    ) {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }

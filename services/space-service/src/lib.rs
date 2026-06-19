@@ -9,6 +9,7 @@ mod channel_access_rule;
 mod group;
 mod group_member;
 mod http;
+mod id;
 mod invitation;
 mod openapi;
 mod service_http;

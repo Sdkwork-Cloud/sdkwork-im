@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use im_adapters_social_postgres::organization_store::{SpaceRecord, SpaceStore};
 
 use crate::http::AppState;
+use crate::id::next_entity_id;
 use crate::service_http::require_request_scope;
 
 #[derive(Debug, Deserialize)]
@@ -62,12 +63,6 @@ pub struct ListQuery {
     pub limit: Option<i64>,
 }
 
-fn generate_id() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    format!("{}", duration.as_millis())
-}
-
 pub async fn create_space(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -76,13 +71,13 @@ pub async fn create_space(
 ) -> Result<impl IntoResponse, StatusCode> {
     let scope = require_request_scope(auth, &headers)?;
 
-    let space_id = generate_id();
+    let space_id = next_entity_id(&state.id_generator)?;
     let now = chrono::Utc::now().to_rfc3339();
 
     let record = SpaceRecord {
         tenant_id: scope.tenant_id,
         organization_id: scope.organization_id,
-        space_id: space_id.parse().unwrap_or(0),
+        space_id,
         space_name: request.space_name,
         space_type: request
             .space_type
@@ -101,7 +96,10 @@ pub async fn create_space(
             let response = SpaceResponse::from(record);
             Ok((StatusCode::CREATED, Json(response)))
         }
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(error) => {
+            tracing::error!(error = ?error, "failed to insert space record");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }
 
@@ -125,7 +123,10 @@ pub async fn list_spaces(
                 records.into_iter().map(SpaceResponse::from).collect();
             Ok(Json(response))
         }
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(error) => {
+            tracing::error!(error = ?error, "failed to list spaces");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }
 
@@ -136,7 +137,10 @@ pub async fn get_space(
     Path(space_id): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let scope = require_request_scope(auth, &headers)?;
-    let sid: i64 = space_id.parse().unwrap_or(0);
+    let sid: i64 = space_id.parse().map_err(|_| {
+        tracing::warn!("invalid space_id path parameter: {space_id}");
+        StatusCode::BAD_REQUEST
+    })?;
 
     match state.space_store.get_by_id(
         scope.tenant_id.as_str(),
@@ -145,7 +149,10 @@ pub async fn get_space(
     ) {
         Ok(Some(record)) => Ok(Json(SpaceResponse::from(record))),
         Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(error) => {
+            tracing::error!(error = ?error, "failed to get space {sid}");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }
 
@@ -157,7 +164,10 @@ pub async fn update_space(
     Json(request): Json<UpdateSpaceRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let scope = require_request_scope(auth, &headers)?;
-    let sid: i64 = space_id.parse().unwrap_or(0);
+    let sid: i64 = space_id.parse().map_err(|_| {
+        tracing::warn!("invalid space_id path parameter: {space_id}");
+        StatusCode::BAD_REQUEST
+    })?;
     let now = chrono::Utc::now().to_rfc3339();
 
     match state.space_store.get_by_id(
@@ -182,11 +192,17 @@ pub async fn update_space(
 
             match state.space_store.update(&record) {
                 Ok(()) => Ok(StatusCode::NO_CONTENT),
-                Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+                Err(error) => {
+                    tracing::error!(error = ?error, "failed to update space {sid}");
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
             }
         }
         Ok(None) => Err(StatusCode::NOT_FOUND),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(error) => {
+            tracing::error!(error = ?error, "failed to get space {sid} for update");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }
 
@@ -197,7 +213,10 @@ pub async fn delete_space(
     Path(space_id): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let scope = require_request_scope(auth, &headers)?;
-    let sid: i64 = space_id.parse().unwrap_or(0);
+    let sid: i64 = space_id.parse().map_err(|_| {
+        tracing::warn!("invalid space_id path parameter: {space_id}");
+        StatusCode::BAD_REQUEST
+    })?;
 
     match state.space_store.delete(
         scope.tenant_id.as_str(),
@@ -205,6 +224,9 @@ pub async fn delete_space(
         sid,
     ) {
         Ok(()) => Ok(StatusCode::NO_CONTENT),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+        Err(error) => {
+            tracing::error!(error = ?error, "failed to delete space {sid}");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }

@@ -11,6 +11,8 @@ pub mod friendship_store;
 pub mod organization_store;
 pub mod shared_channel_store;
 pub mod user_block_store;
+pub mod user_profile_store;
+pub mod user_settings_store;
 
 pub use config::SocialPostgresConfig;
 

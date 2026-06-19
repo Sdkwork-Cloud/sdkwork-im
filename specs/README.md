@@ -39,7 +39,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- | --- |
 | `sdkwork-web-framework` | **Integrated** | `Cargo.toml` workspace deps (`sdkwork-web-core`, `sdkwork-web-axum`, `sdkwork-web-bootstrap`, `sdkwork-iam-web-adapter`); gateway wraps routers in `services/sdkwork-im-gateway/src/web_framework.rs`. Verified by `pnpm test:web-framework-standard`. |
 | `sdkwork-database` | **Integrated** | `Cargo.toml` workspace deps (`sdkwork-database-config`, `sdkwork-database-sqlx`); pool bootstrap in `crates/sdkwork-im-database-pool`; postgres adapters consume unified pool config. Verified by `pnpm test:database-framework-standard`. |
-| `sdkwork-discovery` | **Deferred** | RPC contracts live under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`, but no hosted gRPC server is deployed yet. Integrate discovery when `RUST_RPC_SPEC.md` service hosts ship. |
+| `sdkwork-discovery` | **Deferred** | RPC contracts live under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`, but no hosted gRPC server is deployed yet. Phased adoption plan: [ADR-20260619-im-rpc-discovery-integration-deferred](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md). |
 
 Sibling checkout and release refs are declared in `sdkwork.workflow.json` (`sdkwork-web-framework`, `sdkwork-database`).
 
@@ -78,6 +78,7 @@ Sibling checkout and release refs are declared in `sdkwork.workflow.json` (`sdkw
 
 - [im-app-api-sdk-integration.spec.md](./im-app-api-sdk-integration.spec.md) defines Sdkwork IM's IM API, IM app API, IM backend API, product SDK ownership, IAM login integration, shared database, local source-link development, and git-backed release dependency rules.
 - [../docs/architecture/decisions/ADR-20260617-comms-service-naming-boundaries.md](../docs/architecture/decisions/ADR-20260617-comms-service-naming-boundaries.md) records canonical communication service ids, social/space ownership, and deprecated contact/interaction HTTP surfaces.
+- [../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md) records phased `sdkwork-discovery` adoption after the first IM RPC service host ships.
 - [database-prefix-registry.json](./database-prefix-registry.json) registers `im` as the controlled prefix for instant-messaging tables in the `im` app.
 - [database-table-registry.json](./database-table-registry.json) lists the checked-in IM table contracts, table profiles, write owners, and migration source.
 - [database-table-naming-standard.md](../docs/部署/database-table-naming-standard.md) documents the local naming policy: IM tables use `im_`; non-IM tables keep their own business prefix or approved legacy name.
@@ -106,5 +107,10 @@ Historical `sdkwork-clawchat-*` package names were retired by the
 - `pnpm test:rtc-signaling-boundary`
 - `pnpm test:rpc-contract`
 - `pnpm check:dependency-management`
-- `node scripts/dev/sdkwork-im-database-naming-standard.test.mjs`
+- `pnpm test:database-naming-standard`
+- `pnpm test:component-spec-consistency`
+- `pnpm test:runtime-id-standard`
+- `pnpm test:deprecated-service-boundary`
+- `pnpm test:apis-authority-standard`
+- `pnpm verify:standards`
 - `node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json`

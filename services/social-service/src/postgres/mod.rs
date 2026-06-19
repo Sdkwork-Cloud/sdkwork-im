@@ -3,6 +3,7 @@ mod bootstrap;
 mod direct_chat;
 mod friendship;
 mod http;
+mod id;
 mod service_http;
 mod user_profile;
 mod user_settings;

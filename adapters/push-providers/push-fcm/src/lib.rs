@@ -14,6 +14,9 @@ use im_platform_contracts::{
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_contract_core::ContractError;
 
+/// FCM HTTP v1 endpoint prefix. Used by `FcmConfig::endpoint` once the
+/// `make_request` stub is wired to a real HTTP client.
+#[allow(dead_code)]
 const FCM_HTTP_V1_URL: &str = "https://fcm.googleapis.com/v1/projects";
 
 /// FCM adapter configuration.
@@ -34,6 +37,10 @@ impl FcmConfig {
         })
     }
 
+    /// Build the FCM HTTP v1 `messages:send` endpoint for this project.
+    /// Currently exercised by tests; production use resumes once `make_request`
+    /// is wired to a real HTTP client.
+    #[allow(dead_code)]
     fn endpoint(&self) -> String {
         format!("{}/{}/messages:send", FCM_HTTP_V1_URL, self.project_id)
     }

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use im_adapters_social_postgres::organization_store::{ChannelRecord, ChannelStore};
 
 use crate::http::AppState;
+use crate::id::next_entity_id;
 use crate::service_http::require_request_scope;
 
 #[derive(Debug, Deserialize)]
@@ -64,12 +65,6 @@ pub struct ListQuery {
     pub limit: Option<i64>,
 }
 
-fn generate_id() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    format!("{}", duration.as_millis())
-}
-
 pub async fn create_channel(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -78,13 +73,13 @@ pub async fn create_channel(
     Json(request): Json<CreateChannelRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let scope = require_request_scope(auth, &headers)?;
-    let channel_id = generate_id();
+    let channel_id = next_entity_id(&state.id_generator)?;
     let now = chrono::Utc::now().to_rfc3339();
 
     let record = ChannelRecord {
         tenant_id: scope.tenant_id,
         organization_id: scope.organization_id,
-        channel_id: channel_id.parse().unwrap_or(0),
+        channel_id,
         space_id: space_id.parse().unwrap_or(0),
         channel_name: request.channel_name,
         channel_type: request.channel_type.unwrap_or_else(|| "text".to_string()),

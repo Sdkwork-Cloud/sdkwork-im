@@ -6,6 +6,7 @@ use axum::Router;
 use axum::middleware;
 use axum::routing::{delete, get, post};
 use im_app_context::inject_app_request_context_middleware;
+use im_platform_contracts::IdGenerator;
 
 use crate::ban;
 use crate::channel;
@@ -22,6 +23,7 @@ pub struct AppState {
     pub space_store: Arc<dyn im_adapters_social_postgres::organization_store::SpaceStore>,
     pub group_store: Arc<dyn im_adapters_social_postgres::organization_store::GroupStore>,
     pub channel_store: Arc<dyn im_adapters_social_postgres::organization_store::ChannelStore>,
+    pub id_generator: Arc<dyn IdGenerator>,
 }
 
 pub fn build_embedded_app(state: AppState) -> Router {

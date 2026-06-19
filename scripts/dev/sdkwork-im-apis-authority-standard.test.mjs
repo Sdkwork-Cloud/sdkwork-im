@@ -55,7 +55,8 @@ for (const entry of authorityPairs) {
   assert.equal(assembly.authoritySpec, entry.expectedAuthoritySpec);
 
   const componentSpec = JSON.parse(read(entry.componentSpecPath));
-  const authorityOpenApi = componentSpec.sdkFamilies?.[0]?.authorityOpenApi
+  const authorityOpenApi = componentSpec.contracts?.apiAuthority?.authorityOpenApi
+    ?? componentSpec.sdkFamilies?.[0]?.authorityOpenApi
     ?? componentSpec.httpSdkFamily?.authorityOpenApi;
   assert.equal(authorityOpenApi, entry.expectedAuthoritySpec);
 }

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Component-spec â†?workspace crate consistency check.
+ * Component-spec ?workspace crate consistency check.
  *
  * Validates that the authored workspace stays aligned with `specs/component.spec.json`
  * and the SDKWork standards it references. This complements
  * `sdkwork-workspace-structure-standard.test.mjs` (which owns the directory dictionary
- * and governance artifacts) by focusing on the contract â†?implementation boundary:
+ * and governance artifacts) by focusing on the contract ?implementation boundary:
  *
  *  1. Every Cargo workspace member under crates/, services/, adapters/, tools/ ships a
  *     module README (DOCUMENTATION_SPEC.md module README rule).
@@ -127,8 +127,58 @@ assert.ok(
 for (const command of verificationCommands) {
   assert.match(
     command,
-    /^(cargo|node)\s+\S/u,
-    `specs/component.spec.json verification command must start with a known runner (cargo|node): ${command}`,
+    /^(cargo|node|pnpm)\s+\S/u,
+    `specs/component.spec.json verification command must start with a known runner (cargo|node|pnpm): ${command}`,
+  );
+}
+
+// --- 5. verification.commands resolve to package.json scripts when using pnpm ---
+
+const rootPackageJson = readJson('package.json');
+const rootScripts = rootPackageJson.scripts ?? {};
+for (const command of verificationCommands) {
+  const pnpmMatch = command.match(/^pnpm\s+([^\s]+)/u);
+  if (!pnpmMatch) {
+    continue;
+  }
+  const scriptName = pnpmMatch[1].replace(/^run:/u, '');
+  assert.ok(
+    Object.prototype.hasOwnProperty.call(rootScripts, scriptName),
+    `package.json must expose script "${scriptName}" for verification command: ${command}`,
+  );
+}
+
+// --- 6. sdkwork.app.config.json security aligns with sdkwork.workflow.json --------
+
+const appManifest = readJson('sdkwork.app.config.json');
+const workflowManifest = readJson('sdkwork.workflow.json');
+const appSecurity = appManifest.security ?? {};
+const workflowSecurity = workflowManifest.security ?? {};
+if (appSecurity.sbomRequired === true) {
+  assert.equal(
+    workflowSecurity.sbomRequired,
+    true,
+    'sdkwork.workflow.json security.sbomRequired must be true when sdkwork.app.config.json requires SBOM',
+  );
+}
+if (appSecurity.signatureRequired === true) {
+  assert.equal(
+    workflowSecurity.signingRequired,
+    true,
+    'sdkwork.workflow.json security.signingRequired must be true when sdkwork.app.config.json requires signatures',
+  );
+}
+const lifecycle = workflowManifest.lifecycle ?? {};
+if (workflowSecurity.sbomRequired === true) {
+  assert.ok(
+    Array.isArray(lifecycle.sbom) && lifecycle.sbom.length > 0,
+    'sdkwork.workflow.json lifecycle.sbom must declare at least one step when security.sbomRequired is true',
+  );
+}
+if (workflowSecurity.signingRequired === true) {
+  assert.ok(
+    Array.isArray(lifecycle.sign) && lifecycle.sign.length > 0,
+    'sdkwork.workflow.json lifecycle.sign must declare at least one step when security.signingRequired is true',
   );
 }
 

@@ -372,6 +372,9 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2
     devDependencies:
+      '@sdkwork/sdk-generator':
+        specifier: ^1.0.9
+        version: 1.0.9
       typescript:
         specifier: ^5.8.2
         version: 5.9.3

@@ -6,6 +6,7 @@ use axum::Router;
 use axum::middleware;
 use axum::routing::{delete, get, post};
 use im_app_context::inject_app_request_context_middleware;
+use im_platform_contracts::IdGenerator;
 
 use super::block;
 use super::direct_chat;
@@ -20,9 +21,14 @@ pub struct PostgresAppState {
         Arc<dyn im_adapters_social_postgres::friend_request_store::FriendRequestStore>,
     pub friendship_store: Arc<dyn im_adapters_social_postgres::friendship_store::FriendshipStore>,
     pub user_block_store: Arc<dyn im_adapters_social_postgres::user_block_store::UserBlockStore>,
+    pub user_profile_store:
+        Arc<dyn im_adapters_social_postgres::user_profile_store::UserProfileStore>,
+    pub user_settings_store:
+        Arc<dyn im_adapters_social_postgres::user_settings_store::UserSettingsStore>,
     pub direct_chat_store: Arc<dyn im_adapters_social_postgres::direct_chat_store::DirectChatStore>,
     pub presence_cache: Option<im_adapters_redis_cache::presence_cache::RedisPresenceCache>,
     pub session_cache: Option<im_adapters_redis_cache::session_cache::RedisSessionCache>,
+    pub id_generator: Arc<dyn IdGenerator>,
 }
 
 pub fn build_supplemental_app(state: PostgresAppState) -> Router {

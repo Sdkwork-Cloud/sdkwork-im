@@ -90,6 +90,8 @@ Run commands from this directory unless a command explicitly targets another pat
 - `pnpm run dev`: alias of `pnpm im:dev` for workspace compatibility.
 - `pnpm run check:commercial-readiness`: run repository verification or architecture checks.
 - `pnpm run test:database-naming-standard`: run the configured test suite for this scope.
+- `pnpm run test:component-spec-consistency`: verify component.spec.json and workspace crate README alignment.
+- `pnpm run test:apis-authority-standard`: verify OpenAPI authority mirrors and SDK assembly metadata.
 - `pnpm run test:runtime-standard`: run the configured test suite for this scope.
 - `pnpm run test:topology-baggage`: scan active paths for retired topology vocabulary.
 - `pnpm run test:rtc-signaling-boundary`: verify IM/RTC signaling boundary contracts.
@@ -101,7 +103,9 @@ Run commands from this directory unless a command explicitly targets another pat
 - `pnpm run test:web-framework-standard`: verify `sdkwork-web-framework` gateway integration.
 - `pnpm run test:database-framework-standard`: verify `sdkwork-database` pool integration.
 - `pnpm run test:rpc-contract`: verify RPC proto/manifest/SDK contract alignment.
-- `pnpm run check:dependency-management`: verify sibling framework dependency declarations.
+- `pnpm run verify:standards`: run the full SDKWork standards verification bundle for this repository.
+- `pnpm run test:runtime-id-standard`: verify runtime Snowflake ID generation standards.
+- `pnpm run test:deprecated-service-boundary`: verify deprecated service crates do not mount retired HTTP surfaces.
 - `cargo fmt --all --check`: verify Rust formatting across workspace crates.
 - `cargo test --workspace`: run workspace Rust tests.
 - `cargo clippy --workspace --tests -- -D warnings`: lint Rust tests and crates with warnings denied.

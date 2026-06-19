@@ -24,6 +24,7 @@
     "release:package:check": "node scripts/release/build-sdkwork-im-install-package.mjs --check --dry-run --all",
     "release:validate": "node scripts/release/validate-sdkwork-im-install-artifacts.mjs",
     "check:dependency-management": "node scripts/dependency-management-standard.test.mjs",
+    "verify:standards": "node scripts/run-sdkwork-im-standards-verification.mjs",
     "perf:materialize-step-11-capacity-evidence": "node scripts/perf/materialize-step-11-capacity-evidence.mjs",
     "perf:refresh-step-11-capacity-evidence-index": "node scripts/perf/refresh-step-11-capacity-evidence-index.mjs",
     "migrate:topology-v2-baggage": "node scripts/dev/migrate-topology-v2-baggage.mjs",
@@ -32,8 +33,12 @@
     "tauri:dev:postgres": "node scripts/im-dev.mjs --target desktop --database postgres",
     "tauri:dev:sqlite": "node scripts/im-dev.mjs --target desktop --database sqlite",
     "test:database-naming-standard": "node scripts/dev/sdkwork-im-database-naming-standard.test.mjs",
+    "test:component-spec-consistency": "node scripts/dev/sdkwork-im-component-spec-consistency.test.mjs",
+    "test:apis-authority-standard": "node scripts/dev/sdkwork-im-apis-authority-standard.test.mjs",
     "test:rpc-contract": "node scripts/dev/sdkwork-im-rpc-contract.test.mjs",
     "test:runtime-standard": "node scripts/dev/sdkwork-im-runtime-standard.test.mjs",
+    "test:runtime-id-standard": "node scripts/dev/sdkwork-im-runtime-id-standard.test.mjs",
+    "test:deprecated-service-boundary": "node scripts/dev/sdkwork-im-deprecated-service-boundary.test.mjs",
     "test:rtc-signaling-boundary": "node scripts/dev/sdkwork-im-rtc-signaling-boundary.test.mjs",
     "test:topology-baggage": "node scripts/dev/sdkwork-im-topology-baggage.test.mjs",
     "test:workflow-commercial-gates": "node scripts/run-commercial-gates-governance-node-tests.mjs",
@@ -52,6 +57,6 @@
   },
   "dependencies": {
     "@sdkwork/drive-app-sdk": "workspace:*",
-    "@sdkwork/app-topology": "file:../sdkwork-app-topology"
+    "@sdkwork/app-topology": "workspace:*"
   }
 }

@@ -228,6 +228,39 @@ function assertReleaseLifecycleDependencyGate() {
   );
 }
 
+function assertDiscoveryIntegrationDeferred() {
+  const workflow = readJson('sdkwork.workflow.json');
+  const dependencyIds = new Set((workflow.dependencies || []).map((dependency) => dependency.id));
+  assert(
+    !dependencyIds.has('sdkwork-discovery'),
+    'sdkwork.workflow.json must not declare sdkwork-discovery until ADR-20260619 Phase 1 RPC hosts ship',
+  );
+
+  const rootCargo = readText('Cargo.toml');
+  assert(
+    !/^\s*sdkwork[_-]discovery\s*=/mu.test(rootCargo)
+      && !/path\s*=\s*"\.\.\/sdkwork-discovery/u.test(rootCargo),
+    'Cargo.toml must not declare sdkwork-discovery workspace dependencies until hosted gRPC service processes ship',
+  );
+  assert(
+    /sdkwork-discovery is deferred until hosted gRPC RPC service processes ship/u.test(rootCargo),
+    'Cargo.toml must document deferred sdkwork-discovery integration',
+  );
+
+  const adrPath = 'docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md';
+  assert(fs.existsSync(path.join(repoRoot, adrPath)), `${adrPath} must document deferred sdkwork-discovery adoption`);
+
+  const specsReadme = readText('specs/README.md');
+  assert(
+    specsReadme.includes('ADR-20260619-im-rpc-discovery-integration-deferred.md'),
+    'specs/README.md must link the deferred sdkwork-discovery ADR',
+  );
+  assert(
+    /sdkwork-discovery[\s\S]*Deferred/u.test(specsReadme),
+    'specs/README.md must keep sdkwork-discovery status Deferred until RPC hosts ship',
+  );
+}
+
 function assertSharedGatewayFoundationIntegration() {
   const componentSpec = readJson('specs/component.spec.json');
   const componentSpecText = readText('specs/component.spec.json');
@@ -398,6 +431,7 @@ assertNoLocalMaterializer();
 assertCiMaterializer();
 assertWorkflowRefs();
 assertReleaseLifecycleDependencyGate();
+assertDiscoveryIntegrationDeferred();
 assertSharedGatewayFoundationIntegration();
 for (const relativePath of sourceDependencyFiles) {
   assertNativeDependencyFile(relativePath);

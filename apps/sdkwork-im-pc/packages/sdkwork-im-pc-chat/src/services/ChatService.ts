@@ -146,7 +146,6 @@ const CHAT_LIST_REALTIME_EVENT_TYPES = [
   'conversation.member_left',
   'conversation.owner_transferred',
 ];
-const CHAT_APP_ID = 'chat';
 const CHAT_DRIVE_SCENE = 'im';
 const CHAT_DRIVE_SOURCE = 'chat_message';
 const CHAT_DRIVE_APP_RESOURCE_TYPE = 'im_conversation';
@@ -1108,7 +1107,6 @@ async function uploadChatMediaFile({
   const uploadRequest: DriveUploaderRequest = {
     file,
     userId,
-    appId: CHAT_APP_ID,
     appResourceType: CHAT_DRIVE_APP_RESOURCE_TYPE,
     appResourceId: chatId,
     scene: CHAT_DRIVE_SCENE,
@@ -1116,7 +1114,6 @@ async function uploadChatMediaFile({
     ...(resolveMediaUploadProfile(type) ? { uploadProfileCode: resolveMediaUploadProfile(type) } : {}),
     originalFileName,
     ...(resolveMediaUploadContentType(type, file, extraInfo) ? { contentType: resolveMediaUploadContentType(type, file, extraInfo) } : {}),
-    operatorId: userId,
   };
 
   const uploader = getDriveUploader();

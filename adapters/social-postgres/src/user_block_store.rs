@@ -82,6 +82,13 @@ pub trait UserBlockStore: Send + Sync {
         blocked_id: &str,
         limit: i64,
     ) -> Result<Vec<UserBlockRecord>, ContractError>;
+    fn delete_by_blocker(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        block_id: i64,
+        blocker_user_id: &str,
+    ) -> Result<bool, ContractError>;
 }
 
 const INSERT_SQL: &str = r#"
@@ -125,6 +132,11 @@ FROM im_user_blocks
 WHERE tenant_id = $1 AND organization_id = $2 AND blocked_user_id = $3
 ORDER BY created_at DESC
 LIMIT $4
+"#;
+
+const DELETE_BY_BLOCKER_SQL: &str = r#"
+DELETE FROM im_user_blocks
+WHERE tenant_id = $1 AND organization_id = $2 AND block_id = $3 AND blocker_user_id = $4
 "#;
 
 fn row_to_record(row: &postgres::Row) -> UserBlockRecord {
@@ -261,6 +273,26 @@ impl UserBlockStore for PostgresUserBlockStore {
                 .query(LIST_BY_BLOCKED_SQL, &[&tid, &oid, &bid, &limit])
                 .map_err(|e| postgres_unavailable("list_user_blocks_by_blocked", e))?;
             Ok(rows.iter().map(row_to_record).collect())
+        })
+    }
+
+    fn delete_by_blocker(
+        &self,
+        tenant_id: &str,
+        org_id: &str,
+        block_id: i64,
+        blocker_user_id: &str,
+    ) -> Result<bool, ContractError> {
+        let pool = self.pool.clone();
+        let tid = tenant_id.to_string();
+        let oid = org_id.to_string();
+        let bid = blocker_user_id.to_string();
+        run_postgres_io(move || {
+            let mut client = postgres_pool_client(&pool, "delete_user_block_by_blocker")?;
+            let deleted = client
+                .execute(DELETE_BY_BLOCKER_SQL, &[&tid, &oid, &block_id, &bid])
+                .map_err(|e| postgres_unavailable("delete_user_block_by_blocker", e))?;
+            Ok(deleted > 0)
         })
     }
 }

@@ -49,7 +49,6 @@ export interface DriveService {
 }
 
 interface DriveServiceOptions {
-  appId?: string;
   appResourceId?: string;
   client?: SdkworkDriveAppClient;
   parentNodeId?: string;
@@ -61,7 +60,6 @@ type NodeListResponseLike = { items?: DriveNode[] };
 type SpaceListResponseLike = { items?: DriveSpace[] };
 
 const DRIVE_NODE_RESOURCE_ID_PREFIX = 'drive.node.';
-const DEFAULT_APP_ID = 'chat';
 const DEFAULT_APP_RESOURCE_TYPE = 'drive-file';
 const DEFAULT_APP_RESOURCE_ID = 'chat.pc.drive';
 const DEFAULT_SCENE = 'drive';
@@ -218,7 +216,6 @@ class SdkworkDriveService implements DriveService {
     const node = await this.client().drive.nodes.folders.create({
       id: createDriveNodeResourceId(folderName),
       nodeName: folderName,
-      operatorId: this.userId(),
       parentNodeId: this.options.parentNodeId,
       spaceId: space.id,
     });
@@ -257,7 +254,6 @@ class SdkworkDriveService implements DriveService {
       this.options.uploadProfileCode ?? DEFAULT_UPLOAD_PROFILE,
       {
         anonymousId: undefined,
-        appId: this.appId(),
         appResourceId: this.options.appResourceId ?? DEFAULT_APP_RESOURCE_ID,
         appResourceType: DEFAULT_APP_RESOURCE_TYPE,
         file,
@@ -267,7 +263,6 @@ class SdkworkDriveService implements DriveService {
         source: DEFAULT_SOURCE,
         uploadProfileCode: this.options.uploadProfileCode ?? DEFAULT_UPLOAD_PROFILE,
         userId,
-        operatorId: userId,
         spaceId: space.id,
       },
     );
@@ -285,14 +280,11 @@ class SdkworkDriveService implements DriveService {
   private async renameNode(id: string, newName: string): Promise<void> {
     await this.client().drive.nodes.update(requireValue(id, 'Drive node id'), {
       nodeName: normalizeName(newName, 'Node name'),
-      operatorId: this.userId(),
     });
   }
 
   private async deleteNode(id: string): Promise<void> {
-    await this.client().drive.nodes.delete(requireValue(id, 'Drive node id'), {
-      operatorId: this.userId(),
-    });
+    await this.client().drive.nodes.delete(requireValue(id, 'Drive node id'));
   }
 
   private async resolveSpace(): Promise<DriveSpace> {
@@ -324,10 +316,6 @@ class SdkworkDriveService implements DriveService {
 
   private userId(): string {
     return pickUserId(this.options.userId);
-  }
-
-  private appId(): string {
-    return requireValue(this.options.appId ?? DEFAULT_APP_ID, 'Drive app id');
   }
 }
 

@@ -7,8 +7,10 @@ use im_adapters_social_postgres::organization_store::{
     PostgresChannelStore, PostgresGroupStore, PostgresSpaceStore,
 };
 use im_adapters_social_postgres::{SocialPostgresConfig, SocialPostgresPool};
+use im_platform_contracts::IdGenerator;
 
 use crate::http::{AppState, build_embedded_app, build_public_app};
+use crate::id::build_runtime_id_generator;
 
 pub const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 
@@ -18,6 +20,7 @@ pub fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> AppState {
         space_store: Arc::new(PostgresSpaceStore::new(pool_arc.clone())),
         group_store: Arc::new(PostgresGroupStore::new(pool_arc.clone())),
         channel_store: Arc::new(PostgresChannelStore::new(pool_arc)),
+        id_generator: build_runtime_id_generator(),
     }
 }
 

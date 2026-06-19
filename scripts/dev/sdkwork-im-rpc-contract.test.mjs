@@ -650,4 +650,26 @@ for (const requiredText of [
   assert.match(serviceBindingSource, new RegExp(escapeRegex(requiredText), 'u'), `Rust RPC service binding scaffold must include ${requiredText}.`);
 }
 
+const workflow = readJson('sdkwork.workflow.json');
+const workflowDependencyIds = new Set((workflow.dependencies || []).map((dependency) => dependency.id));
+assert.equal(
+  workflowDependencyIds.has('sdkwork-discovery'),
+  false,
+  'sdkwork.workflow.json must not checkout sdkwork-discovery until ADR-20260619 Phase 1 RPC hosts ship',
+);
+assert.match(
+  read('Cargo.toml'),
+  /sdkwork-discovery is deferred until hosted gRPC RPC service processes ship/u,
+  'Cargo.toml must document deferred sdkwork-discovery integration',
+);
+assert.match(
+  read('AGENTS.md'),
+  /sdkwork-discovery.*deferred until hosted gRPC RPC service processes ship/u,
+  'AGENTS.md must document deferred sdkwork-discovery integration',
+);
+assert.ok(
+  fs.existsSync(repoPath('docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md')),
+  'ADR-20260619 must document phased sdkwork-discovery adoption',
+);
+
 console.log('sdkwork im RPC contract test passed');

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use im_adapters_social_postgres::user_block_store::{UserBlockRecord, UserBlockStore};
 
 use crate::postgres::http::PostgresAppState;
+use crate::postgres::id::next_entity_id;
 use crate::postgres::service_http::require_request_scope;
 
 #[derive(Debug, Deserialize)]
@@ -45,12 +46,6 @@ pub struct ListQuery {
     pub limit: Option<i64>,
 }
 
-fn generate_id() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    format!("{}", duration.as_millis())
-}
-
 pub async fn block_user(
     State(state): State<PostgresAppState>,
     headers: HeaderMap,
@@ -58,13 +53,13 @@ pub async fn block_user(
     Json(request): Json<BlockUserRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let scope = require_request_scope(auth, &headers)?;
-    let block_id = generate_id();
+    let block_id = next_entity_id(&state.id_generator)?;
     let now = chrono::Utc::now().to_rfc3339();
 
     let record = UserBlockRecord {
         tenant_id: scope.tenant_id,
         organization_id: scope.organization_id,
-        block_id: block_id.parse().unwrap_or(0),
+        block_id,
         blocker_user_id: scope.user_id,
         blocked_user_id: request.blocked_user_id,
         scope: request.scope.unwrap_or_else(|| "all".to_string()),
@@ -129,12 +124,22 @@ pub async fn get_block(
 }
 
 pub async fn unblock_user(
-    State(_state): State<PostgresAppState>,
+    State(state): State<PostgresAppState>,
     headers: HeaderMap,
     auth: Option<Extension<AppContext>>,
-    Path(_block_id): Path<String>,
+    Path(block_id): Path<String>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let _scope = require_request_scope(auth, &headers)?;
-    // TODO: Implement unblock logic
-    Ok(StatusCode::NO_CONTENT)
+    let scope = require_request_scope(auth, &headers)?;
+    let bid: i64 = block_id.parse().map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    match state.user_block_store.delete_by_blocker(
+        scope.tenant_id.as_str(),
+        scope.organization_id.as_str(),
+        bid,
+        scope.user_id.as_str(),
+    ) {
+        Ok(true) => Ok(StatusCode::NO_CONTENT),
+        Ok(false) => Err(StatusCode::NOT_FOUND),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }

@@ -370,10 +370,15 @@
       "pnpm test:database-framework-standard",
       "pnpm test:topology-baggage",
       "pnpm test:runtime-standard",
+      "pnpm test:runtime-id-standard",
+      "pnpm test:deprecated-service-boundary",
       "pnpm test:rtc-signaling-boundary",
       "pnpm test:rpc-contract",
       "pnpm check:dependency-management",
-      "node scripts/dev/sdkwork-im-database-naming-standard.test.mjs"
+      "pnpm test:database-naming-standard",
+      "pnpm test:component-spec-consistency",
+      "pnpm test:apis-authority-standard",
+      "pnpm verify:standards"
     ]
   },
   "metadata": {

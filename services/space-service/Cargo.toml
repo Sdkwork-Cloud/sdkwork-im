@@ -15,4 +15,5 @@ im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-app-context = { path = "../../crates/im-app-context" }
+sdkwork-im-runtime-id = { path = "../../crates/sdkwork-im-runtime-id" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

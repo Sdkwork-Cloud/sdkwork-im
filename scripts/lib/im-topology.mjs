@@ -1,20 +1,45 @@
+import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-import {
-  buildProfileId,
-  createTopologyRuntime,
-  isTcpPortReachable,
-  loadTopologySpec,
-  normalizeText,
-  waitForHttpHealthy,
-} from '@sdkwork/app-topology';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const REPO_ROOT = path.resolve(__dirname, '..', '..');
 export const SPEC_PATH = path.join(REPO_ROOT, 'specs/topology.spec.json');
+
+const APP_TOPOLOGY_ENTRY_RELATIVE = path.join('tools', 'topology', 'lib', 'index.mjs');
+
+function resolveAppTopologyEntryPath() {
+  const installedEntry = path.join(
+    REPO_ROOT,
+    'node_modules',
+    '@sdkwork',
+    'app-topology',
+    APP_TOPOLOGY_ENTRY_RELATIVE,
+  );
+  if (fs.existsSync(installedEntry)) {
+    return installedEntry;
+  }
+
+  const siblingEntry = path.join(REPO_ROOT, '..', 'sdkwork-app-topology', APP_TOPOLOGY_ENTRY_RELATIVE);
+  if (fs.existsSync(siblingEntry)) {
+    return siblingEntry;
+  }
+
+  throw new Error(
+    'Missing @sdkwork/app-topology. Clone ../sdkwork-app-topology next to sdkwork-im or run: pnpm install -w',
+  );
+}
+
+const {
+  buildProfileId,
+  createTopologyRuntime,
+  isTcpPortReachable,
+  loadTopologySpec,
+  normalizeText,
+  waitForHttpHealthy,
+} = await import(pathToFileURL(resolveAppTopologyEntryPath()).href);
 
 const spec = loadTopologySpec(SPEC_PATH);
 const runtime = createTopologyRuntime(spec, REPO_ROOT);

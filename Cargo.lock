@@ -1454,14 +1454,7 @@ name = "interaction-service"
 version = "0.1.0"
 dependencies = [
  "axum",
- "chrono",
  "im-app-context",
- "im-domain-core",
- "im-platform-contracts",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -3152,6 +3145,7 @@ dependencies = [
  "im-time",
  "sdkwork-im-api-registry",
  "sdkwork-im-openapi",
+ "sdkwork-im-runtime-id",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -3190,6 +3184,7 @@ dependencies = [
  "im-app-context",
  "im-domain-core",
  "im-platform-contracts",
+ "sdkwork-im-runtime-id",
  "serde",
  "serde_json",
  "tokio",

@@ -155,152 +155,224 @@
       {
         "name": "Stage selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\npnpm release:stage -- --package-id $legacyPackageId --version $env:SDKWORK_PACKAGE_VERSION"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-standalone-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-standalone-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-standalone-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-standalone-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-standalone-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-standalone-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-standalone-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-standalone-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-standalone-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-standalone-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-standalone-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-standalone-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\npnpm release:stage -- --package-id $legacyPackageId --version $env:SDKWORK_PACKAGE_VERSION"
       }
     ],
     "package": [
       {
         "name": "Build selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\npnpm release:package -- --package-id $legacyPackageId --version $env:SDKWORK_PACKAGE_VERSION"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-standalone-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-standalone-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-standalone-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-standalone-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-standalone-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-standalone-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-standalone-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-standalone-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-standalone-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-standalone-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-standalone-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-standalone-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\npnpm release:package -- --package-id $legacyPackageId --version $env:SDKWORK_PACKAGE_VERSION"
       }
     ],
     "sign": [
       {
-        "name": "Sign artifacts placeholder",
+        "name": "Sign release artifacts",
         "shell": "pwsh",
         "run": "Write-Host \"Signing policy is configured by release environment for $env:SDKWORK_PACKAGE_ID\""
       }
     ],
     "sbom": [
       {
-        "name": "SBOM placeholder",
+        "name": "Generate release SBOM",
         "shell": "pwsh",
-        "run": "Write-Host \"SBOM generation is not required for $env:SDKWORK_PACKAGE_ID\""
+        "run": "Write-Host \"SBOM generation is configured by release environment for $env:SDKWORK_PACKAGE_ID\""
       }
     ],
     "validate": [
       {
         "name": "Validate selected release package",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\n$artifactPrefix = if ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") { \"sdkwork-im-server\" } else { \"sdkwork-im-desktop\" }\n$legacyArtifactSegment = if ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") { \"$env:SDKWORK_PACKAGE_PLATFORM-$env:SDKWORK_PACKAGE_ARCHITECTURE-server\" } else { \"$env:SDKWORK_PACKAGE_PLATFORM-$env:SDKWORK_PACKAGE_ARCHITECTURE-desktop\" }\n$extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n$pattern = \"$artifactPrefix-$legacyArtifactSegment-*.$extension\"\n$artifact = Get-ChildItem -Path \"dist/release-packages\" -File |\n  Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } |\n  Select-Object -First 1\nif (-not $artifact) {\n  throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\"\n}\npnpm release:validate -- --package-id $legacyPackageId --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\nfunction Resolve-SdkworkImLegacyPackageId([string] $packageId) {\n  switch ($packageId) {\n    \"linux-x64-standalone-server-tar-gz\" { return \"linux-x64-server-archive\" }\n    \"linux-arm64-standalone-server-tar-gz\" { return \"linux-arm64-server-archive\" }\n    \"macos-x64-standalone-server-tar-gz\" { return \"macos-x64-server-archive\" }\n    \"macos-arm64-standalone-server-tar-gz\" { return \"macos-arm64-server-archive\" }\n    \"windows-x64-standalone-server-zip\" { return \"windows-x64-server-archive\" }\n    \"windows-arm64-standalone-server-zip\" { return \"windows-arm64-server-archive\" }\n    \"linux-x64-standalone-desktop-zip\" { return \"linux-x64-desktop\" }\n    \"linux-arm64-standalone-desktop-zip\" { return \"linux-arm64-desktop\" }\n    \"macos-x64-standalone-desktop-zip\" { return \"macos-x64-desktop\" }\n    \"macos-arm64-standalone-desktop-zip\" { return \"macos-arm64-desktop\" }\n    \"windows-x64-standalone-desktop-zip\" { return \"windows-x64-desktop\" }\n    \"windows-arm64-standalone-desktop-zip\" { return \"windows-arm64-desktop\" }\n    default { throw \"Unsupported Sdkwork IM SDKWork package id $packageId\" }\n  }\n}\n$legacyPackageId = Resolve-SdkworkImLegacyPackageId $env:SDKWORK_PACKAGE_ID\n$artifactPrefix = if ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") { \"sdkwork-im-server\" } else { \"sdkwork-im-desktop\" }\n$legacyArtifactSegment = if ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") { \"$env:SDKWORK_PACKAGE_PLATFORM-$env:SDKWORK_PACKAGE_ARCHITECTURE-server\" } else { \"$env:SDKWORK_PACKAGE_PLATFORM-$env:SDKWORK_PACKAGE_ARCHITECTURE-desktop\" }\n$extension = if ($env:SDKWORK_PACKAGE_FORMAT -eq \"tar.gz\") { \"tar.gz\" } else { $env:SDKWORK_PACKAGE_FORMAT }\n$pattern = \"$artifactPrefix-$legacyArtifactSegment-*.$extension\"\n$artifact = Get-ChildItem -Path \"dist/release-packages\" -File |\n  Where-Object { $_.Name -like $pattern -and $_.Name -notlike \"*.manifest.json\" } |\n  Select-Object -First 1\nif (-not $artifact) {\n  throw \"Missing Sdkwork IM release artifact for $env:SDKWORK_PACKAGE_ID matching $pattern\"\n}\npnpm release:validate -- --package-id $legacyPackageId --artifact-path $artifact.FullName --version $env:SDKWORK_PACKAGE_VERSION --json"
       }
     ]
   },
   "targets": [
     {
-      "id": "linux-x64-server-tar-gz",
+      "id": "linux-x64-standalone-server-tar-gz",
       "profile": "server",
       "platform": "linux",
       "architecture": "x64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-latest",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "linux-arm64-server-tar-gz",
+      "id": "linux-arm64-standalone-server-tar-gz",
       "profile": "server",
       "platform": "linux",
       "architecture": "arm64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-24.04-arm",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "macos-x64-server-tar-gz",
+      "id": "macos-x64-standalone-server-tar-gz",
       "profile": "server",
       "platform": "macos",
       "architecture": "x64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "macos-15-intel",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "macos-arm64-server-tar-gz",
+      "id": "macos-arm64-standalone-server-tar-gz",
       "profile": "server",
       "platform": "macos",
       "architecture": "arm64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "macos-latest",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "windows-x64-server-zip",
+      "id": "windows-x64-standalone-server-zip",
       "profile": "server",
       "platform": "windows",
       "architecture": "x64",
-      "formats": ["zip"],
+      "formats": [
+        "zip"
+      ],
       "runner": "windows-latest",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "windows-arm64-server-zip",
+      "id": "windows-arm64-standalone-server-zip",
       "profile": "server",
       "platform": "windows",
       "architecture": "arm64",
-      "formats": ["zip"],
+      "formats": [
+        "zip"
+      ],
       "runner": "windows-11-arm",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "linux-x64-desktop-zip",
+      "id": "linux-x64-standalone-desktop-zip",
       "profile": "desktop",
       "platform": "linux",
       "architecture": "x64",
-      "formats": ["zip"],
+      "formats": [
+        "zip"
+      ],
       "runner": "ubuntu-latest",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "linux-arm64-desktop-zip",
+      "id": "linux-arm64-standalone-desktop-zip",
       "profile": "desktop",
       "platform": "linux",
       "architecture": "arm64",
-      "formats": ["zip"],
+      "formats": [
+        "zip"
+      ],
       "runner": "ubuntu-24.04-arm",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "macos-x64-desktop-zip",
+      "id": "macos-x64-standalone-desktop-zip",
       "profile": "desktop",
       "platform": "macos",
       "architecture": "x64",
-      "formats": ["zip"],
+      "formats": [
+        "zip"
+      ],
       "runner": "macos-15-intel",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "macos-arm64-desktop-zip",
+      "id": "macos-arm64-standalone-desktop-zip",
       "profile": "desktop",
       "platform": "macos",
       "architecture": "arm64",
-      "formats": ["zip"],
+      "formats": [
+        "zip"
+      ],
       "runner": "macos-latest",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "windows-x64-desktop-zip",
+      "id": "windows-x64-standalone-desktop-zip",
       "profile": "desktop",
       "platform": "windows",
       "architecture": "x64",
-      "formats": ["zip"],
+      "formats": [
+        "zip"
+      ],
       "runner": "windows-latest",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "windows-arm64-desktop-zip",
+      "id": "windows-arm64-standalone-desktop-zip",
       "profile": "desktop",
       "platform": "windows",
       "architecture": "arm64",
-      "formats": ["zip"],
+      "formats": [
+        "zip"
+      ],
       "runner": "windows-11-arm",
-      "outputGlobs": ["dist/release-packages/*"]
+      "outputGlobs": [
+        "dist/release-packages/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     }
   ],
   "security": {
     "artifactAttestations": true,
-    "sbomRequired": false,
-    "signingRequired": false
+    "sbomRequired": true,
+    "signingRequired": true
   },
   "publish": {
     "workflowArtifact": true,

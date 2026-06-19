@@ -67,3 +67,95 @@ assert.doesNotMatch(
   /\b(?:bigserial|serial)\b|generated\s+.*\s+identity|\bnextval\s*\(/iu,
   'runtime PostgreSQL schema must not allocate runtime business IDs through database auto-increment primitives.',
 );
+
+const spaceServiceCargo = readText('services', 'space-service', 'Cargo.toml');
+assert.match(
+  spaceServiceCargo,
+  /sdkwork-im-runtime-id\s*=\s*\{\s*path\s*=\s*"\.\.\/\.\.\/crates\/sdkwork-im-runtime-id"/u,
+  'space-service must depend on sdkwork-im-runtime-id for Snowflake entity ids.',
+);
+
+const spaceServiceIdSource = readText('services', 'space-service', 'src', 'id.rs');
+for (const expectedText of [
+  'RuntimeSnowflakeIdGenerator',
+  'build_runtime_id_generator',
+  'next_entity_id',
+  'IdGenerator',
+]) {
+  assert.match(
+    spaceServiceIdSource,
+    new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'),
+    `space-service id module must include ${expectedText}`,
+  );
+}
+
+const spaceServiceHttp = readText('services', 'space-service', 'src', 'http.rs');
+assert.match(
+  spaceServiceHttp,
+  /pub id_generator: Arc<dyn IdGenerator>/u,
+  'space-service AppState must expose id_generator for snowflake entity allocation.',
+);
+
+for (const handlerPath of ['space.rs', 'group.rs', 'channel.rs']) {
+  const source = readText('services', 'space-service', 'src', handlerPath);
+  assert.match(
+    source,
+    /next_entity_id\(&state\.id_generator\)/u,
+    `services/space-service/src/${handlerPath} must allocate entity ids through the shared snowflake generator`,
+  );
+  assert.doesNotMatch(
+    source,
+    /fn generate_id\(/u,
+    `services/space-service/src/${handlerPath} must not keep ad-hoc generate_id helpers`,
+  );
+}
+
+const socialServiceCargo = readText('services', 'social-service', 'Cargo.toml');
+assert.match(
+  socialServiceCargo,
+  /sdkwork-im-runtime-id\s*=\s*\{\s*path\s*=\s*"\.\.\/\.\.\/crates\/sdkwork-im-runtime-id"/u,
+  'social-service must depend on sdkwork-im-runtime-id for Postgres-backed entity ids.',
+);
+
+const socialServiceIdSource = readText('services', 'social-service', 'src', 'postgres', 'id.rs');
+for (const expectedText of [
+  'RuntimeSnowflakeIdGenerator',
+  'build_runtime_id_generator',
+  'next_entity_id',
+  'IdGenerator',
+]) {
+  assert.match(
+    socialServiceIdSource,
+    new RegExp(expectedText.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'),
+    `social-service id module must include ${expectedText}`,
+  );
+}
+
+const socialPostgresHttp = readText('services', 'social-service', 'src', 'postgres', 'http.rs');
+assert.match(
+  socialPostgresHttp,
+  /pub id_generator: Arc<dyn IdGenerator>/u,
+  'social-service PostgresAppState must expose id_generator for snowflake entity allocation.',
+);
+
+assert.equal(
+  fs.existsSync(path.join(repoRoot, 'services', 'social-service', 'src', 'organization.rs')),
+  false,
+  'social-service must not keep the uncompiled organization scaffold; space routes belong to space-service.',
+);
+
+for (const handlerPath of ['block.rs', 'direct_chat.rs']) {
+  const source = readText('services', 'social-service', 'src', 'postgres', handlerPath);
+  assert.match(
+    source,
+    /next_entity_id\(&state\.id_generator\)/u,
+    `services/social-service/src/postgres/${handlerPath} must allocate entity ids through the shared snowflake generator`,
+  );
+  assert.doesNotMatch(
+    source,
+    /fn generate_id\(/u,
+    `services/social-service/src/postgres/${handlerPath} must not keep ad-hoc generate_id helpers`,
+  );
+}
+
+console.log('sdkwork-chat runtime id standard contract passed');

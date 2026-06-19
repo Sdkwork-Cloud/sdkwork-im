@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use im_adapters_social_postgres::direct_chat_store::{DirectChatRecord, DirectChatStore};
 
 use crate::postgres::http::PostgresAppState;
+use crate::postgres::id::next_entity_id;
 use crate::postgres::service_http::require_request_scope;
 
 #[derive(Debug, Deserialize)]
@@ -50,12 +51,6 @@ pub struct ListQuery {
     pub limit: Option<i64>,
 }
 
-fn generate_id() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    format!("{}", duration.as_millis())
-}
-
 fn normalize_pair_hash(left: &str, right: &str) -> String {
     use sha2::{Digest, Sha256};
     let (low, high) = if left < right {
@@ -75,14 +70,14 @@ pub async fn create_direct_chat(
     Json(request): Json<CreateDirectChatRequest>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let scope = require_request_scope(auth, &headers)?;
-    let direct_chat_id = generate_id();
+    let direct_chat_id = next_entity_id(&state.id_generator)?;
     let now = chrono::Utc::now().to_rfc3339();
     let pair_hash = normalize_pair_hash(scope.user_id.as_str(), &request.target_user_id);
 
     let record = DirectChatRecord {
         tenant_id: scope.tenant_id,
         organization_id: scope.organization_id,
-        direct_chat_id: direct_chat_id.parse().unwrap_or(0),
+        direct_chat_id,
         left_actor_kind: "user".to_string(),
         left_actor_id: scope.user_id.clone(),
         right_actor_kind: "user".to_string(),
