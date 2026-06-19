@@ -72,16 +72,12 @@
   --sdkwork-chat-auth-header-border: rgba(255, 255, 255, 0.08);
   --sdkwork-chat-auth-header-text: #f4f4f5;
   --sdkwork-chat-auth-header-muted: #a1a1aa;
-  --sdkwork-chat-auth-header-hover: rgba(255, 255, 255, 0.1);
+  --sdkwork-chat-auth-header-hover: rgba(255, 255, 255, 0.08);
   --sdkwork-chat-auth-content-bg: rgba(17, 18, 24, 0.96);
-  --sdkwork-chat-auth-content-border: rgba(255, 255, 255, 0.1);
   --sdkwork-chat-auth-content-text: #f8fafc;
   --sdkwork-chat-auth-muted-text: #a1a1aa;
   --sdkwork-chat-auth-field-bg: rgba(255, 255, 255, 0.06);
-  --sdkwork-chat-auth-field-border: rgba(255, 255, 255, 0.14);
   --sdkwork-chat-auth-divider: rgba(255, 255, 255, 0.12);
-  --sdkwork-chat-auth-tab-bg: rgba(255, 255, 255, 0.06);
-  --sdkwork-chat-auth-tab-active-bg: rgba(255, 255, 255, 0.12);
   --sdkwork-chat-auth-aside-bg: #101114;
   --sdkwork-chat-auth-aside-border: rgba(255, 255, 255, 0.08);
   --sdkwork-chat-auth-aside-text: #f5f5f5;
@@ -90,7 +86,6 @@
   --sdkwork-chat-auth-aside-badge-bg: rgba(96, 165, 250, 0.12);
   --sdkwork-chat-auth-aside-badge-text: #93c5fd;
   --sdkwork-chat-auth-qr-bg: rgba(8, 11, 18, 0.94);
-  --sdkwork-chat-auth-qr-border: rgba(255, 255, 255, 0.12);
   background:
     radial-gradient(circle at 18% 24%, rgba(37, 99, 235, 0.16), transparent 30%),
     radial-gradient(circle at 82% 72%, rgba(16, 185, 129, 0.12), transparent 32%),
@@ -115,7 +110,7 @@
   padding: 0 8px;
   touch-action: none;
   user-select: none;
-  z-index: 50;
+  z-index: 70;
 }
 
 .sdkwork-chat-auth-header-brand {
@@ -124,10 +119,7 @@
   font-size: 11px;
   font-weight: 600;
   gap: 9px;
-  height: 32px;
   letter-spacing: 0.16em;
-  min-width: 148px;
-  padding: 0 10px;
   text-transform: uppercase;
 }
 
@@ -135,7 +127,6 @@
   align-items: center;
   background: linear-gradient(135deg, #2563eb, #10b981);
   border-radius: 6px;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
   color: #ffffff;
   display: inline-flex;
   height: 20px;
@@ -208,103 +199,9 @@
 }
 
 .sdkwork-chat-auth-main {
-  align-items: stretch;
-  display: flex;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
-}
-
-.sdkwork-chat-auth-main > * {
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-}
-
-.sdkwork-chat-auth-main .sdkwork-iam-auth-routes {
-  height: 100%;
-  min-height: 0;
-}
-
-.sdkwork-chat-auth-page {
-  background: transparent;
-  height: 100%;
-  min-height: 100%;
-  overflow: hidden;
-  padding: clamp(16px, 2vw, 24px);
-}
-
-.sdkwork-chat-auth-background {
-  background: transparent;
-}
-
-.sdkwork-chat-auth-background > * {
-  display: none;
-}
-
-.sdkwork-chat-auth-card-shell {
-  background: var(--sdkwork-chat-auth-content-bg);
-  border: 1px solid var(--sdkwork-chat-auth-content-border);
-  border-radius: 8px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
-  height: auto;
-  max-height: 100%;
-  min-height: 0;
-}
-
-.sdkwork-chat-auth-content,
-.sdkwork-chat-auth-body {
-  letter-spacing: 0;
-}
-
-.sdkwork-chat-auth-content {
-  overflow: visible;
-}
-
-.sdkwork-chat-auth-content > .mx-auto {
-  min-height: 0;
-}
-
-@media (max-height: 760px) {
-  .sdkwork-chat-auth-page {
-    padding: 4px 12px;
-  }
-
-  .sdkwork-chat-auth-content {
-    padding: 20px 24px;
-  }
-
-  .sdkwork-chat-auth-content > .mx-auto > :first-child {
-    margin-bottom: 12px;
-  }
-
-  .sdkwork-chat-auth-body .space-y-6 > :not([hidden]) ~ :not([hidden]),
-  .sdkwork-chat-auth-body .space-y-5 > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 0.75rem;
-  }
-
-  .sdkwork-chat-auth-body .mt-8 {
-    margin-top: 0.75rem;
-  }
-}
-
-@media (max-height: 680px) {
-  .sdkwork-chat-auth-page {
-    padding: 4px 8px;
-  }
-
-  .sdkwork-chat-auth-content {
-    padding: 16px 20px;
-  }
-
-  .sdkwork-chat-auth-content > .mx-auto > :first-child {
-    margin-bottom: 10px;
-  }
-
-  .sdkwork-chat-auth-body .space-y-6 > :not([hidden]) ~ :not([hidden]),
-  .sdkwork-chat-auth-body .space-y-5 > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 0.625rem;
-  }
+  overflow: auto;
 }
 
 .sdkwork-chat-auth-loading {
@@ -320,38 +217,33 @@
 }
 
 html.light-mode .sdkwork-chat-auth-shell {
-  --sdkwork-chat-auth-bg: #eef5fb;
-  --sdkwork-chat-auth-header-bg: rgba(255, 255, 255, 0.94);
-  --sdkwork-chat-auth-header-border: rgba(71, 85, 105, 0.16);
+  --sdkwork-chat-auth-bg: #f3f6fa;
+  --sdkwork-chat-auth-header-bg: #f3f6fa;
+  --sdkwork-chat-auth-header-border: rgba(15, 23, 42, 0.08);
   --sdkwork-chat-auth-header-text: #0f172a;
   --sdkwork-chat-auth-header-muted: #475569;
-  --sdkwork-chat-auth-header-hover: rgba(37, 99, 235, 0.08);
-  --sdkwork-chat-auth-content-bg: rgba(255, 255, 255, 0.97);
-  --sdkwork-chat-auth-content-border: rgba(100, 116, 139, 0.2);
+  --sdkwork-chat-auth-header-hover: rgba(15, 23, 42, 0.06);
+  --sdkwork-chat-auth-content-bg: rgba(255, 255, 255, 0.96);
   --sdkwork-chat-auth-content-text: #0f172a;
   --sdkwork-chat-auth-muted-text: #64748b;
   --sdkwork-chat-auth-field-bg: #ffffff;
-  --sdkwork-chat-auth-field-border: rgba(71, 85, 105, 0.18);
-  --sdkwork-chat-auth-divider: rgba(100, 116, 139, 0.18);
-  --sdkwork-chat-auth-tab-bg: #eef4fb;
-  --sdkwork-chat-auth-tab-active-bg: #ffffff;
+  --sdkwork-chat-auth-divider: rgba(100, 116, 139, 0.12);
   --sdkwork-chat-auth-aside-bg: #f8fbff;
-  --sdkwork-chat-auth-aside-border: rgba(37, 99, 235, 0.12);
+  --sdkwork-chat-auth-aside-border: rgba(15, 23, 42, 0.08);
   --sdkwork-chat-auth-aside-text: #0f172a;
   --sdkwork-chat-auth-aside-card-bg: #ffffff;
-  --sdkwork-chat-auth-aside-card-border: rgba(37, 99, 235, 0.12);
+  --sdkwork-chat-auth-aside-card-border: rgba(15, 23, 42, 0.1);
   --sdkwork-chat-auth-aside-badge-bg: rgba(37, 99, 235, 0.1);
   --sdkwork-chat-auth-aside-badge-text: #1d4ed8;
   --sdkwork-chat-auth-qr-bg: #ffffff;
-  --sdkwork-chat-auth-qr-border: rgba(37, 99, 235, 0.18);
   background:
-    radial-gradient(circle at 18% 22%, rgba(37, 99, 235, 0.12), transparent 28%),
-    radial-gradient(circle at 82% 78%, rgba(14, 165, 233, 0.1), transparent 32%),
-    linear-gradient(180deg, #f8fbff 0%, #eef5fb 54%, #e8f0f7 100%);
+    radial-gradient(circle at 18% 24%, rgba(37, 99, 235, 0.08), transparent 30%),
+    radial-gradient(circle at 82% 72%, rgba(16, 185, 129, 0.06), transparent 32%),
+    linear-gradient(180deg, #f8fafc 0%, #f3f6fa 100%);
 }
 
 html.light-mode .sdkwork-chat-auth-card-shell {
-  box-shadow: 0 24px 70px rgba(30, 41, 59, 0.16);
+  box-shadow: none;
 }
 
 html.light-mode .sdkwork-chat-auth-aside-panel .text-white {
@@ -375,11 +267,11 @@ html.light-mode .sdkwork-chat-auth-aside-panel .bg-white\/\[0\.08\] {
 }
 
 html.light-mode .sdkwork-chat-auth-aside-panel .bg-\[linear-gradient\(180deg\,_rgba\(255\,255\,255\,0\.05\)\,_transparent_30\%\)\] {
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent 42%) !important;
+  background-image: none !important;
 }
 
 html.light-mode .sdkwork-chat-auth-qr-frame {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86), 0 18px 38px rgba(37, 99, 235, 0.1);
+  box-shadow: none;
 }
 
 @theme {

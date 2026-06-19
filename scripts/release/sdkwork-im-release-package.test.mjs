@@ -33,12 +33,12 @@ const rootPackageJson = JSON.parse(readText('package.json'));
 
 for (const [scriptName, expectedCommand] of Object.entries({
   'release:plan': 'node scripts/release/plan-sdkwork-im-install-packages.mjs',
-  'release:build:production': 'node scripts/release/build-sdkwork-im-production.mjs',
+  'release:build:prod': 'node scripts/release/build-sdkwork-im-production.mjs',
   'release:stage': 'node scripts/release/stage-sdkwork-im-release-package.mjs',
   'release:package': 'node scripts/release/build-sdkwork-im-install-package.mjs',
   'release:package:check': 'node scripts/release/build-sdkwork-im-install-package.mjs --check --dry-run --all',
   'release:validate': 'node scripts/release/validate-sdkwork-im-install-artifacts.mjs',
-  'release:desktop': 'node scripts/release/build-sdkwork-im-production.mjs --target desktop',
+  'release:build:desktop': 'node scripts/release/build-sdkwork-im-production.mjs --target desktop',
 })) {
   assert.equal(rootPackageJson.scripts?.[scriptName], expectedCommand, `package.json script ${scriptName}`);
 }
@@ -578,6 +578,16 @@ assert.match(
   'install lifecycle should preserve the legacy shared SDK GitHub token environment',
 );
 assert.match(
+  workflowConfig.lifecycle?.install?.map((step) => step.run).join('\n') ?? '',
+  /pnpm install --no-frozen-lockfile --config\.auto-install-peers=false/u,
+  'install lifecycle must use the executable cross-workspace pnpm install mode for sibling SDKWork packages',
+);
+assert.doesNotMatch(
+  workflowConfig.lifecycle?.install?.map((step) => step.run).join('\n') ?? '',
+  /--frozen-lockfile/u,
+  'install lifecycle must not use frozen lockfile while sibling workspace package manifests are the dependency authority',
+);
+assert.match(
   workflowConfig.lifecycle?.build?.map((step) => step.run).join('\n') ?? '',
   /SDKWORK_SHARED_SDK_GITHUB_TOKEN/u,
   'build lifecycle should preserve the legacy shared SDK GitHub token environment',
@@ -589,18 +599,18 @@ assert.doesNotMatch(
 );
 
 const expectedWorkflowTargetIds = [
-  'linux-x64-server-tar-gz',
-  'linux-arm64-server-tar-gz',
-  'macos-x64-server-tar-gz',
-  'macos-arm64-server-tar-gz',
-  'windows-x64-server-zip',
-  'windows-arm64-server-zip',
-  'linux-x64-desktop-zip',
-  'linux-arm64-desktop-zip',
-  'macos-x64-desktop-zip',
-  'macos-arm64-desktop-zip',
-  'windows-x64-desktop-zip',
-  'windows-arm64-desktop-zip',
+  'linux-x64-standalone-server-tar-gz',
+  'linux-arm64-standalone-server-tar-gz',
+  'macos-x64-standalone-server-tar-gz',
+  'macos-arm64-standalone-server-tar-gz',
+  'windows-x64-standalone-server-zip',
+  'windows-arm64-standalone-server-zip',
+  'linux-x64-standalone-desktop-zip',
+  'linux-arm64-standalone-desktop-zip',
+  'macos-x64-standalone-desktop-zip',
+  'macos-arm64-standalone-desktop-zip',
+  'windows-x64-standalone-desktop-zip',
+  'windows-arm64-standalone-desktop-zip',
 ];
 assert.deepEqual(
   workflowConfig.targets?.map((target) => target.id),
@@ -608,7 +618,10 @@ assert.deepEqual(
   'sdkwork.workflow.json should expose canonical package ids for the supported server archives and desktop bundles',
 );
 for (const target of workflowConfig.targets ?? []) {
-  assert.equal(target.id, `${target.platform}-${target.architecture}-${target.profile}-${String(target.formats?.[0] ?? '').replaceAll('.', '-')}`);
+  assert.equal(
+    target.id,
+    `${target.platform}-${target.architecture}-${target.deploymentProfile}-${target.profile}-${String(target.formats?.[0] ?? '').replaceAll('.', '-')}`,
+  );
   assert.equal(target.outputGlobs?.includes('dist/release-packages/*'), true, `${target.id} should upload release packages`);
 }
 
@@ -637,7 +650,7 @@ for (const expectedText of [
 for (const forbiddenText of [
   'Plan package matrix',
   'fromJson(needs.plan.outputs.matrix)',
-  'pnpm release:build:production',
+  'pnpm release:build:prod',
   'actions/upload-artifact',
   'actions/download-artifact',
   'gh release',

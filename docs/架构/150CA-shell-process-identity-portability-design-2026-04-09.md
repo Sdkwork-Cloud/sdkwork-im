@@ -12,7 +12,7 @@
 
 ## Contract
 
-- `pnpm server:dev`, `bin/retired-lifecycle-status.sh`, and `bin/retired-lifecycle-stop.sh` must use `ps -o args=`.
+- `pnpm dev:server`, `bin/retired-lifecycle-status.sh`, and `bin/retired-lifecycle-stop.sh` must use `ps -o args=`.
 - They must derive argv[0] before basename comparison.
 - A managed process remains managed even when the platform truncates `comm`.
 - PID ownership checks stay strict: only basename `sdkwork-im-server` is accepted.

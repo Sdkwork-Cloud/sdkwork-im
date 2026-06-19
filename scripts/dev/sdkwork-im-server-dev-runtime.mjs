@@ -7,6 +7,9 @@ const DEFAULT_MAX_SERVER_PORT_ATTEMPTS = 50;
 const DEFAULT_RESERVED_SERVER_PORTS = new Set([18080]);
 const APPLICATION_PUBLIC_INGRESS_BIND_ENV = 'SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND';
 const APPLICATION_PUBLIC_HTTP_URL_ENV = 'SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL';
+const APPLICATION_PUBLIC_WEBSOCKET_URL_ENV = 'SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL';
+const VITE_APPLICATION_PUBLIC_HTTP_URL_ENV = 'VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL';
+const VITE_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV = 'VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL';
 
 function normalizeText(value) {
   const normalized = String(value ?? '').trim();
@@ -89,6 +92,24 @@ export function createSdkworkImServerCargoEnv({
   };
 }
 
+function createBindEnvResult(env, host, port, requestedPort) {
+  const bindAddr = `${host}:${port}`;
+  const httpUrl = `http://${bindAddr}`;
+  const websocketUrl = `ws://${bindAddr}`;
+  return {
+    bindAddr,
+    env: {
+      ...env,
+      [APPLICATION_PUBLIC_INGRESS_BIND_ENV]: bindAddr,
+      [APPLICATION_PUBLIC_HTTP_URL_ENV]: httpUrl,
+      [APPLICATION_PUBLIC_WEBSOCKET_URL_ENV]: websocketUrl,
+      [VITE_APPLICATION_PUBLIC_HTTP_URL_ENV]: httpUrl,
+      [VITE_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV]: websocketUrl,
+    },
+    portChanged: port !== requestedPort,
+  };
+}
+
 export async function resolveSdkworkImServerBindEnv({
   env = process.env,
   isPortAvailable = isTcpPortAvailable,
@@ -96,42 +117,24 @@ export async function resolveSdkworkImServerBindEnv({
   reservedPorts = DEFAULT_RESERVED_SERVER_PORTS,
 } = {}) {
   const explicitBind = parseBindAddr(env[APPLICATION_PUBLIC_INGRESS_BIND_ENV]);
-  if (explicitBind) {
-    const bindAddr = `${explicitBind.host}:${explicitBind.port}`;
-    return {
-      bindAddr,
-      env: {
-        ...env,
-        [APPLICATION_PUBLIC_INGRESS_BIND_ENV]: bindAddr,
-        [APPLICATION_PUBLIC_HTTP_URL_ENV]: `http://${bindAddr}`,
-      },
-      portChanged: false,
-    };
-  }
+  const host = explicitBind?.host ?? DEFAULT_SERVER_HOST;
+  const startPort = explicitBind?.port ?? DEFAULT_SERVER_PORT;
+  const requestedPort = startPort;
 
   for (let offset = 0; offset < maxAttempts; offset += 1) {
-    const candidatePort = DEFAULT_SERVER_PORT + offset;
+    const candidatePort = startPort + offset;
     if (candidatePort > 65535) {
       break;
     }
     if (isReservedPort(reservedPorts, candidatePort)) {
       continue;
     }
-    if (await isPortAvailable(candidatePort, DEFAULT_SERVER_HOST)) {
-      const bindAddr = `${DEFAULT_SERVER_HOST}:${candidatePort}`;
-      return {
-        bindAddr,
-        env: {
-          ...env,
-          [APPLICATION_PUBLIC_INGRESS_BIND_ENV]: bindAddr,
-          [APPLICATION_PUBLIC_HTTP_URL_ENV]: `http://${bindAddr}`,
-        },
-        portChanged: candidatePort !== DEFAULT_SERVER_PORT,
-      };
+    if (await isPortAvailable(candidatePort, host)) {
+      return createBindEnvResult(env, host, candidatePort, requestedPort);
     }
   }
 
   throw new Error(
-    `No available sdkwork-im server port found from ${DEFAULT_SERVER_PORT} after ${maxAttempts} attempts`,
+    `No available sdkwork-im server port found from ${startPort} after ${maxAttempts} attempts`,
   );
 }

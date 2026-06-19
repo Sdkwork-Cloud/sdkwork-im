@@ -1,24 +1,35 @@
 # Topology profiles
 
 Machine contract: [../../specs/topology.spec.json](../../specs/topology.spec.json)  
-Greenfield plan: [../../docs/topology-greenfield.md](../../docs/topology-greenfield.md)
+Platform standard: [../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_ADOPTION.md](../../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_ADOPTION.md)
 
 ## Profiles
 
 | File | Profile id | Use |
 | --- | --- | --- |
-| `self-hosted.split-services.development.env` | `self-hosted.split-services.development` | Default dev (`pnpm im:dev`) |
-| `self-hosted.unified-process.development.env` | `self-hosted.unified-process.development` | CI smoke (`pnpm im:dev:unified`) |
-| `self-hosted.split-services.production.env` | `self-hosted.split-services.production` | Self-hosted production |
-| `cloud-hosted.split-services.production.env` | `cloud-hosted.split-services.production` | Cloud production |
+| `standalone.unified-process.development.env` | `standalone.unified-process.development` | Default dev (`pnpm dev`) |
+| `standalone.split-services.development.env` | `standalone.split-services.development` | Standalone split local integration |
+| `standalone.unified-process.production.env` | `standalone.unified-process.production` | Standalone unified production |
+| `standalone.split-services.production.env` | `standalone.split-services.production` | Standalone split production |
+| `cloud.split-services.production.env` | `cloud.split-services.production` | Cloud production |
+
+## Standalone gateway
+
+Standalone profiles embed IAM and IM application ingress through `sdkwork-im-standalone-gateway`
+on `application.public-ingress`. Client and platform SDK URLs collapse to the same bind.
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm gateway:run:standalone` | Run standalone gateway only |
+| `pnpm gateway:build:standalone` | Build standalone gateway binary |
 
 ## Default development binds
 
-| Surface | Env key | Value |
+| Surface | Env key | Standalone unified value |
 | --- | --- | --- |
 | Application ingress | `SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND` | `127.0.0.1:18079` |
 | Application HTTP | `SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL` | `http://127.0.0.1:18079` |
-| Platform gateway | `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` | `http://127.0.0.1:3900` |
+| Platform gateway (collapsed) | `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` | `http://127.0.0.1:18079` |
 
 Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selected profile before spawning services.
 
@@ -27,4 +38,5 @@ Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selec
 ```bash
 node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root ../.. --spec specs/topology.spec.json
 pnpm test:topology-baggage
+pnpm test:sdkwork-im-pc-dev-command
 ```

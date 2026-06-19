@@ -17,11 +17,12 @@ pnpm install
 ## 2. Start the Development Stack
 
 ```bash
-pnpm im:dev
+pnpm dev
 ```
 
-This loads topology profile `self-hosted.split-services.development` from
-`configs/topology/self-hosted.split-services.development.env`.
+This starts the PostgreSQL standalone development profile. The current topology
+adapter maps that standard public profile to the checked-in
+`configs/topology/self-hosted.unified-process.development.env` file.
 
 Default listeners:
 
@@ -31,16 +32,16 @@ Default listeners:
 | Platform API gateway | `http://127.0.0.1:3900` |
 | PC renderer (when started) | `http://127.0.0.1:4176` |
 
-Single-process smoke:
+Explicit full browser profile:
 
 ```bash
-pnpm im:dev:unified
+pnpm dev:browser:postgres:unified-process:standalone
 ```
 
 Server only (no PC renderer):
 
 ```bash
-pnpm server:dev
+pnpm dev:server
 ```
 
 ## 3. Verify Health

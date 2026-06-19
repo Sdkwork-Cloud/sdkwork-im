@@ -44,21 +44,43 @@ const {
 const spec = loadTopologySpec(SPEC_PATH);
 const runtime = createTopologyRuntime(spec, REPO_ROOT);
 
+export const VALID_DEPLOYMENT_PROFILES = runtime.deploymentProfileValues;
+export const VALID_SERVICE_LAYOUTS = runtime.serviceLayoutValues;
+export const VALID_ENVIRONMENTS = runtime.environmentValues;
 export const DEFAULT_DEV_PROFILE_ID = runtime.defaults.developmentProfileId;
 export const DEFAULT_BUILD_PROFILE_ID = runtime.defaults.productionProfileId;
+export const DEFAULT_STANDALONE_BUILD_PROFILE_ID = 'standalone.unified-process.production';
+export const DEFAULT_GATEWAY_BIND = runtime.defaults.gatewayBind ?? '127.0.0.1:18079';
 export const POSTGRES_REACHABILITY_TIMEOUT_MS = 2000;
 
-export function resolveDevProfileId(hosting, serviceLayout = 'split-services') {
-  runtime.assertHosting(hosting);
+export const APPLICATION_PUBLIC_INGRESS_PACKAGE_PROFILE = 'standalone';
+export const PLATFORM_CONFIG_BUNDLE_PROFILE = 'platform-config-bundle';
+export const GATEWAY_PACKAGE_TARGETS = runtime.listPackageTargets?.() ?? spec.packaging?.targets ?? [];
+export const APPLICATION_PUBLIC_INGRESS_PACKAGE_TARGETS = GATEWAY_PACKAGE_TARGETS.filter(
+  (target) => target.profile === APPLICATION_PUBLIC_INGRESS_PACKAGE_PROFILE
+    || target.surface === 'application.public-ingress',
+);
+export const IM_CLOUD_GATEWAY_CONFIGS = spec.packaging?.cloudConfigFiles ?? [];
+
+export function resolveDevProfileId(deploymentProfile, serviceLayout = 'unified-process') {
+  runtime.assertDeploymentProfile(deploymentProfile);
   runtime.assertServiceLayout(serviceLayout);
-  return buildProfileId(hosting, serviceLayout, 'development');
+  return buildProfileId(deploymentProfile, serviceLayout, 'development');
+}
+
+export function resolveBuildProfileId(deploymentProfile) {
+  runtime.assertDeploymentProfile(deploymentProfile);
+  if (deploymentProfile === 'standalone') {
+    return DEFAULT_STANDALONE_BUILD_PROFILE_ID;
+  }
+  return DEFAULT_BUILD_PROFILE_ID;
 }
 
 export const loadProfile = runtime.loadProfile;
 export const applyProfileEnv = runtime.applyProfileEnv;
 export const mergeRuntimeEnv = runtime.mergeRuntimeEnv;
 export const loadEnvFile = runtime.loadEnvFile;
-export const assertHosting = runtime.assertHosting;
+export const assertDeploymentProfile = runtime.assertDeploymentProfile;
 export const assertServiceLayout = runtime.assertServiceLayout;
 export const resolveSurfaceHttpUrl = runtime.resolveSurfaceHttpUrl.bind(runtime);
 export const resolveSurfaceWebsocketOrigin = runtime.resolveSurfaceWebsocketOrigin.bind(runtime);
@@ -71,5 +93,15 @@ export const assertPostgresReachableForIam = runtime.assertPostgresReachableForI
 export const describeIamDatabaseTarget = runtime.describeIamDatabaseTarget;
 export const listOrchestrationProcesses = runtime.listOrchestrationProcesses;
 export const listHealthSurfaces = runtime.listHealthSurfaces;
+export const resolveStandaloneGatewayConfigPath = runtime.resolveStandaloneGatewayConfigPath;
+export const resolveCloudGatewayConfigPath = runtime.resolveCloudGatewayConfigPath;
+
+export function findGatewayPackageTarget(targetId) {
+  return runtime.findPackageTarget?.(targetId);
+}
+
+export function listGatewayPackageTargets(profile) {
+  return runtime.listPackageTargetsByProfile?.(profile) ?? [];
+}
 
 export { buildProfileId, normalizeText, isTcpPortReachable, waitForHttpHealthy, spec, runtime };

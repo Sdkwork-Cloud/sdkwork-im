@@ -24,10 +24,10 @@
 ## 本轮实际完成
 
 ### 1. `retired-lifecycle-deploy` 已公开可重复 smoke 的目标地址合同
-- `pnpm im:dev`
+- `pnpm dev`
   - 新增 `-SmokeBaseUrl <url>`
   - `-Help` 现已公开该参数
-- `pnpm im:dev`
+- `pnpm dev`
   - 新增 `--smoke-base-url <url>`
   - help 文案同步公开该参数
 - `bin/_cmd-forward-powershell.cmd`
@@ -70,7 +70,7 @@
 ## Fresh 验证
 - `cargo fmt --all --check`
 - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
 - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 
 ## 当前判断

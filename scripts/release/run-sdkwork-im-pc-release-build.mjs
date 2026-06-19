@@ -16,7 +16,7 @@ function pnpmCommand(platform = process.platform) {
 
 const RELEASE_BUILD_STEPS = Object.freeze([
   {
-    args: ['prepare:shared-sdk'],
+    args: ['sdk:shared:prepare'],
     cwd: '.',
     label: 'prepare shared SDK git sources',
   },

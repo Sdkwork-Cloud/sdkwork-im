@@ -143,7 +143,7 @@ function createSdkworkImProductionBuildPlan({
       args: [
         '--dir',
         'apps/sdkwork-im-pc/packages/sdkwork-im-pc-desktop',
-        'desktop:build:local',
+        'build:desktop:local',
         '--',
         '--target',
         desktopTarget.targetTriple,

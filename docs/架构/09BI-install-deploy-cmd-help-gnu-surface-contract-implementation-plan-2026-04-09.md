@@ -2,12 +2,12 @@
 
 ## Goal
 
-Make `(retired lifecycle script) --help` and `pnpm im:dev --help` surface the GNU-style Windows named flags that operators are expected to use.
+Make `(retired lifecycle script) --help` and `pnpm dev --help` surface the GNU-style Windows named flags that operators are expected to use.
 
 ## Implementation
 
 1. Freeze both Windows help surfaces in `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
-2. Patch the `-Help` branches in `(retired lifecycle script)` and `pnpm im:dev`
+2. Patch the `-Help` branches in `(retired lifecycle script)` and `pnpm dev`
 3. Keep forwarding and runtime execution behavior unchanged for this loop
 4. Backwrite review, step, and architecture indexes
 

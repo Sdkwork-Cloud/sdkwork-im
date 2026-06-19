@@ -5,7 +5,7 @@ defaults and minimal surprises.
 
 ## What You Get
 
-- Topology v2 development orchestration via `pnpm im:dev` and `pnpm server:dev`.
+- Topology v2 development orchestration via `pnpm dev` and `pnpm dev:server`.
 - Application ingress at `sdkwork-im-server` plus platform plane via sibling `sdkwork-api-gateway`.
 - OpenAPI-style API documentation aligned to the implemented HTTP surface.
 - Clear boundaries between IM standard APIs, app-business APIs, backend control/admin APIs, and SDK workspaces.
@@ -14,7 +14,7 @@ defaults and minimal surprises.
 
 | Mode | Entry points | Best use |
 | --- | --- | --- |
-| Development stack | `pnpm im:dev`, `pnpm im:dev:unified`, `pnpm server:dev` | Local development, PC integration, smoke |
+| Development stack | `pnpm dev`, `pnpm dev:browser`, `pnpm dev:desktop`, `pnpm dev:server` | Local development, PC integration, smoke |
 | Packaged server | `bin/install-server.*`, `bin/start-server.*`, `bin/verify-server.*` | Production-style single-port installs |
 | Standalone control plane | `cargo run -p governance-service --offline` | Governance API development |
 
@@ -30,8 +30,8 @@ Authority: `specs/topology.spec.json` and `configs/topology/*.env`.
 
 | Profile id | Command | Application ingress |
 | --- | --- | --- |
-| `self-hosted.split-services.development` | `pnpm im:dev` | `http://127.0.0.1:18079` |
-| `self-hosted.unified-process.development` | `pnpm im:dev:unified` | `http://127.0.0.1:18079` |
+| `standalone.unified-process.development` | `pnpm dev` / `pnpm dev:browser` / `pnpm dev:desktop` | `http://127.0.0.1:18079` |
+| `self-hosted.unified-process.development` | `pnpm dev:browser:postgres:unified-process:standalone` | `http://127.0.0.1:18079` |
 
 ## Auth Boundary
 

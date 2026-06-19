@@ -127,7 +127,7 @@ sdkwork-im/
 ├─ configs/        topology profiles (configs/topology/*.env)
 ├─ deployments/    production templates
 ├─ docs/           architecture, deployment, docs/sites
-├─ scripts/        im:dev, governance, release
+├─ scripts/        standard command dispatch, governance, release
 ├─ tools/          chat-cli and helpers
 ├─ specs/          component.spec.json, topology.spec.json, database registries
 └─ .sdkwork/       repository skills/plugins workspace metadata
@@ -145,10 +145,10 @@ Topology is a versioned contract, not a convention. Four official profiles are s
 
 | Profile | Hosting | Layout | Env | Command |
 | --- | --- | --- | --- | --- |
-| `self-hosted.split-services.development` | self-hosted | split-services | development | `pnpm im:dev` (default) |
-| `self-hosted.unified-process.development` | self-hosted | unified-process | development | `pnpm im:dev:unified` (CI smoke) |
+| `self-hosted.split-services.development` | self-hosted | split-services | development | `pnpm dev` (default) |
+| `self-hosted.unified-process.development` | self-hosted | unified-process | development | `pnpm dev:browser` / `pnpm dev:browser:postgres:unified-process:standalone` |
 | `self-hosted.split-services.production` | self-hosted | split-services | production | — |
-| `cloud-hosted.split-services.production` | cloud-hosted | split-services | production | `pnpm im:build` |
+| `cloud-hosted.split-services.production` | cloud-hosted | split-services | production | `pnpm build` |
 
 - `split-services`: ingress gateway proxies to internal upstream services (default for dev and all production).
 - `unified-process`: single-process in-memory assembly (CI smoke only).
@@ -196,7 +196,7 @@ Index: [sdks/README.md](./sdks/README.md), [docs/sites/sdk/index.md](./docs/site
 
 ```bash
 pnpm install
-pnpm im:dev
+pnpm dev
 ```
 
 Default development surfaces:
@@ -212,11 +212,11 @@ Health check: `curl http://127.0.0.1:18079/healthz`
 Other dev commands:
 
 ```bash
-pnpm im:dev:unified   # self-hosted.unified-process.development (CI smoke)
-pnpm server:dev       # Rust server only, no PC renderer
-pnpm im:dev:desktop   # Tauri desktop shell
-pnpm im:dev:postgres  # browser + PostgreSQL
-pnpm im:dev:sqlite    # browser + SQLite
+pnpm dev:browser   # PostgreSQL + standalone unified browser dev
+pnpm dev:server       # Rust server only, no PC renderer
+pnpm dev:desktop   # PostgreSQL + standalone Tauri desktop dev
+pnpm dev:browser:postgres  # browser + PostgreSQL
+pnpm dev:browser:sqlite    # browser + SQLite
 ```
 
 ### CLI chat validation
@@ -258,7 +258,7 @@ Maintenance: `pnpm migrate:topology-v2-baggage` re-applies archive vocabulary mi
 
 | Mode | Entry | Use case |
 | --- | --- | --- |
-| Dev stack | `pnpm im:dev` / `pnpm im:dev:unified` / `pnpm server:dev` | Local development, PC integration, smoke |
+| Dev stack | `pnpm dev` / `pnpm dev:browser` / `pnpm dev:desktop` / `pnpm dev:server` | Local development, PC integration, smoke |
 | Packaged server | `bin/install-server.*`, `bin/start-server.*`, `bin/verify-server.*` | Production single-port install + service hosting |
 | Standalone control plane | `cargo run -p governance-service --offline` | Governance API development |
 
@@ -341,7 +341,7 @@ Deep dive: [docs/架构/08-安全-多租户-SaaS-私有化-部署设计.md](./do
 ## Constraints
 
 - Tenant and caller identity come from auth context, not business request bodies.
-- Topology v2 profiles only; default dev is `pnpm im:dev`.
+- Topology v2 profiles only; default dev is `pnpm dev`.
 - RTC SDK authority is sibling [`../sdkwork-rtc`](../sdkwork-rtc) (`sdkwork-rtc-sdk` must not live under this repo's `sdks/`).
 - Do not hand-edit generated SDK output; do not replace generated SDK calls with raw HTTP.
 - Runtime directory (`SDKWORK_IM_RUNTIME_DIR`) is an architectural contract, not an auxiliary log directory.

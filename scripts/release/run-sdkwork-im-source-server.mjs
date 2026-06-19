@@ -239,7 +239,7 @@ function createBuildStep({ env, platform, root }) {
   return {
     label: 'build sdkwork-im source server artifacts',
     command: pnpmCommand(platform),
-    args: ['run', 'release:build:production', '--', '--target', 'server'],
+    args: ['run', 'release:build:prod', '--', '--target', 'server'],
     cwd: root,
     env,
     shell: false,

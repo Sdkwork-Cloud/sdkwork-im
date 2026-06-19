@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.sdkwork.chatpc",
   "build": {
-    "beforeDevCommand": "pnpm dev:tauri",
-    "beforeBuildCommand": "pnpm build",
+    "beforeDevCommand": "node ../../../../scripts/dev/run-sdkwork-im-pc-tauri-renderer-dev.mjs",
+    "beforeBuildCommand": "node ../../../../scripts/dev/run-sdkwork-im-pc-tauri-renderer-build.mjs",
     "frontendDist": "../../../dist",
     "devUrl": "http://127.0.0.1:4176"
   },

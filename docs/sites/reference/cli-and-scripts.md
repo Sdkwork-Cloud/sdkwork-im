@@ -4,9 +4,10 @@
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm im:dev` | Full topology v2 development stack |
-| `pnpm im:dev:unified` | Single-process smoke layout |
-| `pnpm server:dev` | Server-only development stack |
+| `pnpm dev` | Default PostgreSQL standalone browser development stack |
+| `pnpm dev:browser` | Browser development stack |
+| `pnpm dev:desktop` | Desktop development stack |
+| `pnpm dev:server` | Server-only development stack |
 
 ## Packaged server scripts
 
@@ -23,7 +24,7 @@
 | --- | --- |
 | `bin/chat-cli.*` | CLI HTTP verification against application ingress |
 | `bin/chat-window.*` | Multi-terminal chat demo windows |
-| `pnpm im:dev` | Start development stack before CLI smoke |
+| `pnpm dev` | Start development stack before CLI smoke |
 | `tools/smoke/local_stack_smoke.*` | Minimal stack smoke against `http://127.0.0.1:18079` |
 
 ## SDK families

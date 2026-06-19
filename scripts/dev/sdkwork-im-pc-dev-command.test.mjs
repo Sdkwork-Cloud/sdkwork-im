@@ -86,96 +86,96 @@ const {
 
 assert.equal(
   packageJson.scripts.dev,
-  'node scripts/im-dev.mjs --target browser',
-  'root pnpm dev must start the browser dev stack with the PostgreSQL env profile by default',
+  'pnpm dev:browser',
+  'root pnpm dev must delegate to the browser dev stack',
 );
 assert.equal(
-  packageJson.scripts['dev:postgres'],
-  'node scripts/im-dev.mjs --target browser --database postgres',
-  'root pnpm dev:postgres must explicitly start the browser dev stack with the PostgreSQL profile',
+  packageJson.scripts['dev:browser'],
+  'pnpm dev:browser:postgres:unified-process:standalone',
+  'root pnpm dev:browser must delegate to the PostgreSQL standalone profile',
 );
 assert.equal(
-  packageJson.scripts['dev:sqlite'],
-  'node scripts/im-dev.mjs --target browser --database sqlite',
-  'root pnpm dev:sqlite must explicitly start the browser dev stack with SQLite',
+  packageJson.scripts['dev:browser:postgres:unified-process:standalone'],
+  'node scripts/im-dev.mjs --target browser --deployment-profile standalone --service-layout unified-process --database postgres',
+  'root pnpm dev:browser full profile must start PostgreSQL standalone browser dev',
 );
 assert.doesNotMatch(
-  packageJson.scripts['dev:postgres'],
+  packageJson.scripts['dev:browser:postgres:unified-process:standalone'],
   / --env-file /u,
-  'root pnpm dev:postgres must not use Node 22 reserved --env-file argument',
+  'root pnpm dev:browser full profile must not use Node 22 reserved --env-file argument',
 );
 assert.equal(
-  packageJson.scripts['tauri:dev'],
-  'node scripts/im-dev.mjs --target desktop',
-  'root pnpm tauri:dev must start the desktop dev stack with the SQLite profile by default',
+  packageJson.scripts['dev:desktop'],
+  'pnpm dev:desktop:postgres:unified-process:standalone',
+  'root pnpm dev:desktop must delegate to the PostgreSQL standalone profile',
 );
 assert.equal(
-  packageJson.scripts['tauri:dev:postgres'],
-  'node scripts/im-dev.mjs --target desktop --database postgres',
-  'root pnpm tauri:dev:postgres must explicitly start the desktop dev stack with the PostgreSQL profile',
+  packageJson.scripts['dev:desktop:postgres:unified-process:standalone'],
+  'node scripts/im-dev.mjs --target desktop --deployment-profile standalone --service-layout unified-process --database postgres',
+  'root pnpm dev:desktop full profile must start PostgreSQL standalone desktop dev',
 );
 assert.equal(
-  packageJson.scripts['tauri:dev:sqlite'],
-  'node scripts/im-dev.mjs --target desktop --database sqlite',
-  'root pnpm tauri:dev:sqlite must explicitly start the desktop dev stack with SQLite',
+  packageJson.scripts['dev:desktop:sqlite'],
+  'node scripts/im-dev.mjs --target desktop --deployment-profile standalone --service-layout unified-process --database sqlite',
+  'root pnpm dev:desktop:sqlite must explicitly start desktop dev with SQLite',
 );
 assert.doesNotMatch(
-  packageJson.scripts['tauri:dev:postgres'],
+  packageJson.scripts['dev:desktop:postgres:unified-process:standalone'],
   / --env-file /u,
-  'root pnpm tauri:dev:postgres must not use Node 22 reserved --env-file argument',
+  'root pnpm dev:desktop full profile must not use Node 22 reserved --env-file argument',
 );
 assert.equal(
-  packageJson.scripts['server:dev'],
+  packageJson.scripts['dev:server'],
   'node scripts/im-server-dev.mjs',
-  'root server:dev must remain the canonical Sdkwork IM server startup command',
+  'root pnpm dev:server must remain the canonical Sdkwork IM server startup command',
 );
 assert.ok(
   unifiedWebSource.includes('ensureDevSiteDist'),
-  'root server:dev must create local dev site fallbacks when admin or portal sources are absent',
+  'root pnpm dev:server must create local dev site fallbacks when admin or portal sources are absent',
 );
 assert.ok(
   unifiedWebSource.includes('createManagedSdkworkApiGatewayProcess')
     && unifiedWebSource.includes('SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL')
     && unifiedWebSource.includes('SDKWORK_API_GATEWAY_BIND'),
-  'root server:dev must manage sdkwork-api-gateway and expose one shared foundation gateway root',
+  'root pnpm dev:server must manage sdkwork-api-gateway and expose one shared foundation gateway root',
 );
 assert.ok(
   !unifiedWebSource.includes("?? 'embedded'")
     && !unifiedWebSource.includes('?? "embedded"'),
-  'root server:dev must not default the product gateway runtime to embedded foundation aggregation',
+  'root pnpm dev:server must not default the product gateway runtime to embedded foundation aggregation',
 );
 assert.ok(
   unifiedWebSource.includes('cargo')
     && unifiedWebSource.includes('sdkwork-im-gateway')
     && unifiedWebSource.includes('sdkwork-im-server')
     && unifiedWebSource.includes('resolveSdkworkImSharedDatabaseConfig'),
-  'root server:dev must start the Rust sdkwork-im-gateway in shared-gateway split mode with the shared database config',
+  'root pnpm dev:server must start the Rust sdkwork-im-gateway in shared-gateway split mode with the shared database config',
 );
 assert.doesNotMatch(
   unifiedWebSource,
   /\bmvn(?:\.cmd)?\b|mavenCommand|spring-ai-plus-server-app|spring-boot:run|ensureAppbaseAppApi|waitForAppbaseAppApiReady|sdkwork-appbase-app-api|SDKWORK_IM_APPBASE_APP_API_UPSTREAM|SDKWORK_APPBASE_APP_API_BIND_ADDR|SDKWORK_APPBASE_BROWSER_ORIGINS/u,
-  'root server:dev must not start or wait for any Java/appbase app-api upstream',
+  'root pnpm dev:server must not start or wait for any Java/appbase app-api upstream',
 );
 assert.ok(
   unifiedWebSource.includes('SDKWORK_IM_ADMIN_SITE_DIR'),
-  'root server:dev must pass the resolved admin site dir to the Rust gateway',
+  'root pnpm dev:server must pass the resolved admin site dir to the Rust gateway',
 );
 assert.ok(
   unifiedWebSource.includes('SDKWORK_IM_PORTAL_SITE_DIR'),
-  'root server:dev must pass the resolved portal site dir to the Rust gateway',
+  'root pnpm dev:server must pass the resolved portal site dir to the Rust gateway',
 );
 assert.ok(
   unifiedWebSource.includes('terminateStaleSdkworkImServerProcesses')
     && unifiedWebSource.includes('target')
     && unifiedWebSource.includes('sdkwork-im-server.exe'),
-  'root server:dev must clean up stale same-workspace Windows sdkwork-im-server.exe processes before cargo rebuilds the locked binary',
+  'root pnpm dev:server must clean up stale same-workspace Windows sdkwork-im-server.exe processes before cargo rebuilds the locked binary',
 );
 assert.ok(
   unifiedWebSource.includes('terminateProcessTree')
     && unifiedWebSource.includes('taskkill')
     && unifiedWebSource.includes('/T')
     && unifiedWebSource.includes('/F'),
-  'root server:dev must terminate the Windows cargo/server process tree instead of leaving sdkwork-im-server.exe behind',
+  'root pnpm dev:server must terminate the Windows cargo/server process tree instead of leaving sdkwork-im-server.exe behind',
 );
 assert.ok(
   localAppApiSource.includes('Sdkwork IM app-api is provided by the Rust unified server')
@@ -330,9 +330,9 @@ const releaseBuildModule = await import(
 );
 const sharedSdkReleaseConfig = readJson('config/shared-sdk-release-sources.json');
 assert.match(
-  packageJson.scripts['prepare:shared-sdk'],
+  packageJson.scripts['sdk:shared:prepare'],
   /scripts\/dev\/prepare-shared-sdk-git-sources\.mjs/u,
-  'root prepare:shared-sdk must materialize git-backed shared SDK sources for release builds',
+  'root sdk:shared:prepare must materialize git-backed shared SDK sources for release builds',
 );
 assert.match(
   packageJson.scripts['release:build'],
@@ -346,7 +346,7 @@ assert.match(
 );
 assert.match(
   releaseBuildSource,
-  /prepare:shared-sdk/u,
+  /sdk:shared:prepare/u,
   'root release:build must prepare shared SDK sources before building the Vite app',
 );
 assert.equal(
@@ -590,7 +590,10 @@ const apiGatewayWorkspaceRoot = path.resolve(repoRoot, '..', 'sdkwork-api-gatewa
 
 const browserPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
-  env: {},
+  env: {
+    SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
+    SDKWORK_IM_SERVICE_LAYOUT: 'unified-process',
+  },
   repoRoot,
 });
 assert.equal(browserPlan.target, 'browser');
@@ -605,93 +608,59 @@ assert.deepEqual(
 );
 assert.deepEqual(
   browserPlan.processes.map((entry) => entry.label),
-  ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-gateway'],
-  'browser dev must start the unified server, browser renderer, and shared sdkwork-api-gateway dependency',
+  ['sdkwork-im-standalone-gateway', 'sdkwork-im-pc-browser'],
+  'standalone unified-process browser dev must start the embedded standalone gateway and browser renderer',
 );
-const browserGatewayProcess = browserPlan.processes.find(
-  (entry) => entry.label === 'sdkwork-api-gateway',
+const browserStandaloneGatewayProcess = browserPlan.processes.find(
+  (entry) => entry.label === 'sdkwork-im-standalone-gateway',
 );
-assert.deepEqual(browserGatewayProcess, {
+assert.deepEqual(browserStandaloneGatewayProcess, {
   args: [
     'run',
     '-p',
-    'sdkwork-api-gateway-service',
+    'sdkwork-im-standalone-gateway',
     '--bin',
-    'sdkwork-api-gateway',
+    'sdkwork-im-standalone-gateway',
     '--',
     '--config',
-    'config/sdkwork-api-gateway.development.toml.example',
+    browserStandaloneGatewayProcess.env.SDKWORK_IM_STANDALONE_GATEWAY_CONFIG,
   ],
   command: cargoCommand,
-  cwd: apiGatewayWorkspaceRoot,
-  env: browserGatewayProcess.env,
-  label: 'sdkwork-api-gateway',
+  cwd: repoRoot,
+  env: browserStandaloneGatewayProcess.env,
+  label: 'sdkwork-im-standalone-gateway',
   shell: false,
 });
 assert.equal(
-  browserGatewayProcess.env.SDKWORK_API_GATEWAY_BIND,
-  '127.0.0.1:3900',
-  'managed sdkwork-api-gateway must use the standard local gateway bind by default',
-);
-assert.equal(
-  browserGatewayProcess.env.SDKWORK_API_GATEWAY_MODE,
-  'split',
-  'managed sdkwork-api-gateway must run in split mode so foundation dependencies remain gateway-owned',
-);
-assert.ok(
-  !('SDKWORK_APPBASE_APP_API_BIND_ADDR' in browserPlan.processes[0].env)
-    && !('SDKWORK_IM_APPBASE_APP_API_UPSTREAM' in browserPlan.processes[0].env)
-    && !('SDKWORK_APPBASE_BROWSER_ORIGINS' in browserPlan.processes[0].env),
-  'unified server must not configure any Java/appbase app-api upstream',
-);
-assert.equal(
   browserPlan.processes[0].env.SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:3900',
-  'unified server must receive one shared sdkwork-api-gateway root for platform dependency traffic',
-);
-assert.ok(
-  !('SDKWORK_IM_DRIVE_APP_API_UPSTREAM' in browserPlan.processes[0].env)
-    && !('SDKWORK_IM_NOTARY_APP_API_UPSTREAM' in browserPlan.processes[0].env),
-  'unified server must not materialize default per-module foundation upstreams when the shared gateway root is enough',
+  'http://127.0.0.1:18079',
+  'standalone unified-process must collapse platform SDK traffic onto application.public-ingress',
 );
 assert.equal(
-  browserPlan.processes[0].env.SDKWORK_API_GATEWAY_BIND,
-  '127.0.0.1:3900',
-  'unified server must receive the managed sdkwork-api-gateway bind used to derive the shared root',
+  browserPlan.processes[0].env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  'http://127.0.0.1:18079',
+  'standalone unified-process must keep application HTTP on application.public-ingress',
 );
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
   'postgresql://sdkwork_ai_dev:sdkworkdev123@127.0.0.1:5432/sdkwork_ai_dev?sslmode=disable',
-  'unified Rust server must receive the canonical PostgreSQL dev database URL by default',
+  'standalone gateway must receive the canonical PostgreSQL dev database URL by default',
 );
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_CLAW_DATABASE_URL,
   browserPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
-  'unified Rust server must receive the current compatibility database URL bridge',
+  'standalone gateway must receive the current compatibility database URL bridge',
 );
 assert.equal(
   browserPlan.processes[0].env.SDKWORK_IM_BROWSER_ORIGINS,
   'http://127.0.0.1:4176,http://localhost:4176',
-  'unified Rust server must allow the selected desktop Vite origin at the gateway CORS layer',
-);
-assert.equal(
-  browserPlan.processes[0].env.SDKWORK_IM_PC_DEV_PORT,
-  '4176',
-  'unified Rust server must receive the selected PC renderer dev port',
+  'standalone gateway must allow the selected desktop Vite origin at the gateway CORS layer',
 );
 assert.equal(
   browserPlan.processes[1].env.SDKWORK_IM_PC_DEV_PORT,
   '4176',
   'browser renderer must receive the selected PC renderer dev port',
 );
-assert.deepEqual(browserPlan.processes[0], {
-  args: ['server:dev'],
-  command: pnpmCommand,
-  cwd: repoRoot,
-  env: browserPlan.processes[0].env,
-  label: 'sdkwork-im-server',
-  shell: pnpmShell,
-});
 assert.deepEqual(browserPlan.processes[1], {
   args: ['--dir', 'apps/sdkwork-im-pc', 'dev'],
   command: pnpmCommand,
@@ -702,13 +671,13 @@ assert.deepEqual(browserPlan.processes[1], {
 });
 assert.equal(
   browserPlan.processes[1].env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
-  'http://127.0.0.1:3900',
-  'browser renderer must point IAM traffic at the platform api gateway',
+  'http://127.0.0.1:18079',
+  'browser renderer must point IAM traffic at the collapsed standalone gateway root',
 );
 assert.equal(
   browserPlan.processes[1].env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:3900',
-  'browser renderer must point platform SDK traffic at sdkwork-api-gateway',
+  'http://127.0.0.1:18079',
+  'browser renderer must point platform SDK traffic at the collapsed standalone gateway root',
 );
 assert.equal(
   browserPlan.processes[1].env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
@@ -724,6 +693,8 @@ assert.equal(
 const customDriveUpstreamPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
+    SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
+    SDKWORK_IM_SERVICE_LAYOUT: 'split-services',
     SDKWORK_DRIVE_APP_API_UPSTREAM: 'http://127.0.0.1:28080/',
   },
   repoRoot,
@@ -736,11 +707,13 @@ assert.equal(
 assert.deepEqual(
   customDriveUpstreamPlan.processes.map((entry) => entry.label),
   ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-gateway'],
-  'PC dev must keep the shared gateway available for remaining foundation surfaces when Drive uses an explicit split upstream',
+  'cloud split-services dev must keep the shared gateway available for remaining foundation surfaces when Drive uses an explicit split upstream',
 );
 const customNotaryUpstreamPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
+    SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
+    SDKWORK_IM_SERVICE_LAYOUT: 'split-services',
     SDKWORK_NOTARY_APP_API_UPSTREAM: 'http://127.0.0.1:28092/',
   },
   repoRoot,
@@ -753,7 +726,7 @@ assert.equal(
 assert.deepEqual(
   customNotaryUpstreamPlan.processes.map((entry) => entry.label),
   ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-gateway'],
-  'PC dev must keep the shared gateway available for remaining foundation surfaces when Notary uses an explicit split upstream',
+  'cloud split-services dev must keep the shared gateway available for remaining foundation surfaces when Notary uses an explicit split upstream',
 );
 assert.equal(
   createSdkworkChatBrowserOrigins({ port: 4188 }),
@@ -774,13 +747,16 @@ assert.equal(
 const shiftedPortPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   devServerPort: shiftedDevPort,
-  env: {},
+  env: {
+    SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
+    SDKWORK_IM_SERVICE_LAYOUT: 'unified-process',
+  },
   repoRoot,
 });
 assert.equal(
   shiftedPortPlan.processes[0].env.SDKWORK_IM_BROWSER_ORIGINS,
   'http://127.0.0.1:4178,http://localhost:4178',
-  'unified Rust server CORS origins must follow the resolved fallback dev port',
+  'standalone gateway CORS origins must follow the resolved fallback dev port',
 );
 assert.equal(
   shiftedPortPlan.processes[1].env.SDKWORK_IM_PC_DEV_PORT,
@@ -901,8 +877,8 @@ assert.ok(
   postgresDatabaseConfigIndexSource.includes('./开发环境PostgreSQL数据库配置教程.md')
     && postgresDatabaseConfigIndexSource.includes('./线上环境PostgreSQL数据库配置教程.md')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev')
-    && postgresDatabaseConfigIndexSource.includes('pnpm tauri:dev')
-    && postgresDatabaseConfigIndexSource.includes('pnpm dev:sqlite')
+    && postgresDatabaseConfigIndexSource.includes('pnpm dev:desktop')
+    && postgresDatabaseConfigIndexSource.includes('pnpm dev:browser:sqlite')
     && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/chat/chat.toml')
     && postgresDatabaseConfigIndexSource.includes('/etc/sdkwork/chat/database.secret')
     && postgresDatabaseConfigIndexSource.includes('~/.sdkwork/chat/data/chat.sqlite'),
@@ -910,15 +886,15 @@ assert.ok(
 );
 assert.ok(
   postgresDevelopmentGuideSource.includes('pnpm dev')
-    && postgresDevelopmentGuideSource.includes('pnpm tauri:dev')
-    && postgresDevelopmentGuideSource.includes('pnpm dev:postgres')
-    && postgresDevelopmentGuideSource.includes('pnpm tauri:dev:postgres')
-    && postgresDevelopmentGuideSource.includes('pnpm dev:sqlite')
-    && postgresDevelopmentGuideSource.includes('pnpm tauri:dev:sqlite')
+    && postgresDevelopmentGuideSource.includes('pnpm dev:desktop')
+    && postgresDevelopmentGuideSource.includes('pnpm dev:browser:postgres')
+    && postgresDevelopmentGuideSource.includes('pnpm dev:desktop:postgres')
+    && postgresDevelopmentGuideSource.includes('pnpm dev:browser:sqlite')
+    && postgresDevelopmentGuideSource.includes('pnpm dev:desktop:sqlite')
     && postgresDevelopmentGuideSource.includes('.env.postgres')
     && postgresDevelopmentGuideSource.includes('SDKWORK_IM_DATABASE_ENGINE=postgresql')
     && postgresDevelopmentGuideSource.includes('SDKWORK_IM_DATABASE_SSL_MODE=disable')
-    && postgresDevelopmentGuideSource.includes('pnpm tauri:dev 默认使用 SQLite')
+    && postgresDevelopmentGuideSource.includes('pnpm dev:desktop 默认使用 PostgreSQL')
     && postgresDevelopmentGuideSource.includes('Copy-Item .env.postgres.example .env.postgres'),
   'development PostgreSQL guide must document local env profile setup and both dev startup commands',
 );
@@ -979,22 +955,25 @@ const sqliteBrowserPlan = createSdkworkChatPcDevPlan({
 assert.match(
   sqliteBrowserPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
   /sqlite:\/\/.*[/\\]\.sdkwork[/\\]chat[/\\]data[/\\]chat\.sqlite$/u,
-  'pnpm dev:sqlite must explicitly use the Sdkwork IM user-private SQLite database URL',
+  'pnpm dev:browser:sqlite must explicitly use the Sdkwork IM user-private SQLite database URL',
 );
 
 const desktopPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'desktop'],
-  env: {},
+  env: {
+    SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
+    SDKWORK_IM_SERVICE_LAYOUT: 'unified-process',
+  },
   repoRoot,
 });
 assert.equal(desktopPlan.target, 'desktop');
 assert.deepEqual(
   desktopPlan.processes.map((entry) => entry.label),
-  ['sdkwork-im-server', 'sdkwork-im-pc-desktop', 'sdkwork-api-gateway'],
-  'desktop dev must start the unified server, Tauri desktop process, and shared sdkwork-api-gateway dependency',
+  ['sdkwork-im-standalone-gateway', 'sdkwork-im-pc-desktop'],
+  'standalone unified-process desktop dev must start the embedded standalone gateway and Tauri desktop process',
 );
 assert.deepEqual(desktopPlan.processes[1], {
-  args: ['--dir', 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-desktop', 'desktop:dev:local'],
+  args: ['--dir', 'apps/sdkwork-im-pc/packages/sdkwork-im-pc-desktop', 'dev:desktop'],
   command: pnpmCommand,
   cwd: repoRoot,
   env: desktopPlan.processes[1].env,
@@ -1003,18 +982,18 @@ assert.deepEqual(desktopPlan.processes[1], {
 });
 assert.notDeepEqual(
   desktopPlan.processes[1].args,
-  ['--dir', 'apps/sdkwork-im-pc', 'desktop:dev:local'],
+  ['--dir', 'apps/sdkwork-im-pc', 'dev:desktop'],
   'desktop dev must run the dedicated desktop package instead of the root web package',
 );
 assert.equal(
   desktopPlan.processes[1].env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
-  'http://127.0.0.1:3900',
-  'desktop renderer must point IAM traffic at the platform api gateway',
+  'http://127.0.0.1:18079',
+  'desktop renderer must point IAM traffic at the collapsed standalone gateway root',
 );
 assert.equal(
   desktopPlan.processes[1].env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:3900',
-  'desktop renderer must point platform SDK traffic at sdkwork-api-gateway',
+  'http://127.0.0.1:18079',
+  'desktop renderer must point platform SDK traffic at the collapsed standalone gateway root',
 );
 assert.equal(
   desktopPlan.processes[1].env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
@@ -1023,18 +1002,22 @@ assert.equal(
 );
 assert.equal(
   desktopPlan.processes[0].env.SDKWORK_IM_DATABASE_ENGINE,
-  'sqlite',
-  'desktop dev must default to SQLite for local user data',
+  'postgresql',
+  'desktop dev must default to PostgreSQL for the standalone development stack',
 );
 assert.match(
   desktopPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
-  /sqlite:\/\/.*[/\\]\.sdkwork[/\\]chat[/\\]data[/\\]chat\.sqlite$/u,
-  'desktop dev SQLite data must remain under the Sdkwork IM user-private data directory',
+  /^postgresql:\/\//u,
+  'desktop dev must use the PostgreSQL development database URL by default',
 );
 assert.equal(
   desktopPlan.processes[0].env.SDKWORK_CLAW_DATABASE_URL,
   desktopPlan.processes[0].env.SDKWORK_IM_DATABASE_URL,
-  'desktop dev must bridge the canonical SQLite URL to the current Rust-compatible env name',
+  'desktop dev must bridge the canonical PostgreSQL URL to the current Rust-compatible env name',
+);
+assert.ok(
+  !('SDKWORK_IM_PLATFORM_API_GATEWAY_MANAGED_EXTERNALLY' in desktopPlan.processes[0].env),
+  'standalone unified-process desktop dev must not mark platform gateway as externally managed',
 );
 
 const spawned = [];
@@ -1050,7 +1033,10 @@ function createFakeChild() {
 
 await runSdkworkChatPcDev({
   argv: ['--target', 'desktop'],
-  env: {},
+  env: {
+    SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
+    SDKWORK_IM_SERVICE_LAYOUT: 'unified-process',
+  },
   findAvailableDevPort: async () => 4179,
   resolveServerBindEnv: async ({ env }) => ({
     bindAddr: '127.0.0.1:18081',
@@ -1072,13 +1058,13 @@ await runSdkworkChatPcDev({
 
 assert.equal(
   spawned.length,
-  3,
-  'desktop dev runner must spawn unified server, desktop, and shared sdkwork-api-gateway processes',
+  2,
+  'standalone unified-process desktop dev runner must spawn standalone gateway and desktop renderer processes',
 );
 assert.equal(
   spawned[0].options.env.SDKWORK_IM_BROWSER_ORIGINS,
   'http://127.0.0.1:4179,http://localhost:4179',
-  'dev runner must pass the resolved available port to the unified server CORS origins',
+  'dev runner must pass the resolved available port to the standalone gateway CORS origins',
 );
 assert.equal(
   spawned[1].options.env.SDKWORK_IM_PC_DEV_PORT,
@@ -1088,32 +1074,36 @@ assert.equal(
 assert.equal(
   spawned[0].options.env.SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND,
   '127.0.0.1:18081',
-  'dev runner must pass the resolved application ingress bind to the unified server process',
+  'dev runner must pass the resolved application ingress bind to the standalone gateway process',
 );
 assert.equal(
   spawned[0].options.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   'http://127.0.0.1:18081',
-  'dev runner must pass the resolved application HTTP URL to the unified server process',
+  'dev runner must pass the resolved application HTTP URL to the standalone gateway process',
 );
 assert.equal(
   spawned[0].options.env.SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:3900',
-  'dev runner must pass one shared sdkwork-api-gateway root for platform dependency traffic',
+  'http://127.0.0.1:18081',
+  'dev runner must collapse platform SDK traffic onto the resolved application ingress bind',
+);
+assert.ok(
+  !('SDKWORK_IM_PLATFORM_API_GATEWAY_MANAGED_EXTERNALLY' in spawned[0].options.env),
+  'standalone unified-process dev runner must not mark platform gateway as externally managed',
 );
 assert.ok(
   !('SDKWORK_IM_DRIVE_APP_API_UPSTREAM' in spawned[0].options.env)
     && !('SDKWORK_IM_NOTARY_APP_API_UPSTREAM' in spawned[0].options.env),
-  'dev runner must not pass default per-module foundation upstreams beside the shared gateway root',
+  'standalone unified-process dev runner must not pass split foundation upstreams',
 );
 assert.equal(
   spawned[1].options.env.VITE_SDKWORK_IAM_APP_API_BASE_URL,
-  'http://127.0.0.1:3900',
-  'dev runner must point IAM traffic at the platform api gateway',
+  'http://127.0.0.1:18081',
+  'dev runner must point IAM traffic at the collapsed standalone gateway root',
 );
 assert.equal(
   spawned[1].options.env.VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:3900',
-  'dev runner must point platform SDK traffic at sdkwork-api-gateway',
+  'http://127.0.0.1:18081',
+  'dev runner must point platform SDK traffic at the collapsed standalone gateway root',
 );
 assert.equal(
   spawned[1].options.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
@@ -1126,32 +1116,27 @@ assert.equal(
   'dev runner must point IM websocket traffic at the resolved application ingress when 18079 is unavailable',
 );
 assert.deepEqual(
-  spawned[2].args,
+  spawned[0].args,
   [
     'run',
     '-p',
-    'sdkwork-api-gateway-service',
+    'sdkwork-im-standalone-gateway',
     '--bin',
-    'sdkwork-api-gateway',
+    'sdkwork-im-standalone-gateway',
     '--',
     '--config',
-    'config/sdkwork-api-gateway.development.toml.example',
+    spawned[0].options.env.SDKWORK_IM_STANDALONE_GATEWAY_CONFIG,
   ],
-  'dev runner must spawn the shared sdkwork-api-gateway Cargo service for foundation API integration',
+  'dev runner must spawn the embedded standalone gateway for standalone unified-process profiles',
 );
 assert.equal(
-  spawned[2].options.cwd,
-  apiGatewayWorkspaceRoot,
-  'managed sdkwork-api-gateway must run from the sibling sdkwork-api-gateway workspace',
-);
-assert.equal(
-  spawned[2].options.env.SDKWORK_API_GATEWAY_BIND,
-  '127.0.0.1:3900',
-  'managed sdkwork-api-gateway must receive the standard local gateway bind',
+  spawned[0].options.cwd,
+  repoRoot,
+  'standalone gateway must run from the sdkwork-im repository root',
 );
 assert.deepEqual(
   spawned.map((entry) => entry.options.shell),
-  [pnpmShell, pnpmShell, false],
+  [false, pnpmShell],
   'dev runner must pass the planned shell mode to every child process',
 );
 const devRunnerSource = fs.readFileSync(

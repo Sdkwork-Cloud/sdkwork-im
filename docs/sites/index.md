@@ -47,7 +47,7 @@ plus checked-in SDK workspaces built from those services:
   families used by product, app-business, backend/operator, admin, governance, and provider-runtime
   integrations.
 
-The default development profile is `self-hosted.split-services.development` (`pnpm im:dev`). Topology
+The default development profile is `self-hosted.split-services.development` (`pnpm dev`). Topology
 authority lives in `specs/topology.spec.json` and `configs/topology/*.env`.
 
 For most new integrations, the fastest reading order is:
@@ -64,7 +64,7 @@ For most new integrations, the fastest reading order is:
 <div class="landing-grid">
   <div class="fact-card">
     <h3>Default App Listener</h3>
-    <p><code>127.0.0.1:18079</code> for the default development application ingress (<code>pnpm im:dev</code>).</p>
+    <p><code>127.0.0.1:18079</code> for the default development application ingress (<code>pnpm dev</code>).</p>
   </div>
   <div class="fact-card">
     <h3>Unified Server Listener</h3>

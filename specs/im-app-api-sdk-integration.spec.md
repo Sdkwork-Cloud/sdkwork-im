@@ -94,7 +94,7 @@ Rules:
 - Vite `optimizeDeps.exclude` must include linked SDKWork source packages so live source edits are not hidden by dependency pre-bundling.
 - Local PC development exposes one public backend entrypoint, `http://127.0.0.1:18079`, through the unified Sdkwork IM gateway. Appbase IAM App API defaults route through `sdkwork-api-gateway`; explicit split-deployment overrides may still point to an internal appbase upstream on the platform gateway bind, but the renderer must not depend on that port directly.
 - The chat-pc `pnpm-workspace.yaml` must not register sibling `sdkwork-appbase`, `sdkwork-core`, or `sdkwork-ui` packages as workspace importers. They remain source-linked dependencies; otherwise pnpm install rewrites sibling `node_modules` and breaks isolated local builds.
-- Release builds set `SDKWORK_SHARED_SDK_MODE=git`, run `prepare:shared-sdk`, materialize `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `sdkwork-im-sdk`, `sdkwork-drive-app-sdk`, `sdkwork-appbase`, `sdkwork-core`, `sdkwork-ui`, `sdkwork-claw-router`, and `sdkwork-birdcoder` from git-backed source checkouts, then build Sdkwork IM PC from those source links.
+- Release builds set `SDKWORK_SHARED_SDK_MODE=git`, run `sdk:shared:prepare`, materialize `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `sdkwork-im-sdk`, `sdkwork-drive-app-sdk`, `sdkwork-appbase`, `sdkwork-core`, `sdkwork-ui`, `sdkwork-claw-router`, and `sdkwork-birdcoder` from git-backed source checkouts, then build Sdkwork IM PC from those source links.
 
 ## 5.1 Shared Gateway Foundation Composition
 

@@ -3,7 +3,7 @@
 ## Context
 
 - Current loop: continue Step 12 Windows operator seam tightening after the `start/status` and `principal-profile` fixes.
-- Surfaces: `(retired lifecycle script)`, `pnpm im:dev`
+- Surfaces: `(retired lifecycle script)`, `pnpm dev`
 - Contract: Windows `.cmd` entrypoints must expose the same GNU-style named flags that docs and operators already use.
 
 ## Confirmed Gap
@@ -11,7 +11,7 @@
 - `cmd /c .\bin\retired-lifecycle-install.cmd --help` only showed:
   - `Usage: powershell -ExecutionPolicy Bypass -File (retired lifecycle script) [-Release] [-BindAddress <host:port>]`
 - `cmd /c .\bin\retired-lifecycle-deploy.cmd --help` only showed:
-  - `Usage: powershell -ExecutionPolicy Bypass -File pnpm im:dev [-ProfileName <self-hosted.split-services.development|self-hosted.split-services.development>] [-SkipSmoke] [-SmokeBaseUrl <url>]`
+  - `Usage: powershell -ExecutionPolicy Bypass -File pnpm dev [-ProfileName <self-hosted.split-services.development|self-hosted.split-services.development>] [-SkipSmoke] [-SmokeBaseUrl <url>]`
 - That left the same drift already closed for `retired-lifecycle-start.cmd` and `retired-lifecycle-status.cmd`:
   - docs taught `--release`, `--bind-addr`, `--profile`, `--skip-smoke`, `--smoke-base-url`
   - local Windows help still surfaced only PowerShell syntax
@@ -19,13 +19,13 @@
 ## Decision
 
 - Keep `_cmd-forward-powershell.cmd` and runtime execution flow unchanged.
-- Patch only the `-Help` branch in `(retired lifecycle script)` and `pnpm im:dev`.
+- Patch only the `-Help` branch in `(retired lifecycle script)` and `pnpm dev`.
 - Freeze the visible Windows help contract with two regression tests in `deployment_profile_test.rs`.
 
 ## Changed Files
 
 - `(retired lifecycle script)`
-- `pnpm im:dev`
+- `pnpm dev`
 - `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
 - `docs/review/continuous-optimization-install-deploy-cmd-help-gnu-surface-contract-2026-04-09.md`
 - `docs/step/continuous-optimization-install-deploy-cmd-help-gnu-surface-contract-2026-04-09.md`

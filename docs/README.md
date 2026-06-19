@@ -19,7 +19,7 @@ SDKWork Chat maintainers.
 | Deployment index | [部署/README.md](./部署/README.md) |
 | Public docs site | [sites/](./sites/) |
 
-Default development: `pnpm im:dev` from repository root. Application ingress: `http://127.0.0.1:18079`.
+Default development: `pnpm dev` from repository root. Application ingress: `http://127.0.0.1:18079`.
 
 Retired `local-minimal` / `local-default` profiles and lifecycle scripts are documented only in
 [topology-greenfield.md](./topology-greenfield.md) and [sites/deployment/](./sites/deployment/).

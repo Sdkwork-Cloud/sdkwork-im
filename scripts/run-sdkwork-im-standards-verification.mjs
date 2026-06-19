@@ -20,6 +20,8 @@ const standardChecks = [
   'test:database-naming-standard',
   'test:component-spec-consistency',
   'test:apis-authority-standard',
+  'check:agent-workflow-standard',
+  'check:pnpm-script-standard',
   'check:dependency-management',
   'test:workflow-commercial-gates',
 ];

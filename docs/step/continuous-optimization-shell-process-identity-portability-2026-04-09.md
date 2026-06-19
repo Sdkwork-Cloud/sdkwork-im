@@ -6,7 +6,7 @@
 
 ## Scope
 
-- Update only `pnpm server:dev`, `bin/retired-lifecycle-status.sh`, `bin/retired-lifecycle-stop.sh`, and the matching deployment-profile regression test.
+- Update only `pnpm dev:server`, `bin/retired-lifecycle-status.sh`, `bin/retired-lifecycle-stop.sh`, and the matching deployment-profile regression test.
 - Do not change PowerShell or CMD lifecycle behavior in this loop.
 
 ## Implementation

@@ -23,8 +23,8 @@
 - `cargo fmt --all --check`
 - `cargo clippy --workspace --all-targets --all-features --offline -- -D warnings`
 - `cargo test --workspace --offline`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm server:dev -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev:server -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/retired-lifecycle-status.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/restore-runtime-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/open-chat-test.ps1 -Help`
@@ -48,8 +48,8 @@
 
 ## 升级与回滚说明
 - 升级路径：
-  - 使用 `pnpm im:dev` 作为本地部署统一入口
-  - 使用 `pnpm server:dev` / `bin/retired-lifecycle-status.ps1` 做发布后启动与状态核对
+  - 使用 `pnpm dev` 作为本地部署统一入口
+  - 使用 `pnpm dev:server` / `bin/retired-lifecycle-status.ps1` 做发布后启动与状态核对
   - 如需脚本化聊天验证，使用 `bin/open-chat-test.ps1 -ScriptedValidation`
 - 回滚/恢复路径：
   - 使用 `bin/restore-runtime-local.ps1` 通过显式 backup snapshot 恢复 runtime-dir

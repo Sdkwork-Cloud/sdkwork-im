@@ -83,10 +83,7 @@ assert.equal(
   appPackageJson.scripts.dev,
   'node ../../scripts/dev/run-sdkwork-im-pc-vite-dev.mjs',
 );
-assert.equal(
-  appPackageJson.scripts['dev:tauri'],
-  'node ../../scripts/dev/run-sdkwork-im-pc-vite-dev.mjs',
-);
+assert.equal(appPackageJson.scripts['dev:tauri'], undefined);
 assert.match(
   appPackageJson.scripts.build,
   /^node \.\.\/\.\.\/scripts\/dev\/run-vite-cli\.mjs build/u,
@@ -97,8 +94,10 @@ assert.equal(
   'node ../../scripts/dev/run-tsc-cli.mjs --noEmit',
   'desktop app lint must prepare linked SDKWork UI dependencies before TypeScript checks',
 );
-assert.equal(appPackageJson.scripts['desktop:dev:local'], 'pnpm --filter @sdkwork/im-pc-desktop desktop:dev:local');
-assert.equal(appPackageJson.scripts['desktop:build:local'], 'pnpm --filter @sdkwork/im-pc-desktop desktop:build:local');
+assert.equal(appPackageJson.scripts['dev:desktop'], 'pnpm --filter @sdkwork/im-pc-desktop dev:desktop');
+assert.equal(appPackageJson.scripts['desktop:dev:local'], undefined);
+assert.equal(appPackageJson.scripts['desktop:build:local'], undefined);
+assert.equal(appPackageJson.scripts['build:desktop:local'], 'pnpm --filter @sdkwork/im-pc-desktop build:desktop:local');
 assert.ok(
   appPackageJson.dependencies['@sdkwork-internal/im-app-api-generated'],
   'PC app must depend on generated sdkwork-im-app-sdk TypeScript package',
@@ -134,9 +133,15 @@ assert.ok(fs.existsSync(path.join(desktopPackageRoot, 'node_modules/@tauri-apps/
 
 const desktopPackageJson = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-desktop/package.json');
 assert.equal(desktopPackageJson.name, '@sdkwork/im-pc-desktop');
-assert.equal(desktopPackageJson.scripts['desktop:dev:local'], 'node ../../../../scripts/run-tauri-cli.mjs dev');
-assert.equal(desktopPackageJson.scripts['desktop:build:local'], 'node ../../../../scripts/run-tauri-cli.mjs build');
-assert.equal(desktopPackageJson.scripts['dev:tauri'], 'pnpm --dir ../.. dev:tauri');
+assert.equal(desktopPackageJson.scripts['dev:desktop'], 'node ../../../../scripts/run-tauri-cli.mjs dev');
+assert.equal(
+  desktopPackageJson.scripts['dev:renderer'],
+  'node ../../../../scripts/dev/run-sdkwork-im-pc-tauri-renderer-dev.mjs',
+);
+assert.equal(desktopPackageJson.scripts['desktop:dev:local'], undefined);
+assert.equal(desktopPackageJson.scripts['desktop:build:local'], undefined);
+assert.equal(desktopPackageJson.scripts['build:desktop:local'], 'node ../../../../scripts/run-tauri-cli.mjs build');
+assert.equal(desktopPackageJson.scripts['dev:tauri'], undefined);
 assert.equal(desktopPackageJson.scripts.build, 'pnpm --dir ../.. build');
 assert.equal(desktopPackageJson.devDependencies['@tauri-apps/cli'], 'catalog:');
 assert.equal(desktopPackageJson.dependencies['@tauri-apps/api'], 'catalog:');
@@ -160,6 +165,16 @@ const tauriConfig = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-desktop/
 assert.equal(tauriConfig.productName, 'Sdkwork IM PC');
 assert.equal(tauriConfig.identifier, 'com.sdkwork.chatpc');
 assert.equal(tauriConfig.build.devUrl, 'http://127.0.0.1:4176');
+assert.equal(
+  tauriConfig.build.beforeDevCommand,
+  'node ../../../../scripts/dev/run-sdkwork-im-pc-tauri-renderer-dev.mjs',
+  'Tauri beforeDevCommand must start the PC renderer without relying on pnpm PATH',
+);
+assert.equal(
+  tauriConfig.build.beforeBuildCommand,
+  'node ../../../../scripts/dev/run-sdkwork-im-pc-tauri-renderer-build.mjs',
+  'Tauri beforeBuildCommand must build the PC renderer without relying on pnpm PATH',
+);
 assert.equal(tauriConfig.build.frontendDist, '../../../dist');
 assert.match(
   runTauriCliSource,

@@ -6,7 +6,7 @@ This section covers deployment and operational entry points implemented in the r
 
 | Mode | Entry points | Best use |
 | --- | --- | --- |
-| Development stack | `pnpm im:dev`, `pnpm im:dev:unified`, `pnpm server:dev` | Local development, PC integration, smoke |
+| Development stack | `pnpm dev`, `pnpm dev:browser`, `pnpm dev:desktop`, `pnpm dev:server` | Local development, PC integration, smoke |
 | Packaged server | `bin/install-server.*`, `bin/start-server.*`, `bin/verify-server.*` | Production-style installs and service management |
 | Standalone control plane | `cargo run -p governance-service --offline` | Governance API development |
 
@@ -16,7 +16,7 @@ This section covers deployment and operational entry points implemented in the r
 
 Use [Quick Start](/getting-started/quick-start) and [Local Binary](/deployment/local-binary):
 
-- `pnpm im:dev` loads `self-hosted.split-services.development`
+- `pnpm dev` loads the PostgreSQL standalone development profile
 - application ingress defaults to `http://127.0.0.1:18079`
 
 ### For production-style installs

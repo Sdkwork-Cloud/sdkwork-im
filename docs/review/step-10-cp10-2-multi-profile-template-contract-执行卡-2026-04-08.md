@@ -41,14 +41,14 @@
   - `sdkwork_im_PUBLIC_BEARER_HS256_SECRET`
 
 ### 2. `retired-lifecycle-deploy` 已变成真实的 profile-aware 交付入口
-- `pnpm im:dev`
+- `pnpm dev`
   - 新增 `-ProfileName <self-hosted.split-services.development|self-hosted.split-services.development>`
   - 明确�?profile 选择转发�?`bootstrap-local.ps1`
 - `deployments/scripts/bootstrap-local.ps1`
   - 新增 `-ProfileName`
   - �?profile 名称动态派�?compose 文件
   - 错误信息、compose 诊断、smoke 结果均带 profile 语义
-- `pnpm im:dev`
+- `pnpm dev`
   - 新增 `--profile <self-hosted.split-services.development|self-hosted.split-services.development>`
   - �?profile 动态派�?compose 文件
   - 统一 profile 校验与诊断输�?
@@ -100,7 +100,7 @@
 ## Fresh 验证
 - `cargo fmt --all --check`
 - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
 - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 
 ## 结论

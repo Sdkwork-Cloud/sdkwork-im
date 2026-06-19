@@ -10,7 +10,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     [
       'start-sdkwork-im-local-app-api.mjs no longer starts a separate app-api process.',
       'Sdkwork IM app-api is provided by the Rust unified server.',
-      'Use `pnpm server:dev` or `node scripts/im-server-dev.mjs`.',
+      'Use `pnpm dev:server` or `node scripts/im-server-dev.mjs`.',
       '',
     ].join('\n'),
   );

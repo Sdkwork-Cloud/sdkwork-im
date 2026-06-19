@@ -13,7 +13,7 @@
 
 ## Closure Target
 
-1. Add Windows regressions for `(retired lifecycle script) --help` and `pnpm im:dev --help`.
+1. Add Windows regressions for `(retired lifecycle script) --help` and `pnpm dev --help`.
 2. Reproduce the real help-surface drift first.
 3. Patch only the help text surface.
 4. Backwrite review, step, architecture, and indexes for this loop.
@@ -23,7 +23,7 @@
 - Added `test_install_local_cmd_help_surfaces_gnu_style_named_flags`
 - Added `test_deploy_local_cmd_help_surfaces_gnu_style_named_flags`
 - Reproduced the missing `.cmd` help lines before patching
-- Added GNU-style `.cmd` usage lines to the `-Help` branches in `(retired lifecycle script)` and `pnpm im:dev`
+- Added GNU-style `.cmd` usage lines to the `-Help` branches in `(retired lifecycle script)` and `pnpm dev`
 - Backwrote review and architecture docs for this loop
 
 ## Verification

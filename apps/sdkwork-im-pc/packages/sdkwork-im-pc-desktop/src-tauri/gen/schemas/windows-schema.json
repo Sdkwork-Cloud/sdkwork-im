@@ -387,6 +387,12 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Allows the SDKWork Chat PC renderer to drive the tray unread badge, taskbar attention state, and dock badge label from the aggregated unread message count.",
+          "type": "string",
+          "const": "allow-sdkwork-chat-pc-unread-badge",
+          "markdownDescription": "Allows the SDKWork Chat PC renderer to drive the tray unread badge, taskbar attention state, and dock badge label from the aggregated unread message count."
+        },
+        {
           "description": "Allows Sdkwork IM PC to request native notification permission and show local message notifications through the native desktop shell.",
           "type": "string",
           "const": "allow-sdkwork-im-pc-notification",

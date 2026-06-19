@@ -17,12 +17,12 @@ Start the full stack from the repository root so topology profiles, platform gat
 ```bash
 cd ../..
 pnpm install
-pnpm im:dev              # browser renderer + sdkwork-im-server + platform gateway
-pnpm im:dev:desktop      # Tauri desktop shell
-pnpm server:dev          # server only
+pnpm dev              # browser renderer + sdkwork-im-server + platform gateway
+pnpm dev:desktop      # Tauri desktop shell
+pnpm dev:server          # server only
 ```
 
-Default surfaces when using `pnpm im:dev`:
+Default surfaces when using `pnpm dev`:
 
 | Surface | URL |
 | --- | --- |
@@ -33,8 +33,8 @@ Default surfaces when using `pnpm im:dev`:
 Database profiles:
 
 ```bash
-pnpm im:dev:postgres     # PostgreSQL via .env.postgres
-pnpm im:dev:sqlite       # local SQLite user data
+pnpm dev:browser:postgres     # PostgreSQL via .env.postgres
+pnpm dev:browser:sqlite       # local SQLite user data
 ```
 
 ## App-root commands

@@ -17,9 +17,10 @@ PC / Web Client
 
 Commands:
 
-- `pnpm im:dev` — `self-hosted.split-services.development`
-- `pnpm im:dev:unified` — `self-hosted.unified-process.development`
-- `pnpm server:dev` — server-only dev stack
+- `pnpm dev` — `standalone.unified-process.development`
+- `pnpm dev:browser` — browser development target
+- `pnpm dev:desktop` — desktop development target
+- `pnpm dev:server` — server-only dev stack
 
 ## Production SaaS
 

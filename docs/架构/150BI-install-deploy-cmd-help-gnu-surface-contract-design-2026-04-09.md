@@ -12,7 +12,7 @@ That created a discoverability mismatch:
 
 - Keep the current forwarding flow unchanged.
 - Define GNU-style help discoverability as part of the visible Windows `.cmd` operator contract.
-- Add one explicit `.cmd` usage line to each help branch in `(retired lifecycle script)` and `pnpm im:dev`.
+- Add one explicit `.cmd` usage line to each help branch in `(retired lifecycle script)` and `pnpm dev`.
 
 ## Rationale
 

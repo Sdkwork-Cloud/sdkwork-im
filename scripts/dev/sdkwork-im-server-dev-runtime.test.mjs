@@ -18,12 +18,12 @@ const defaultCargoEnv = createSdkworkImServerCargoEnv({
 assert.equal(
   defaultCargoEnv.env.CARGO_TARGET_DIR,
   path.join(repoRoot, '.runtime', 'cargo-target', 'sdkwork-im-server-dev'),
-  'server:dev must build into an isolated target dir so locked target/debug/sdkwork-im-server.exe cannot block rebuilds',
+  'pnpm dev:server must build into an isolated target dir so locked target/debug/sdkwork-im-server.exe cannot block rebuilds',
 );
 assert.equal(
   defaultCargoEnv.usingDefaultTargetDir,
   true,
-  'default server:dev cargo target dir should be reported as an automatic dev fallback',
+  'default pnpm dev:server cargo target dir should be reported as an automatic dev fallback',
 );
 
 const explicitCargoEnv = createSdkworkImServerCargoEnv({
@@ -35,7 +35,7 @@ const explicitCargoEnv = createSdkworkImServerCargoEnv({
 assert.equal(
   explicitCargoEnv.env.CARGO_TARGET_DIR,
   path.join(repoRoot, 'custom-target'),
-  'server:dev must respect an explicitly configured CARGO_TARGET_DIR',
+  'pnpm dev:server must respect an explicitly configured CARGO_TARGET_DIR',
 );
 assert.equal(
   explicitCargoEnv.usingDefaultTargetDir,
@@ -51,22 +51,37 @@ const fallbackBindEnv = await resolveSdkworkImServerBindEnv({
 assert.equal(
   fallbackBindEnv.bindAddr,
   '127.0.0.1:18081',
-  'server:dev must choose the next available local gateway bind when 18079 is already occupied',
+  'pnpm dev:server must choose the next available local gateway bind when 18079 is already occupied',
 );
 assert.equal(
   fallbackBindEnv.env.SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND,
   '127.0.0.1:18081',
-  'server:dev must pass the selected bind to the Rust gateway',
+  'pnpm dev:server must pass the selected bind to the Rust gateway',
 );
 assert.equal(
   fallbackBindEnv.env.SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   'http://127.0.0.1:18081',
-  'server:dev must expose the selected gateway URL to browser SDK env resolution',
+  'pnpm dev:server must expose the selected gateway URL to browser SDK env resolution',
+);
+assert.equal(
+  fallbackBindEnv.env.SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  'ws://127.0.0.1:18081',
+  'pnpm dev:server must expose the selected websocket URL when the default gateway port is busy',
+);
+assert.equal(
+  fallbackBindEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
+  'http://127.0.0.1:18081',
+  'pnpm dev:server must keep Vite HTTP env aligned with the selected gateway bind',
+);
+assert.equal(
+  fallbackBindEnv.env.VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
+  'ws://127.0.0.1:18081',
+  'pnpm dev:server must keep Vite websocket env aligned with the selected gateway bind',
 );
 assert.equal(
   fallbackBindEnv.portChanged,
   true,
-  'server:dev must report when it had to move off the default gateway port',
+  'pnpm dev:server must report when it had to move off the default gateway port',
 );
 
 const reservedDrivePortBindEnv = await resolveSdkworkImServerBindEnv({
@@ -77,29 +92,61 @@ const reservedDrivePortBindEnv = await resolveSdkworkImServerBindEnv({
 assert.equal(
   reservedDrivePortBindEnv.bindAddr,
   '127.0.0.1:18081',
-  'server:dev must skip 18080 because the default Drive app-api dependency binds there',
+  'pnpm dev:server must skip 18080 because the default Drive app-api dependency binds there',
 );
 assert.equal(
   reservedDrivePortBindEnv.portChanged,
   true,
-  'server:dev must report the reserved Drive port skip as an automatic port fallback',
+  'pnpm dev:server must report the reserved Drive port skip as an automatic port fallback',
 );
 
 const explicitBindEnv = await resolveSdkworkImServerBindEnv({
   env: {
     SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:28079',
   },
-  isPortAvailable: async () => false,
+  isPortAvailable: async (port) => port === 28079,
 });
 assert.equal(
   explicitBindEnv.bindAddr,
   '127.0.0.1:28079',
-  'server:dev must respect an explicit SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND instead of auto-rotating it',
+  'pnpm dev:server must keep an explicit SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND when that port is available',
 );
 assert.equal(
   explicitBindEnv.portChanged,
   false,
-  'explicit server binds must not be reported as automatic port fallback',
+  'explicit available server binds must not be reported as automatic port fallback',
+);
+
+const explicitBusyBindEnv = await resolveSdkworkImServerBindEnv({
+  env: {
+    SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:18079',
+    SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'http://127.0.0.1:18079',
+    VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: 'http://127.0.0.1:18079',
+  },
+  isPortAvailable: async (port) => port === 18081,
+  maxAttempts: 3,
+});
+assert.equal(
+  explicitBusyBindEnv.bindAddr,
+  '127.0.0.1:18081',
+  'pnpm dev:server must rotate off an explicit topology bind when that port is already occupied',
+);
+assert.equal(
+  explicitBusyBindEnv.portChanged,
+  true,
+  'topology default binds must report automatic port fallback when 18079 is busy',
+);
+
+await assert.rejects(
+  () => resolveSdkworkImServerBindEnv({
+    env: {
+      SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND: '127.0.0.1:28079',
+    },
+    isPortAvailable: async () => false,
+    maxAttempts: 2,
+  }),
+  /No available sdkwork-im server port found from 28079/u,
+  'pnpm dev:server must fail clearly when no candidate port is available from an explicit bind',
 );
 
 const startScript = fs.readFileSync(
@@ -109,10 +156,10 @@ const startScript = fs.readFileSync(
 assert.match(
   startScript,
   /createSdkworkImServerCargoEnv/u,
-  'server:dev startup must use the shared cargo target isolation helper',
+  'pnpm dev:server startup must use the shared cargo target isolation helper',
 );
 assert.match(
   startScript,
   /resolveSdkworkImServerBindEnv/u,
-  'server:dev startup must use the shared gateway bind resolver',
+  'pnpm dev:server startup must use the shared gateway bind resolver',
 );

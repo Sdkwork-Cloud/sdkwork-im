@@ -58,6 +58,7 @@ members = [
     "services/space-service",
     "services/streaming-service",
     "services/sdkwork-im-gateway",
+    "services/sdkwork-im-standalone-gateway",
     "adapters/push-providers/push-apns",
     "adapters/push-providers/push-fcm",
     "tools/chat-cli",

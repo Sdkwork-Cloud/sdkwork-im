@@ -12,7 +12,7 @@ deployment runbooks for Sdkwork IM.
 - Greenfield plan: [../docs/topology-greenfield.md](../docs/topology-greenfield.md)
 - Deployment docs: [../docs/部署/README.md](../docs/部署/README.md)
 
-Default development profile: `self-hosted.split-services.development` via `pnpm im:dev`.
+Default development profile: `self-hosted.split-services.development` via `pnpm dev`.
 Application ingress bind: `127.0.0.1:18079` (from profile env, not hardcoded in services).
 
 Retired compose files and `bin/*-local.*` lifecycle scripts are removed; see topology-greenfield

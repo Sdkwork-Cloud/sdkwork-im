@@ -7,10 +7,10 @@ Sdkwork IM development and production routing are owned by topology v2. Use
 
 | Profile id | Command | Purpose |
 | --- | --- | --- |
-| `self-hosted.split-services.development` | `pnpm im:dev` | Default PC + server + platform gateway dev stack |
-| `self-hosted.unified-process.development` | `pnpm im:dev:unified` | Smoke/CI single-process ingress layout |
+| `standalone.unified-process.development` | `pnpm dev`, `pnpm dev:browser`, `pnpm dev:desktop` | Default PostgreSQL standalone development stack |
+| `self-hosted.unified-process.development` | `pnpm dev:browser:postgres:unified-process:standalone` | Current topology v2 profile-file mapping |
 | `self-hosted.split-services.production` | private install templates | On-prem production bind + URL contract |
-| `cloud-hosted.split-services.production` | `pnpm im:build` | SaaS production (`im.sdkwork.com`, `api.sdkwork.com`) |
+| `cloud-hosted.split-services.production` | `pnpm build` | SaaS production (`im.sdkwork.com`, `api.sdkwork.com`) |
 
 See [Production Domain Binding](/deployment/production-domain-binding) for public URL keys.
 
@@ -25,7 +25,7 @@ See [Production Domain Binding](/deployment/production-domain-binding) for publi
 
 ## Server-Only Dev
 
-`pnpm server:dev` starts `scripts/im-server-dev.mjs`, which runs `sdkwork-im-server` with the
+`pnpm dev:server` starts `scripts/im-server-dev.mjs`, which runs `sdkwork-im-server` with the
 default split-services development profile env and managed `sdkwork-api-gateway`.
 
 ## Packaged Server Deployment

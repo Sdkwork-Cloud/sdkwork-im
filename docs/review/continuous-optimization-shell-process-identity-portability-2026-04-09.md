@@ -2,7 +2,7 @@
 
 ## Context
 
-- `pnpm server:dev`, `bin/retired-lifecycle-status.sh`, and `bin/retired-lifecycle-stop.sh` used `ps -p "$pid" -o comm=` and exact `sdkwork-im-server` matching.
+- `pnpm dev:server`, `bin/retired-lifecycle-status.sh`, and `bin/retired-lifecycle-stop.sh` used `ps -p "$pid" -o comm=` and exact `sdkwork-im-server` matching.
 - On BSD/macOS, `comm` may truncate long command names, so a live managed process can be misread as stale or foreign.
 
 ## Confirmed Bug

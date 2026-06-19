@@ -321,7 +321,7 @@ function validateSdkworkImReleaseStagingPlan(plan, { requireSources = true } = {
   if (plan.package?.deploymentMode === 'desktop' && requireSources) {
     const desktopCopies = plan.actions.filter((action) => action.kind === 'copy' && action.label === 'desktop installer artifact');
     if (desktopCopies.length === 0) {
-      issues.push(`${plan.package.id} requires at least one desktop installer artifact. Run release:desktop first.`);
+      issues.push(`${plan.package.id} requires at least one desktop installer artifact. Run release:build:desktop first.`);
     }
   }
   return issues;

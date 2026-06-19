@@ -118,5 +118,5 @@ Future (Phase 2+):
 ```bash
 # After adding discovery integration test
 node scripts/dev/sdkwork-im-discovery-integration.test.mjs
-pnpm discovery:dev   # from sdkwork-discovery sibling checkout
+pnpm --dir ../sdkwork-discovery dev
 ```

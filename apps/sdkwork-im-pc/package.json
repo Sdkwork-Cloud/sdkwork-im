@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node ../../scripts/dev/run-sdkwork-im-pc-vite-dev.mjs",
-    "dev:tauri": "node ../../scripts/dev/run-sdkwork-im-pc-vite-dev.mjs",
-    "desktop:dev:local": "pnpm --filter @sdkwork/im-pc-desktop desktop:dev:local",
-    "desktop:build:local": "pnpm --filter @sdkwork/im-pc-desktop desktop:build:local",
+    "dev:desktop": "pnpm --filter @sdkwork/im-pc-desktop dev:desktop",
+    "build:desktop:local": "pnpm --filter @sdkwork/im-pc-desktop build:desktop:local",
     "build": "node ../../scripts/dev/run-vite-cli.mjs build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "preview": "vite preview",
     "start": "node dist/server.cjs",

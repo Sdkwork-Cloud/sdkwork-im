@@ -1,7 +1,7 @@
 ﻿# Docker
 
 Docker deployment is optional for container validation. The authoritative development entry is
-`pnpm im:dev` with topology profile `self-hosted.split-services.development`.
+`pnpm dev` with topology profile `standalone.unified-process.development`.
 
 The formal packaged install contract is [Server Lifecycle](/deployment/server-lifecycle) using
 `deployments/templates/server.env.example` and `sdkwork-im-server`.
@@ -17,7 +17,7 @@ From the repository root:
 
 ```bash
 pnpm install
-pnpm im:dev
+pnpm dev
 ```
 
 Default dev listeners:

@@ -25,7 +25,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
   `VITE_SDKWORK_IM_APPLICATION_PUBLIC_*`. `services/sdkwork-im-gateway` and
   `crates/sdkwork-im-gateway-config` keep product-owned IM routing only; platform API routing is
   owned by the shared gateway boundary.
-- Local PC development starts through `scripts/im-dev.mjs` (`pnpm im:dev`), which loads topology
+- Local PC development starts through `scripts/im-dev.mjs` (`pnpm dev`), which loads topology
   profiles from `configs/topology/` and starts the sibling `sdkwork-api-gateway` Cargo service as
   the shared platform gateway.
 - `crates/sdkwork-im-gateway-config` defaults Appbase, Drive, and Notary service upstreams to the
@@ -112,5 +112,5 @@ Historical `sdkwork-clawchat-*` package names were retired by the
 - `pnpm test:runtime-id-standard`
 - `pnpm test:deprecated-service-boundary`
 - `pnpm test:apis-authority-standard`
-- `pnpm verify:standards`
+- `pnpm verify`
 - `node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json`

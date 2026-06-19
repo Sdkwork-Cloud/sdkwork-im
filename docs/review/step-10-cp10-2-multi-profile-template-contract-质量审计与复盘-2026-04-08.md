@@ -2,8 +2,8 @@
 
 ## 审计范围
 - `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`
-- `pnpm im:dev`
-- `pnpm im:dev`
+- `pnpm dev`
+- `pnpm dev`
 - `bin/_cmd-forward-powershell.cmd`
 - `deployments/scripts/bootstrap-local.ps1`
 - `deployments/templates/self-hosted.split-services.development.env.example`
@@ -45,7 +45,7 @@
 - `cargo fmt --all --check`
 - `cargo test -p sdkwork-im-gateway --offline test_quick_start_doc_freezes_full_local_command_surface -- --exact`
 - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
 - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 
 ## 复盘结论

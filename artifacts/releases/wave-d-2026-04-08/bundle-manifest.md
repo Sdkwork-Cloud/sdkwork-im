@@ -98,11 +98,11 @@ already published.
 - `cargo fmt --all --check`
 - `cargo clippy --workspace --all-targets --all-features --offline -- -D warnings`
 - `cargo test --workspace --offline`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
-- `pnpm im:dev`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm server:dev -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
+- `pnpm dev`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev:server -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/retired-lifecycle-status.ps1 -Help`
-- `pnpm server:dev (topology v2)`
+- `pnpm dev:server (topology v2)`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/restore-runtime-local.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/open-chat-test.ps1 -Help`
 - `powershell -NoProfile -ExecutionPolicy Bypass -File bin/plan-release-server.ps1 -ReleaseGatePath artifacts/releases/wave-d-2026-04-08/server/release-gate.json`
@@ -117,8 +117,8 @@ already published.
 
 ### Local Rollout
 
-- `pnpm im:dev`
-- `pnpm server:dev`
+- `pnpm dev`
+- `pnpm dev:server`
 - `bin/retired-lifecycle-status.ps1`
 
 ### Recovery

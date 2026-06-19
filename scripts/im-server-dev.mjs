@@ -8,6 +8,7 @@ import { resolveSdkworkImSharedDatabaseConfig } from './dev/sdkwork-im-shared-da
 import {
   createManagedSdkworkApiGatewayProcess,
   createSdkworkChatBrowserOrigins,
+  isSdkworkApiGatewayManagedExternally,
   resolveSdkworkApiGatewayBaseUrl,
   resolveSdkworkApiGatewayBind,
   resolveSdkworkChatPcDevServer,
@@ -278,10 +279,12 @@ const portalSiteDir = await ensureDevSiteDist({
 runtimeEnv.SDKWORK_IM_ADMIN_SITE_DIR = adminSiteDir;
 runtimeEnv.SDKWORK_IM_PORTAL_SITE_DIR = portalSiteDir;
 
-const managedSdkworkApiGatewayProcess = createManagedSdkworkApiGatewayProcess({
-  env: runtimeEnv,
-  repoRoot,
-});
+const managedSdkworkApiGatewayProcess = isSdkworkApiGatewayManagedExternally(runtimeEnv)
+  ? undefined
+  : createManagedSdkworkApiGatewayProcess({
+    env: runtimeEnv,
+    repoRoot,
+  });
 if (managedSdkworkApiGatewayProcess) {
   spawnCommand(managedSdkworkApiGatewayProcess.command, managedSdkworkApiGatewayProcess.args, {
     cwd: managedSdkworkApiGatewayProcess.cwd,

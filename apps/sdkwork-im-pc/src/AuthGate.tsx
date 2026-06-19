@@ -569,7 +569,7 @@ export function AuthGate({ children }: AuthGateProps) {
         homePath="/"
         locale={resolveAuthLocale()}
         runtimeConfig={resolveSdkworkChatAuthRuntimeConfig()}
-        viewportMode="flow"
+        viewportMode="fixed"
       />
     </SdkworkChatAuthShell>
   );

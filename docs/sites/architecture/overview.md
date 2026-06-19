@@ -104,7 +104,7 @@ tests for app, ops, and control-plane endpoints.
 ## Retired Local Profiles
 
 `local-minimal-node`, `local-minimal`, and `local-default` are removed. Use topology profile ids under
-`configs/topology/` and `pnpm im:dev` / `pnpm server:dev` for development.
+`configs/topology/` and `pnpm dev` / `pnpm dev:server` for development.
 
 ## What To Read Next
 

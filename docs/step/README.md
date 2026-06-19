@@ -1,6 +1,6 @@
 # Sdkwork IM 分步实施计划索引
 
-> **Topology v2 权威入口：** [docs/topology-greenfield.md](../topology-greenfield.md) · [docs/部署/README.md](../部署/README.md) · `pnpm im:dev`
+> **Topology v2 权威入口：** [docs/topology-greenfield.md](../topology-greenfield.md) · [docs/部署/README.md](../部署/README.md) · `pnpm dev`
 > 本目录为 2026-04 前后执行层归档；正文 profile / lifecycle 词汇已迁移到 Topology v2。文件名中的历史词仅用于链接定位。
 
 ## 1. 文档定位
@@ -217,7 +217,7 @@
 - 当前 workspace 仍以 `im-*` 与 `service-*` 为主
 - `CCP` crate 族尚未完整落地
 - 高风险大文件仍然存在
-- 跨平台 CLI（`chat-cli` / `chat-window`）与 topology v2 开发栈（`pnpm im:dev`）已作为验证基线
+- 跨平台 CLI（`chat-cli` / `chat-window`）与 topology v2 开发栈（`pnpm dev`）已作为验证基线
 - 架构文档已经足够清晰，下一步重点是把它们转化为工程结构和实施节奏
 
 ## 12. 使用方式

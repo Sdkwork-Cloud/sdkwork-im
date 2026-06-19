@@ -13,7 +13,9 @@ Canonical application identity:
 - Linux PostgreSQL helper config: `/etc/sdkwork/chat/postgresql.yaml`
 - Desktop SQLite file: `~/.sdkwork/chat/data/chat.sqlite`
 
-Server and container deployments default to PostgreSQL. Desktop deployments and the desktop local runtime keep user data on SQLite by default.
+Server, container, browser development, and desktop development orchestration
+default to PostgreSQL. Installed desktop deployments and desktop local runtime
+user data keep SQLite by default.
 
 ## Environment-specific guides
 
@@ -27,9 +29,10 @@ Server and container deployments default to PostgreSQL. Desktop deployments and 
   - Local developer PostgreSQL workflow.
   - Uses `.env.postgres` copied from `.env.postgres.example`.
   - Uses split `SDKWORK_IM_DATABASE_*` fields, including `SDKWORK_IM_DATABASE_ENGINE`, `SDKWORK_IM_DATABASE_SSL_MODE`, `SDKWORK_IM_DATABASE_SCHEMA`, and `SDKWORK_IM_DATABASE_ADMIN_PASSWORD`.
-  - `pnpm dev` may use PostgreSQL for integrated browser/server development.
-  - `pnpm tauri:dev` defaults to SQLite for desktop local data. Use `pnpm tauri:dev:postgres` only when PostgreSQL diagnostics are explicitly required.
-  - `pnpm dev:sqlite` and `pnpm tauri:dev:sqlite` are explicit SQLite entries.
+  - `pnpm dev` and `pnpm dev:browser` use PostgreSQL for integrated browser/server development.
+  - `pnpm dev:desktop` uses PostgreSQL for standalone desktop development orchestration.
+  - Installed desktop runtime local user data remains SQLite.
+  - `pnpm dev:browser:sqlite` and `pnpm dev:desktop:sqlite` are explicit SQLite development entries.
 
 - [线上环境PostgreSQL数据库配置教程](./线上环境PostgreSQL数据库配置教程.md)
   - Production and private deployment workflow.

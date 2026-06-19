@@ -4,10 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev:tauri": "pnpm --dir ../.. dev:tauri",
+    "dev:desktop": "node ../../../../scripts/run-tauri-cli.mjs dev",
+    "dev:renderer": "node ../../../../scripts/dev/run-sdkwork-im-pc-tauri-renderer-dev.mjs",
     "build": "pnpm --dir ../.. build",
-    "desktop:dev:local": "node ../../../../scripts/run-tauri-cli.mjs dev",
-    "desktop:build:local": "node ../../../../scripts/run-tauri-cli.mjs build",
+    "build:renderer": "node ../../../../scripts/dev/run-sdkwork-im-pc-tauri-renderer-build.mjs",
+    "build:desktop:local": "node ../../../../scripts/run-tauri-cli.mjs build",
     "cargo:check": "cargo check --manifest-path src-tauri/Cargo.toml"
   },
   "dependencies": {

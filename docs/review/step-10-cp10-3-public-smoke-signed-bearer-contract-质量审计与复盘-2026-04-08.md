@@ -38,7 +38,7 @@
 - `cargo fmt --all --check`
 - `cargo test -p sdkwork-im-gateway --offline --test deployment_profile_test`
 - `cargo test -p sdkwork-im-gateway --offline --test public_auth_e2e_test`
-- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm im:dev -Help`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File pnpm dev -Help`
 - `cmd /c bin\\retired-lifecycle-deploy.cmd --help`
 - PowerShell parser 成功解析 `tools/smoke/local_stack_smoke.ps1`
 

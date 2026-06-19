@@ -378,7 +378,7 @@
       "pnpm test:database-naming-standard",
       "pnpm test:component-spec-consistency",
       "pnpm test:apis-authority-standard",
-      "pnpm verify:standards"
+      "pnpm verify"
     ]
   },
   "metadata": {

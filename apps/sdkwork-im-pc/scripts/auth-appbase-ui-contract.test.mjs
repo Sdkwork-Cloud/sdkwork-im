@@ -110,8 +110,8 @@ assert.match(
 
 assert.match(
   authGateSource,
-  /viewportMode=["']flow["']/u,
-  'AuthGate must render appbase auth routes in flow mode inside the desktop login shell with an app header.',
+  /viewportMode=["']fixed["']/u,
+  'AuthGate must render appbase auth routes in fixed mode inside the desktop login shell, aligned with sdkwork-knowledgebase.',
 );
 
 for (const marker of [
@@ -565,43 +565,31 @@ assert.match(
 
 assert.match(
   authStylesSource,
-  /sdkwork-chat-auth-page\s*\{[\s\S]*?min-height:\s*100%[\s\S]*?overflow:\s*hidden/u,
-  'Appbase auth page must be constrained to the auth main viewport instead of adding its own viewport-height scroll surface.',
+  /sdkwork-chat-auth-shell\s*\{[\s\S]*?--sdkwork-chat-auth-bg:\s*#0c0d11[\s\S]*?--sdkwork-chat-auth-content-bg:\s*rgba\(17,\s*18,\s*24,\s*0\.96\)[\s\S]*?radial-gradient/u,
+  'Auth shell must use the sdkwork-knowledgebase-aligned auth palette and gradient background.',
 );
 
 assert.match(
   authStylesSource,
-  /sdkwork-chat-auth-main\s+\.sdkwork-iam-auth-routes\s*\{[\s\S]*?height:\s*100%[\s\S]*?min-height:\s*0/u,
-  'Flow auth routes must inherit the desktop auth main height instead of keeping their default 100dvh surface.',
-);
-
-assert.match(
-  authStylesSource,
-  /sdkwork-chat-auth-card-shell\s*\{[\s\S]*?height:\s*auto[\s\S]*?max-height:\s*100%[\s\S]*?min-height:\s*0/u,
-  'Auth card shell must size itself from the active login/register content within the available auth viewport.',
+  /sdkwork-chat-auth-main\s*\{[\s\S]*?overflow:\s*auto/u,
+  'Auth main must allow scrolling like sdkwork-knowledgebase instead of clipping fixed auth routes.',
 );
 
 assert.doesNotMatch(
   authStylesSource,
-  /sdkwork-chat-auth-card-shell\s*\{[\s\S]*?(?:height|min-height):\s*min\(680px,\s*calc\(100dvh\s*-\s*88px\)\)/u,
-  'Auth card shell must not pin every login/register mode to the old 680px desktop height.',
-);
-
-assert.match(
-  authStylesSource,
-  /sdkwork-chat-auth-content\s*\{[\s\S]*?overflow:\s*visible/u,
-  'Auth content must remain visible and let the card adapt instead of creating an internal scrollbar.',
-);
-
-assert.doesNotMatch(
-  authStylesSource,
-  /sdkwork-chat-auth-content\s*\{[\s\S]*?overflow-y:\s*auto/u,
-  'Auth content must not use overflow-y:auto because it creates the login/register card scrollbar.',
+  /sdkwork-chat-auth-background\s*>\s*\*\s*\{[\s\S]*?display:\s*none/u,
+  'Auth background must not hide appbase decorative layers; sdkwork-knowledgebase keeps the default auth surface.',
 );
 
 const lightAuthShellBlock = authStylesSource.match(
   /html\.light-mode \.sdkwork-chat-auth-shell\s*\{(?<body>[\s\S]*?)\n\}/u,
 )?.groups?.body ?? '';
+
+assert.match(
+  authRuntimeSource,
+  /tabActiveBackgroundColor:\s*['"]transparent['"][\s\S]*tabBackgroundColor:\s*['"]transparent['"]/u,
+  'Appbase auth tabs must stay transparent like sdkwork-knowledgebase instead of using filled tab rails.',
+);
 
 assert.match(
   authRuntimeSource,
@@ -649,6 +637,12 @@ assert.match(
   authStylesSource,
   /html\.light-mode \.sdkwork-chat-auth-aside-panel \.text-zinc-300/u,
   'Light auth mode must override nested QR rail muted zinc utility classes so QR rail copy remains readable on the light surface.',
+);
+
+assert.match(
+  lightAuthShellBlock,
+  /--sdkwork-chat-auth-content-bg:\s*rgba\(255,\s*255,\s*255,\s*0\.96\)/u,
+  'Light auth mode must use an opaque light card surface aligned with sdkwork-knowledgebase auth styling.',
 );
 
 assert.match(

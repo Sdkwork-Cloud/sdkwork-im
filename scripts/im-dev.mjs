@@ -13,14 +13,20 @@ import {
   mergeRuntimeEnv,
   REPO_ROOT,
   resolveDevProfileId,
+  resolveStandaloneGatewayConfigPath,
 } from './lib/im-topology.mjs';
+
+function normalizeText(value) {
+  const normalized = String(value ?? '').trim();
+  return normalized || undefined;
+}
 
 function parseArgs(argv) {
   const settings = {
     target: 'browser',
     database: undefined,
-    hosting: 'self-hosted',
-    serviceLayout: 'split-services',
+    deploymentProfile: 'standalone',
+    serviceLayout: 'unified-process',
     help: false,
   };
 
@@ -40,8 +46,20 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (arg === '--deployment-profile') {
+      settings.deploymentProfile = argv[index + 1] ?? settings.deploymentProfile;
+      index += 1;
+      continue;
+    }
     if (arg === '--hosting') {
-      settings.hosting = argv[index + 1] ?? settings.hosting;
+      const hosting = argv[index + 1];
+      if (hosting === 'self-hosted') {
+        settings.deploymentProfile = 'standalone';
+      } else if (hosting === 'cloud-hosted') {
+        settings.deploymentProfile = 'cloud';
+      } else {
+        throw new Error('--hosting must be self-hosted or cloud-hosted (retired alias)');
+      }
       index += 1;
       continue;
     }
@@ -60,10 +78,11 @@ function printHelp() {
 Topology-aware IM dev entry. Loads configs/topology profile env via @sdkwork/app-topology.
 
 Options:
-  --hosting <self-hosted|cloud-hosted>              Default: self-hosted
-  --service-layout <split-services|unified-process> Default: split-services
+  --deployment-profile <standalone|cloud>           Default: standalone
+  --service-layout <unified-process|split-services> Default: unified-process
   --target <browser|desktop>                        Default: browser
   --database <postgres|sqlite>
+  --hosting <self-hosted|cloud-hosted>              Retired alias for --deployment-profile
   --help, -h
 `);
 }
@@ -75,7 +94,7 @@ async function main() {
     process.exit(0);
   }
 
-  const profileId = resolveDevProfileId(settings.hosting, settings.serviceLayout)
+  const profileId = resolveDevProfileId(settings.deploymentProfile, settings.serviceLayout)
     || DEFAULT_DEV_PROFILE_ID;
   const profileEnv = loadProfile(profileId);
   const envFile = settings.database === 'postgres'
@@ -86,7 +105,18 @@ async function main() {
   const fileEnv = envFile ? loadEnvFile(envFile) : {};
   const childEnv = mergeRuntimeEnv(process.env, profileEnv, fileEnv, {
     SDKWORK_IM_PROFILE_ID: profileId,
+    SDKWORK_IM_DEPLOYMENT_PROFILE: settings.deploymentProfile,
+    SDKWORK_IM_SERVICE_LAYOUT: settings.serviceLayout,
+    SDKWORK_IM_STANDALONE_GATEWAY_CONFIG: resolveStandaloneGatewayConfigPath(
+      { ...process.env, ...profileEnv, ...fileEnv },
+      REPO_ROOT,
+    ),
   });
+
+  console.log(
+    `[sdkwork-im] deploymentProfile=${settings.deploymentProfile} `
+    + `serviceLayout=${settings.serviceLayout} profileId=${profileId}`,
+  );
 
   const runnerArgv = ['--target', settings.target];
   if (settings.database) {

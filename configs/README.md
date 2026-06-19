@@ -33,7 +33,7 @@ SDKWork IM maintainers.
 ## Topology v2
 
 Runtime profile env files live under [topology/](./topology/README.md). Default development uses
-`self-hosted.split-services.development` (`pnpm im:dev`).
+`self-hosted.split-services.development` (`pnpm dev`).
 
 ## Verification
 

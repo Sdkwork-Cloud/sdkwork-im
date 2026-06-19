@@ -15,8 +15,8 @@ Use these exact terms in standups, PRs, and runbooks:
 
 | English (canonical) | 中文 | Meaning |
 | --- | --- | --- |
-| self-hosted | 自托管 | Customer VPC, on-prem, developer laptop |
-| cloud-hosted | 云托管 | SDKWork SaaS |
+| standalone | 独立部署 | Customer VPC, on-prem, developer laptop, private appliance |
+| cloud | 云部署 | SDKWork SaaS or split cloud services |
 | split-services | 拆分服务 | Product ingress + internal upstreams (default dev) |
 | unified-process | 单进程 | Smoke/CI — routes in one process |
 | application plane | 应用平面 | IM HTTP + WebSocket |
@@ -24,7 +24,7 @@ Use these exact terms in standups, PRs, and runbooks:
 | application.public-ingress | 应用公网入口 | `sdkwork-im-server` |
 | platform.api-gateway | 平台 API 网关 | `sdkwork-api-gateway` |
 
-Default dev profile spoken form: **self-hosted split-services development**.
+Default dev profile spoken form: **standalone unified-process development**.
 
 ## 2. Target Architecture
 
@@ -62,30 +62,30 @@ Client URL authority (one key per surface):
 
 | Profile id | hosting | serviceLayout | environment |
 | --- | --- | --- | --- |
-| `self-hosted.split-services.development` | self-hosted | split-services | development |
-| `self-hosted.unified-process.development` | self-hosted | unified-process | development |
-| `self-hosted.split-services.production` | self-hosted | split-services | production |
-| `cloud-hosted.split-services.production` | cloud-hosted | split-services | production |
+| `standalone.unified-process.development` | standalone | unified-process | development |
+| `standalone.split-services.development` | standalone | split-services | development |
+| `standalone.unified-process.production` | standalone | unified-process | production |
+| `cloud.split-services.production` | cloud | split-services | production |
 
 Target commands:
 
 ```bash
-pnpm im:dev              # self-hosted.split-services.development
-pnpm im:dev:unified      # self-hosted.unified-process.development (smoke)
-pnpm im:build            # cloud-hosted.split-services.production
+pnpm dev              # standalone.unified-process.development
+pnpm dev:browser:postgres:unified-process:standalone      # standalone.unified-process.development (smoke)
+pnpm build            # cloud.split-services.production
 ```
 
 CLI flags (orchestrator):
 
 ```bash
-node scripts/im-dev.mjs --hosting self-hosted --service-layout split-services
+node scripts/im-dev.mjs --deployment-profile standalone --service-layout split-services
 ```
 
 ## 5. Delete List (No Aliases)
 
 ### Binaries (completed)
 
-- `local-minimal-node` — removed; use `sdkwork-im-server` via `pnpm im:dev` / `pnpm im:dev:unified`
+- `local-minimal-node` — removed; use `sdkwork-im-server` via `pnpm dev` / `pnpm dev:browser`
 
 ### Profile / runtime names (completed)
 
@@ -103,8 +103,8 @@ See `topology.spec.json` → `retired.envKeys`. Notable retirements:
 ### Scripts (completed)
 
 - `scripts/lib/im-pc-dev.mjs` — shared PC/server dev orchestration library
-- `scripts/im-dev.mjs` — topology-aware PC dev entry (`pnpm dev`, `pnpm im:dev`)
-- `scripts/im-server-dev.mjs` — server-only dev stack (`pnpm server:dev`)
+- `scripts/im-dev.mjs` — topology-aware PC dev entry (`pnpm dev`, `pnpm dev`)
+- `scripts/im-server-dev.mjs` — server-only dev stack (`pnpm dev:server`)
 - Deleted: `scripts/dev/run-sdkwork-im-pc-dev.mjs`, `scripts/dev/start-sdkwork-im-unified-web.mjs`
 
 ### Spec contradictions (completed)

@@ -10,9 +10,10 @@ Topology v2 是唯一的部署标准。权威来源：
 
 ```bash
 pnpm install
-pnpm im:dev              # self-hosted.split-services.development
-pnpm im:dev:unified      # 单进程 smoke
-pnpm server:dev          # 仅服务端
+pnpm dev              # standalone.unified-process.development
+pnpm dev:browser      # PostgreSQL + standalone browser dev
+pnpm dev:desktop      # PostgreSQL + standalone desktop dev
+pnpm dev:server          # 仅服务端
 ```
 
 默认 application ingress：`http://127.0.0.1:18079`

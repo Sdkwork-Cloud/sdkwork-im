@@ -13,19 +13,19 @@ function readJson(relativePath) {
 const packageJson = readJson('package.json');
 
 assert.equal(
-  packageJson.scripts['server:source:plan'],
+  packageJson.scripts['deploy:source:plan'],
   'node scripts/release/run-sdkwork-im-source-server.mjs plan',
-  'root server:source:plan must print the production source deployment plan',
+  'root deploy:source:plan must print the production source deployment plan',
 );
 assert.equal(
-  packageJson.scripts['server:source:build'],
+  packageJson.scripts['build:server:source'],
   'node scripts/release/run-sdkwork-im-source-server.mjs build',
-  'root server:source:build must build production server artifacts from source without packaging',
+  'root build:server:source must build production server artifacts from source without packaging',
 );
 assert.equal(
-  packageJson.scripts['server:source:start'],
+  packageJson.scripts['start:server:source'],
   'node scripts/release/run-sdkwork-im-source-server.mjs start',
-  'root server:source:start must start the source-built server through the runtime lifecycle script',
+  'root start:server:source must start the source-built server through the runtime lifecycle script',
 );
 assert.equal(
   packageJson.scripts['test:source-server-deploy'],
@@ -90,7 +90,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   buildPlan.steps[0].args,
-  ['run', 'release:build:production', '--', '--target', 'server'],
+  ['run', 'release:build:prod', '--', '--target', 'server'],
   'source build plan must reuse the existing production server build without invoking release packaging',
 );
 assert.equal(
@@ -232,8 +232,8 @@ const deploymentReadme = fs.readFileSync(
   'utf8',
 );
 assert.ok(
-  sourceDeployGuide.includes('pnpm run server:source:build')
-    && sourceDeployGuide.includes('pnpm run server:source:start')
+  sourceDeployGuide.includes('pnpm run build:server:source')
+    && sourceDeployGuide.includes('pnpm run start:server:source')
     && sourceDeployGuide.includes('/etc/sdkwork/chat/server.env')
     && sourceDeployGuide.includes('SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL'),
   'source deployment guide must document the pnpm workflow and base URL source of truth',

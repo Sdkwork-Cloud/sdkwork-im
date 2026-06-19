@@ -5,7 +5,7 @@ install contract and explicit `SDKWORK_IM_RUNTIME_DIR` configuration.
 
 ## Development
 
-Use `pnpm server:dev` or `pnpm im:dev` and inspect logs from the orchestrator output. Application
+Use `pnpm dev:server` or `pnpm dev` and inspect logs from the orchestrator output. Application
 ingress health:
 
 ```bash

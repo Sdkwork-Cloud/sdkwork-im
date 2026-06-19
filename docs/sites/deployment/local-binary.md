@@ -8,9 +8,10 @@ binary.
 
 | Command | Profile | Purpose |
 | --- | --- | --- |
-| `pnpm im:dev` | `self-hosted.split-services.development` | Full dev stack (gateway + platform + optional PC) |
-| `pnpm im:dev:unified` | `self-hosted.unified-process.development` | Single-process smoke |
-| `pnpm server:dev` | `self-hosted.split-services.development` | Server-only dev stack |
+| `pnpm dev` | `standalone.unified-process.development` | Default PostgreSQL standalone browser dev stack |
+| `pnpm dev:browser` | `standalone.unified-process.development` | Browser dev stack |
+| `pnpm dev:desktop` | `standalone.unified-process.development` | Desktop dev stack |
+| `pnpm dev:server` | `standalone.split-services.development` | Explicit server-only split-services dev stack |
 
 Configuration authority:
 

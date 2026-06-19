@@ -36,4 +36,4 @@ Implementation-aligned capability map for the current Sdkwork IM repository.
 
 ## Entry point
 
-Development stack: `pnpm im:dev` with application ingress at `http://127.0.0.1:18079`.
+Development stack: `pnpm dev` with application ingress at `http://127.0.0.1:18079`.

@@ -128,7 +128,7 @@
       {
         "name": "Install workspace dependencies",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$env:SDKWORK_SHARED_SDK_MODE = \"git\"\n$env:SDKWORK_SHARED_SDK_GITHUB_TOKEN = $env:GH_TOKEN\npnpm install --frozen-lockfile"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$env:SDKWORK_SHARED_SDK_MODE = \"git\"\n$env:SDKWORK_SHARED_SDK_GITHUB_TOKEN = $env:GH_TOKEN\npnpm install --no-frozen-lockfile --config.auto-install-peers=false"
       }
     ],
     "build": [
@@ -148,7 +148,7 @@
         "env": {
           "SDKWORK_SHARED_SDK_MODE": "git"
         },
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$env:SDKWORK_IM_RELEASE_VERSION = $env:SDKWORK_PACKAGE_VERSION\n$env:SDKWORK_SHARED_SDK_GITHUB_TOKEN = $env:GH_TOKEN\nif ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") {\n  pnpm release:build:production -- --target server\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"desktop\") {\n  pnpm release:build:production -- --target desktop --platform $env:SDKWORK_PACKAGE_PLATFORM --arch $env:SDKWORK_PACKAGE_ARCHITECTURE\n} else {\n  throw \"Unsupported Sdkwork IM package profile $env:SDKWORK_PACKAGE_PROFILE\"\n}"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\n$env:SDKWORK_IM_RELEASE_VERSION = $env:SDKWORK_PACKAGE_VERSION\n$env:SDKWORK_SHARED_SDK_GITHUB_TOKEN = $env:GH_TOKEN\nif ($env:SDKWORK_PACKAGE_PROFILE -eq \"server\") {\n  pnpm release:build:prod -- --target server\n} elseif ($env:SDKWORK_PACKAGE_PROFILE -eq \"desktop\") {\n  pnpm release:build:prod -- --target desktop --platform $env:SDKWORK_PACKAGE_PLATFORM --arch $env:SDKWORK_PACKAGE_ARCHITECTURE\n} else {\n  throw \"Unsupported Sdkwork IM package profile $env:SDKWORK_PACKAGE_PROFILE\"\n}"
       }
     ],
     "stage": [
