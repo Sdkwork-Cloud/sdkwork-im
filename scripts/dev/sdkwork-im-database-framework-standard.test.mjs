@@ -42,6 +42,10 @@ assert.match(databasePoolCargo, /sdkwork_database_config\.workspace\s*=\s*true/u
 
 const databasePoolLib = read('crates/sdkwork-im-database-pool/src/lib.rs');
 assert.match(databasePoolLib, /create_im_database_pool_from_env/u);
+assert.match(databasePoolLib, /bootstrap_im_database_from_env/u);
+
+const databaseHostCargo = read('crates/sdkwork-im-database-host/Cargo.toml');
+assert.match(databaseHostCargo, /sdkwork_database_lifecycle/u);
 
 const specsReadme = read('specs/README.md');
 assert.match(specsReadme, /DATABASE_SPEC\.md/u);

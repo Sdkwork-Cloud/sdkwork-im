@@ -293,79 +293,32 @@ const migratePlan = createPostgresDbPlan({
   mode: 'migrate',
   repoRoot,
 });
-assert.deepEqual(
-  migratePlan.steps.map((step) => step.label).filter((label) => label.startsWith('apply PostgreSQL migration')),
-  expectedImMigrationLabels,
-  'migrate mode must apply all active IM PostgreSQL migrations in lexical order',
+assert.equal(migratePlan.steps.length, 1, 'migrate mode must delegate schema to sdkwork-database-cli');
+assert.match(
+  migratePlan.steps[0].label,
+  /bootstrap IM database lifecycle/u,
+  'migrate mode must use the database framework bootstrap step',
 );
+assert.equal(migratePlan.steps[0].command, 'cargo');
 assert.ok(
-  migratePlan.steps[0].args.includes('-f')
-    && migratePlan.steps[0].args.some((arg) => arg.endsWith('deployments/database/postgres/migrations/001_im_core_schema.sql')),
-  'migrate mode must start with the bootstrap PostgreSQL migration SQL file',
+  migratePlan.steps[0].args.includes('bootstrap'),
+  'migrate mode must invoke sdkwork-database-cli bootstrap',
 );
-const iamMigrationStepOffset = expectedImMigrationLabels.length;
-assert.ok(
-  migratePlan.steps[iamMigrationStepOffset].args.includes('-f')
-    && migratePlan.steps[iamMigrationStepOffset].args.some((arg) => arg.endsWith('sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust/migrations/0001_iam_foundation.sql')),
-  'migrate mode must execute the appbase IAM PostgreSQL migration SQL file so iam_organization_membership exists',
+assert.equal(
+  migratePlan.steps[0].env.SDKWORK_IM_DATABASE_AUTO_MIGRATE,
+  'true',
+  'framework bootstrap must enable auto migrate for the CLI process',
 );
-assert.ok(
-  migratePlan.steps[iamMigrationStepOffset + 1].args.includes('-f')
-    && migratePlan.steps[iamMigrationStepOffset + 1].args.some((arg) => arg.endsWith('sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust/migrations/0002_drop_legacy_organization_member.sql')),
-  'migrate mode must execute the appbase IAM cleanup migration SQL file so iam_organization_member is removed',
-);
-assert.ok(
-  migratePlan.steps[0].args.includes('--set')
-    && migratePlan.steps[0].args.includes('search_path=sdkwork_ai_dev, public'),
-  'migrate mode must set the configured schema search_path before running migration SQL',
-);
-assert.ok(
-  migratePlan.steps[iamMigrationStepOffset].args.includes('--set')
-    && migratePlan.steps[iamMigrationStepOffset].args.includes('search_path=sdkwork_ai_dev, public'),
-  'appbase IAM migration must use the configured schema search_path before running migration SQL',
-);
-assert.ok(
-  migratePlan.steps[iamMigrationStepOffset + 1].args.includes('--set')
-    && migratePlan.steps[iamMigrationStepOffset + 1].args.includes('search_path=sdkwork_ai_dev, public'),
-  'appbase IAM cleanup migration must use the configured schema search_path before running migration SQL',
-);
-assert.equal(migratePlan.steps[0].env.PGPASSWORD, '***', 'serialized migration plan must redact app password');
-assert.equal(migratePlan.steps[iamMigrationStepOffset].env.PGPASSWORD, '***', 'serialized appbase IAM migration plan must redact app password');
-assert.equal(migratePlan.steps[iamMigrationStepOffset + 1].env.PGPASSWORD, '***', 'serialized appbase IAM cleanup migration plan must redact app password');
 
 const wslMigratePlan = createPostgresDbPlan({
   config: parsedWslPsqlConfig,
   mode: 'migrate',
   repoRoot,
 });
-assert.equal(wslMigratePlan.steps[0].command, 'wsl.exe');
-assert.deepEqual(
-  wslMigratePlan.steps[0].args.slice(0, 4),
-  ['-d', 'Ubuntu-22.04', '--', 'psql'],
-  'Windows developers must be able to run pnpm db:postgres:* through WSL psql when psql is not installed on Windows',
-);
+assert.equal(wslMigratePlan.steps[0].command, 'cargo');
 assert.ok(
-  !wslMigratePlan.steps[0].args.at(-1).includes(':'),
-  'WSL psql migration file arguments must not use Windows drive-letter paths',
-);
-assert.match(
-  wslMigratePlan.steps[0].args.at(-1),
-  /\/mnt\/[a-z]\//u,
-  'WSL psql migration file arguments must use /mnt/<drive>/ paths',
-);
-assert.match(
-  wslMigratePlan.steps[2].args.at(-1),
-  /\/mnt\/[a-z]\//u,
-  'WSL psql appbase IAM migration file arguments must use /mnt/<drive>/ paths',
-);
-assert.equal(
-  wslMigratePlan.steps[0].env.WSLENV,
-  'PGPASSWORD/u:PGSSLMODE/u',
-  'WSL psql steps must explicitly bridge PGPASSWORD and PGSSLMODE into the Linux environment',
-);
-assert.ok(
-  !wslMigratePlan.steps[0].args.join(' ').includes('sdkworkdev123'),
-  'WSL psql steps must not leak raw passwords into command-line arguments',
+  wslMigratePlan.steps[0].args.includes('bootstrap'),
+  'WSL developers still bootstrap IM schema through sdkwork-database-cli',
 );
 assert.equal(
   wslMigratePlan.steps[0].shell,

@@ -38,6 +38,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let base_url = format!("http://{}", display_listener_addr(bind_addr));
     apply_collapsed_standalone_urls(&base_url, &bind_addr);
 
+    let _im_db = sdkwork_im_database_pool::bootstrap_im_database_from_env()
+        .await
+        .map_err(|error| format!("failed to bootstrap IM database lifecycle: {error}"))?;
+
     let iam_router = sdkwork_router_iam_app_api::build_sdkwork_appbase_app_api_router()
         .await
         .map_err(|error| format!("failed to build embedded IAM router: {error}"))?;

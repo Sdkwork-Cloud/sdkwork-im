@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultRepoRoot = path.resolve(__dirname, '..', '..');
-const defaultMigrationsDir = path.join(defaultRepoRoot, 'deployments', 'database', 'postgres', 'migrations');
+const defaultMigrationsDir = path.join(defaultRepoRoot, 'database', 'ddl', 'baseline', 'postgres');
+const defaultFrameworkBaselineDir = defaultMigrationsDir;
 const defaultAppbaseIamMigrationsDir = path.resolve(
   defaultRepoRoot,
   '..',
@@ -549,6 +550,30 @@ function createStep({
   };
 }
 
+function createFrameworkBootstrapStep(repoRoot, config, redactSecrets) {
+  const databaseUrl = sanitizePostgresDatabaseUrl(buildPostgresDatabaseUrl(config.database));
+  return createStep({
+    label: 'bootstrap IM database lifecycle via sdkwork-database-cli',
+    command: 'cargo',
+    args: [
+      'run',
+      '--manifest-path',
+      path.join(repoRoot, '../sdkwork-database/Cargo.toml'),
+      '-p',
+      'sdkwork-database-cli',
+      '--',
+      '--app-root',
+      repoRoot,
+      'bootstrap',
+    ],
+    cwd: repoRoot,
+    env: {
+      SDKWORK_IM_DATABASE_URL: redactSecrets ? '***' : databaseUrl,
+      SDKWORK_IM_DATABASE_AUTO_MIGRATE: 'true',
+    },
+  });
+}
+
 export function createPostgresDbPlan({
   appbaseIamMigrationsDir = defaultAppbaseIamMigrationsDir,
   config,
@@ -598,36 +623,9 @@ export function createPostgresDbPlan({
     }));
   }
   if (normalizedMode === 'migrate' || normalizedMode === 'plan') {
-    const migrations = [
-      ...migrationFilesFor(migrationsDir).map((migration) => ({
-        label: `apply PostgreSQL migration ${path.basename(migration)}`,
-        path: migration,
-      })),
-      ...migrationFilesFor(appbaseIamMigrationsDir).map((migration) => ({
-        label: `apply appbase IAM PostgreSQL migration ${path.basename(migration)}`,
-        path: migration,
-      })),
-    ];
-    for (const migration of migrations) {
-      steps.push(createStep({
-        args: psqlStepArgs(config, [
-          ...psqlConnectionArgs(config.database),
-          '--set',
-          `search_path=${config.database.schema}, public`,
-          '-c',
-          `SET search_path TO ${sqlIdentifier(config.database.schema)}, public;`,
-          '-f',
-          normalizePathForPsql(migration.path, psqlPathStyle(config)),
-        ]),
-        command,
-        cwd: repoRoot,
-        env: psqlStepEnv(config, config.database, redactSecrets),
-        input: '',
-        label: migration.label,
-        shell,
-      }));
-    }
+    steps.push(createFrameworkBootstrapStep(repoRoot, config, redactSecrets));
   }
+
   return {
     mode: normalizedMode,
     source: config.source,
@@ -716,7 +714,7 @@ function helpText() {
     'Modes:',
     '  plan      Print initialization and migration actions without touching the database.',
     '  init      Create/update app role, database, schema, grants, and default privileges.',
-    '  migrate   Apply SQL files from deployments/database/postgres/migrations.',
+    '  migrate   Bootstrap IM schema via sdkwork-database-cli (database/ lifecycle).',
     '',
     'Config:',
     '  .env.postgres split fields and postgresql.yaml are both supported.',

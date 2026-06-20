@@ -7,6 +7,7 @@ members = [
     "adapters/redis-cache",
     "adapters/social-postgres",
     "adapters/object-storage-s3",
+    "crates/sdkwork-im-database-host",
     "crates/sdkwork-im-database-pool",
     "crates/sdkwork-im-contract-admin",
     "crates/sdkwork-im-contract-agent",
@@ -105,7 +106,11 @@ sdkwork_web_axum = { path = "../sdkwork-web-framework/crates/sdkwork-web-axum", 
 sdkwork_web_bootstrap = { path = "../sdkwork-web-framework/crates/sdkwork-web-bootstrap", package = "sdkwork-web-bootstrap" }
 # DATABASE_SPEC §33: unified database config (env, pool, table prefix).
 sdkwork_database_config = { path = "../sdkwork-database/crates/sdkwork-database-config", package = "sdkwork-database-config" }
+sdkwork_database_lifecycle = { path = "../sdkwork-database/crates/sdkwork-database-lifecycle", package = "sdkwork-database-lifecycle" }
+sdkwork_database_spi = { path = "../sdkwork-database/crates/sdkwork-database-spi", package = "sdkwork-database-spi" }
 sdkwork_database_sqlx = { path = "../sdkwork-database/crates/sdkwork-database-sqlx", package = "sdkwork-database-sqlx" }
+sdkwork_im_database_host = { path = "crates/sdkwork-im-database-host", package = "sdkwork-im-database-host" }
+sdkwork_im_database_pool = { path = "crates/sdkwork-im-database-pool", package = "sdkwork-im-database-pool" }
 # sdkwork-discovery is deferred until hosted gRPC RPC service processes ship (ADR-20260619).
 sdkwork_iam_web_adapter = { path = "../sdkwork-appbase/crates/sdkwork-iam-web-adapter", package = "sdkwork-iam-web-adapter" }
 # IM consumes RTC media/provider runtime from the canonical `sdkwork-rtc`

@@ -2,7 +2,7 @@
 //!
 //! This adapter writes durable conversation/message commit events into the
 //! `im_commit_journal` table defined by
-//! `deployments/database/postgres/migrations/010_im_tenant_organization_isolation.sql`.
+//! `database/ddl/baseline/postgres/0001_im_legacy_baseline.sql` (via `database/` lifecycle module).
 //!
 //! It replaces the previous single-machine JSONL append file
 //! (`adapters/local-disk/src/journal.rs`) as the production source of truth,
