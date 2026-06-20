@@ -7,7 +7,6 @@ export const SDKWORK_IM_IAM_DEPLOYMENT_MODES = Object.freeze([
 ]);
 
 export const SDKWORK_IM_IAM_MODES = Object.freeze([
-  'local',
   'private',
   'cloud',
 ]);
@@ -15,19 +14,13 @@ export const SDKWORK_IM_IAM_MODES = Object.freeze([
 export const DEFAULT_SDKWORK_IM_LOCAL_PLATFORM_API_GATEWAY_HTTP_URL = 'http://127.0.0.1:18079';
 export const DEFAULT_SDKWORK_IM_LOCAL_APPLICATION_PUBLIC_HTTP_URL = 'http://127.0.0.1:18079';
 export const DEFAULT_SDKWORK_IM_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL = 'ws://127.0.0.1:18079';
-export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL = 'dev-bootstrap@sdkwork-iam.local';
-export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE = '13800000000';
-export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD = 'dev123456';
-export const DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE = '123456';
+export const DEFAULT_SDKWORK_IAM_DEV_FIXED_VERIFY_CODE = '123456';
 
 const SDKWORK_IM_IAM_DEPLOYMENT_MODE_ENV = 'SDKWORK_IM_IAM_DEPLOYMENT_MODE';
 const VITE_SDKWORK_IM_IAM_DEPLOYMENT_MODE_ENV = 'VITE_SDKWORK_IM_IAM_DEPLOYMENT_MODE';
 const VITE_SDKWORK_DEPLOYMENT_MODE_ENV = 'VITE_SDKWORK_DEPLOYMENT_MODE';
 const SDKWORK_IAM_MODE_ENV = 'SDKWORK_IAM_MODE';
-const SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV = 'SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL';
-const SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV = 'SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE';
-const SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV = 'SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD';
-const SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV = 'SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED';
+const SDKWORK_IAM_DEV_FIXED_VERIFY_CODE_ENV = 'SDKWORK_IAM_DEV_FIXED_VERIFY_CODE';
 const SDKWORK_IAM_APP_API_BASE_URL_ENV = 'SDKWORK_IAM_APP_API_BASE_URL';
 const VITE_SDKWORK_IAM_APP_API_BASE_URL_ENV = 'VITE_SDKWORK_IAM_APP_API_BASE_URL';
 const SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL_ENV = 'SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL';
@@ -180,10 +173,10 @@ function resolveSdkworkIamMode(iamMode) {
   if (iamMode === 'cloud-saas') {
     return 'cloud';
   }
-  if (iamMode === 'server-private') {
+  if (iamMode === 'server-private' || iamMode === 'desktop-local') {
     return 'private';
   }
-  return 'local';
+  return 'private';
 }
 
 function resolvePublicDeploymentMode(iamMode) {
@@ -193,7 +186,8 @@ function resolvePublicDeploymentMode(iamMode) {
   if (iamMode === 'server-private') {
     return 'private';
   }
-  return 'local';
+  // desktop-local: local gateway URLs, but IAM identity still comes from dual-token JWT claims.
+  return 'saas';
 }
 
 function resolveDefaultDeploymentMode(target) {
@@ -287,11 +281,12 @@ export function resolveSdkworkChatIamCommandEnv({
   setEnvValue(nextEnv, SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV, applicationWebSocketUrl);
   setEnvValue(nextEnv, VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL_ENV, applicationWebSocketUrl);
 
-  if (sdkworkIamMode === 'local' || sdkworkIamMode === 'private') {
-    setEnvDefault(nextEnv, SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV, DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL);
-    setEnvDefault(nextEnv, SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV, DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE);
-    setEnvDefault(nextEnv, SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV, DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD);
-    setEnvDefault(nextEnv, SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV, DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE);
+  if (sdkworkIamMode === 'private' || sdkworkIamMode === 'cloud') {
+    setEnvDefault(
+      nextEnv,
+      SDKWORK_IAM_DEV_FIXED_VERIFY_CODE_ENV,
+      DEFAULT_SDKWORK_IAM_DEV_FIXED_VERIFY_CODE,
+    );
   }
 
   if (!SDKWORK_IM_IAM_MODES.includes(sdkworkIamMode)) {

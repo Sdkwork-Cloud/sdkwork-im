@@ -494,7 +494,7 @@ async fn test_session_gateway_rejects_sessionless_device_rebind_after_session_re
                         "user_id": "u_demo",
                         "app_id": "sdkwork-im",
                         "environment": "dev",
-                        "deployment_mode": "local",
+                        "deployment_mode": "saas",
                         "auth_level": "password",
                         "actor_id": "u_demo",
                         "actor_kind": "user",

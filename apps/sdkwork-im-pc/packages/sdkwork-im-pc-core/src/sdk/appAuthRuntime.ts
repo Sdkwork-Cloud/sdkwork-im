@@ -86,7 +86,7 @@ function resolveIamDeploymentMode(): IamDeploymentMode {
   );
   return value === 'saas' || value === 'private' || value === 'local'
     ? value
-    : 'local';
+    : 'saas';
 }
 
 export function resetSdkworkChatAuthenticatedSdkClients(): void {

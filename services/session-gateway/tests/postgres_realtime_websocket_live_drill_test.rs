@@ -267,7 +267,7 @@ fn test_access_token(tenant_id: &str, principal_id: &str, device_id: &str) -> St
         "session_id": SESSION_ID,
         "app_id": "sdkwork-im",
         "environment": "dev",
-        "deployment_mode": "local",
+        "deployment_mode": "saas",
         "auth_level": "password",
         "actor_id": principal_id,
         "actor_kind": "user",

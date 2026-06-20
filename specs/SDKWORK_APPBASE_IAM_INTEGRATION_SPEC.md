@@ -283,7 +283,7 @@ Deployment modes:
 
 | Product mode | IAM mode | Meaning |
 | --- | --- | --- |
-| `desktop-local` | `local` | Local desktop or embedded node runtime, usually no external appbase upstream |
+| `desktop-local` | `private` | Local gateway URLs; IAM identity from dual-token JWT via platform gateway (no bootstrap env) |
 | `server-private` | `private` | Private deployment with gateway and service upstreams |
 | `cloud-saas` | `cloud` | SaaS deployment using cloud appbase app-api |
 

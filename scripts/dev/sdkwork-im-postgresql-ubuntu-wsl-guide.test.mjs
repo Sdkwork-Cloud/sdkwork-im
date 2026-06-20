@@ -1,4 +1,4 @@
-ï»¿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,8 +10,8 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
-const guidePath = 'docs/éƒ¨ç½²/Ubuntuä¸WSL-PostgreSQLåˆå§‹åŒ–å»ºåº“æˆæƒæ‰‹å†Œ.md';
-const indexPath = 'docs/éƒ¨ç½²/postgresql-database-configuration.md';
+const guidePath = 'docs/²¿Êğ/UbuntuÓëWSL-PostgreSQL³õÊ¼»¯½¨¿âÊÚÈ¨ÊÖ²á.md';
+const indexPath = 'docs/²¿Êğ/postgresql-database-configuration.md';
 
 assert.ok(fs.existsSync(path.join(repoRoot, guidePath)), 'Ubuntu/WSL PostgreSQL initialization guide must exist');
 
@@ -42,13 +42,13 @@ for (const required of [
   'GRANT CONNECT ON DATABASE sdkwork_ai_dev TO sdkwork_ai_dev',
   'GRANT USAGE, CREATE ON SCHEMA sdkwork_ai_dev TO sdkwork_ai_dev',
   'SELECT current_database(), current_user, current_schema()',
-  'Windows è·‘åº”ç”¨ï¼ŒPostgreSQL è·‘åœ¨ WSL Ubuntu',
+  'Windows ÅÜÓ¦ÓÃ£¬PostgreSQL ÅÜÔÚ WSL Ubuntu',
   'Test-NetConnection 127.0.0.1 -Port 5432',
   'wsl hostname -I',
   'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
   'SDKWORK_IM_DATABASE_ENGINE=postgresql',
   'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-  'SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev',
+  'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
   'SDKWORK_IM_REDIS_HOST=127.0.0.1',
   'SDKWORK_IM_REDIS_PORT=6379',
   'SDKWORK_IM_DATABASE_ADMIN_PASSWORD',
@@ -60,14 +60,14 @@ for (const required of [
   'pnpm dev:desktop',
   'pnpm dev:browser:sqlite',
   'pnpm dev:desktop:sqlite',
-  'pnpm dev:desktop é»˜è®¤ä½¿ç”¨ PostgreSQL',
+  'pnpm dev:desktop Ä¬ÈÏÊ¹ÓÃ PostgreSQL',
   'host    sdkwork_ai_dev    sdkwork_ai_dev    127.0.0.1/32',
   'host    sdkwork_ai_dev    postgres          127.0.0.1/32',
   'host    sdkwork_ai_dev    sdkwork_ai_dev    <WINDOWS_HOST_CIDR>',
   'host    sdkwork_ai_dev    postgres          <WINDOWS_HOST_CIDR>',
-  'database: sdkwork_chat_prod',
-  'username: sdkwork_chat_prod',
-  'Windows åº”ç”¨ä¸åº”è¯¥ä½¿ç”¨ WSL å†…éƒ¨çš„ Unix socket',
+  'database: sdkwork',
+  'username: sdkwork',
+  'Windows Ó¦ÓÃ²»Ó¦¸ÃÊ¹ÓÃ WSL ÄÚ²¿µÄ Unix socket',
 ]) {
   assert.ok(guide.includes(required), `Ubuntu/WSL PostgreSQL guide must include: ${required}`);
 }
@@ -78,7 +78,7 @@ assert.ok(
 );
 
 assert.ok(
-  index.includes('./Ubuntuä¸WSL-PostgreSQLåˆå§‹åŒ–å»ºåº“æˆæƒæ‰‹å†Œ.md'),
+  index.includes('./UbuntuÓëWSL-PostgreSQL³õÊ¼»¯½¨¿âÊÚÈ¨ÊÖ²á.md'),
   'PostgreSQL configuration index must link the Ubuntu/WSL initialization guide',
 );
 

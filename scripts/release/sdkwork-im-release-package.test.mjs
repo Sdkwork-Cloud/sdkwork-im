@@ -219,8 +219,8 @@ for (const packageItem of releasePlan.packages) {
     assert.equal(packageItem.runtimeProfile, 'server', `${packageItem.id} runtime profile`);
     assert.equal(packageItem.databasePolicy?.defaultEngine, 'postgresql', `${packageItem.id} database engine`);
     assert.equal(packageItem.databasePolicy?.requiresExternalDatabase, true, `${packageItem.id} external database`);
-    assert.equal(packageItem.databasePolicy?.defaultDatabase, 'sdkwork_chat_prod', `${packageItem.id} production database`);
-    assert.equal(packageItem.databasePolicy?.defaultUsername, 'sdkwork_chat_prod', `${packageItem.id} production database user`);
+    assert.equal(packageItem.databasePolicy?.defaultDatabase, 'sdkwork', `${packageItem.id} production database`);
+    assert.equal(packageItem.databasePolicy?.defaultUsername, 'sdkwork', `${packageItem.id} production database user`);
     for (const expectedArtifact of [
       'server-binary',
       'server-lifecycle-scripts',

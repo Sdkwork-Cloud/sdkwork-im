@@ -307,7 +307,7 @@ where
         session_id: Some("s_local_service".to_owned()),
         app_id: Some("sdkwork-im".to_owned()),
         environment: Some("dev".to_owned()),
-        deployment_mode: Some("local".to_owned()),
+        deployment_mode: Some("saas".to_owned()),
         auth_level: Some("password".to_owned()),
         data_scope: BTreeSet::from(["tenant".to_owned()]),
         permission_scope: permission_scope
@@ -539,7 +539,7 @@ where
         "session_id": session_id,
         "app_id": app_id,
         "environment": context.environment.as_deref().unwrap_or("dev"),
-        "deployment_mode": context.deployment_mode.as_deref().unwrap_or("local"),
+        "deployment_mode": context.deployment_mode.as_deref().unwrap_or("saas"),
         "auth_level": context.auth_level.as_deref().unwrap_or("password"),
         "actor_id": context.actor_id,
         "actor_kind": context.actor_kind,

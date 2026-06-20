@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -17,10 +17,10 @@ function readJson(relativePath) {
 
 const packageJson = readJson('package.json');
 const envExample = read('.env.postgres.example');
-const configIndex = read('docs/部署/postgresql-database-configuration.md');
-const ubuntuWslGuide = read('docs/部署/Ubuntu与WSL-PostgreSQL初始化建库授权手册.md');
-const devGuide = read('docs/部署/开发环境PostgreSQL数据库配置教程.md');
-const productionGuide = read('docs/部署/线上环境PostgreSQL数据库配置教程.md');
+const configIndex = read('docs/����/postgresql-database-configuration.md');
+const ubuntuWslGuide = read('docs/����/Ubuntu��WSL-PostgreSQL��ʼ��������Ȩ�ֲ�.md');
+const devGuide = read('docs/����/��������PostgreSQL���ݿ����ý̳�.md');
+const productionGuide = read('docs/����/���ϻ���PostgreSQL���ݿ����ý̳�.md');
 const appbaseIamMigrationsDir = path.join(
   workspaceRoot,
   'sdkwork-appbase',
@@ -117,9 +117,9 @@ const parsedSplitConfig = parsePostgresConfig({
     'SDKWORK_IM_DATABASE_ENGINE=postgresql',
     'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
     'SDKWORK_IM_DATABASE_PORT=15432',
-    'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
-    'SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev',
-    'SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev',
+    'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
+    'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
+    'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
     'SDKWORK_IM_DATABASE_PASSWORD=chat pass',
     'SDKWORK_IM_DATABASE_SSL_MODE=disable',
     'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
@@ -173,10 +173,10 @@ const parsedWslPsqlConfig = parsePostgresConfig({
     'SDKWORK_IM_DATABASE_ENGINE=postgresql',
     'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
     'SDKWORK_IM_DATABASE_PORT=5432',
-    'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
-    'SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev',
-    'SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev',
-    'SDKWORK_IM_DATABASE_PASSWORD=sdkworkdev123',
+    'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
+    'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
+    'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
+    'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
     'SDKWORK_IM_DATABASE_SSL_MODE=disable',
     'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
     'SDKWORK_IM_DATABASE_ADMIN_PASSWORD=admin pass',
@@ -197,20 +197,20 @@ const parsedYamlConfig = parsePostgresConfig({
     'connection:',
     '  host: 10.0.0.8',
     '  port: 5432',
-    '  database: sdkwork_chat_prod',
-    '  username: sdkwork_chat_prod',
+    '  database: sdkwork',
+    '  username: sdkwork',
     '  password: yaml_pass',
     '  sslmode: require',
     'schema:',
-    '  name: sdkwork_chat_prod',
+    '  name: sdkwork',
     '',
   ].join('\n'),
   configPath: 'postgresql.yaml',
 });
 assert.equal(parsedYamlConfig.database.host, '10.0.0.8');
-assert.equal(parsedYamlConfig.database.database, 'sdkwork_chat_prod');
-assert.equal(parsedYamlConfig.database.schema, 'sdkwork_chat_prod');
-assert.equal(parsedYamlConfig.database.username, 'sdkwork_chat_prod');
+assert.equal(parsedYamlConfig.database.database, 'sdkwork');
+assert.equal(parsedYamlConfig.database.schema, 'sdkwork');
+assert.equal(parsedYamlConfig.database.username, 'sdkwork');
 assert.equal(parsedYamlConfig.database.password, 'yaml_pass');
 assert.equal(parsedYamlConfig.database.sslmode, 'require');
 
@@ -393,10 +393,10 @@ assert.deepEqual(
 for (const required of [
   'SDKWORK_IM_DATABASE_ENGINE=postgresql',
   'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
-  'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_PASSWORD=sdkworkdev123',
+  'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
+  'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
+  'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
+  'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
   'SDKWORK_IM_DATABASE_SSL_MODE=disable',
   'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
   'SDKWORK_IM_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
@@ -419,13 +419,13 @@ for (const doc of [configIndex, ubuntuWslGuide, devGuide]) {
 }
 
 for (const required of [
-  'database: sdkwork_chat_prod',
-  'schema: sdkwork_chat_prod',
-  'username: sdkwork_chat_prod',
-  'CREATE ROLE "sdkwork_chat_prod" LOGIN PASSWORD',
-  'CREATE DATABASE sdkwork_chat_prod OWNER "sdkwork_chat_prod"',
-  'CREATE SCHEMA IF NOT EXISTS sdkwork_chat_prod AUTHORIZATION "sdkwork_chat_prod"',
-  'postgresql://sdkwork_chat_prod@postgres.internal.example.com:5432/sdkwork_chat_prod?sslmode=require',
+  'database: sdkwork',
+  'schema: public',
+  'username: sdkwork',
+  'CREATE ROLE "sdkwork" LOGIN PASSWORD',
+  'CREATE DATABASE sdkwork OWNER "sdkwork"',
+  'CREATE SCHEMA IF NOT EXISTS public AUTHORIZATION "sdkwork"',
+  'postgresql://sdkwork@postgres.internal.example.com:5432/sdkwork?sslmode=require',
 ]) {
   assert.ok(productionGuide.includes(required), `production PostgreSQL guide must include ${required}`);
 }

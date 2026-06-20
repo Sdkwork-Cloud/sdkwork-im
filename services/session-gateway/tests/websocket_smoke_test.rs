@@ -188,7 +188,7 @@ fn test_access_token(
         "session_id": session_id,
         "app_id": "sdkwork-im",
         "environment": "dev",
-        "deployment_mode": "local",
+        "deployment_mode": "saas",
         "auth_level": "password",
         "actor_id": principal_id,
         "actor_kind": actor_kind,

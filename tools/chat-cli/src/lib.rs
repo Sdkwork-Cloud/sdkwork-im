@@ -532,7 +532,7 @@ pub(crate) fn resolve_access_token(auth: &AuthInput) -> Result<String, CliError>
         "device_id": auth.device_id,
         "app_id": "sdkwork-im",
         "environment": "dev",
-        "deployment_mode": "local",
+        "deployment_mode": "saas",
         "auth_level": "password",
         "permission_scope": auth.permissions,
         "data_scope": ["tenant"],

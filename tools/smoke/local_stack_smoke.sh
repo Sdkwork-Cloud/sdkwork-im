@@ -69,7 +69,7 @@ local_jwt() {
 }
 
 AUTH_TOKEN="$(local_jwt '{"tenant_id":"t_demo","login_scope":"TENANT","user_id":"u_demo","session_id":"s_demo","app_id":"sdkwork-im","auth_level":"password","subject_type":"user"}')"
-ACCESS_TOKEN="$(local_jwt '{"tenant_id":"t_demo","login_scope":"TENANT","user_id":"u_demo","session_id":"s_demo","app_id":"sdkwork-im","environment":"dev","deployment_mode":"local","auth_level":"password","actor_id":"u_demo","actor_kind":"user","device_id":"d_demo","data_scope":["tenant"],"permission_scope":["chat.write"],"subject_type":"user"}')"
+ACCESS_TOKEN="$(local_jwt '{"tenant_id":"t_demo","login_scope":"TENANT","user_id":"u_demo","session_id":"s_demo","app_id":"sdkwork-im","environment":"dev","deployment_mode":"saas","auth_level":"password","actor_id":"u_demo","actor_kind":"user","device_id":"d_demo","data_scope":["tenant"],"permission_scope":["chat.write"],"subject_type":"user"}')"
 DUAL_TOKEN_HEADERS=(
   "Authorization: Bearer ${AUTH_TOKEN}"
   "Access-Token: ${ACCESS_TOKEN}"

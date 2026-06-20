@@ -90,7 +90,7 @@ function normalizeRuntimeSessionContext(value: unknown): SdkworkChatSession['con
     appId,
     authLevel: (normalizeContextString(context.authLevel ?? context.auth_level) ?? 'password') as RuntimeSessionContext['authLevel'],
     dataScope: normalizeContextStringArray(context.dataScope ?? context.data_scope),
-    deploymentMode: (normalizeContextString(context.deploymentMode ?? context.deployment_mode) ?? 'local') as RuntimeSessionContext['deploymentMode'],
+    deploymentMode: (normalizeContextString(context.deploymentMode ?? context.deployment_mode) ?? 'saas') as RuntimeSessionContext['deploymentMode'],
     environment: (normalizeContextString(context.environment ?? context.env) ?? 'dev') as RuntimeSessionContext['environment'],
     ...(normalizeContextString(context.organizationId ?? context.organization_id)
       ? { organizationId: normalizeContextString(context.organizationId ?? context.organization_id) }

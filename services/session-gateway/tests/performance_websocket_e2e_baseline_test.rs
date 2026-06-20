@@ -263,7 +263,7 @@ async fn connect_ccp_device(url: &str, device_id: &str) -> (ConnectedDevice, f64
                 "session_id": SESSION_ID,
                 "app_id": "sdkwork-im",
                 "environment": "dev",
-                "deployment_mode": "local",
+                "deployment_mode": "saas",
                 "auth_level": "password",
                 "actor_id": PRINCIPAL_ID,
                 "actor_kind": PRINCIPAL_KIND,

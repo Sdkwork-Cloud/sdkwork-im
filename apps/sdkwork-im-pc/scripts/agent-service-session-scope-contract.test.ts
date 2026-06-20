@@ -78,7 +78,7 @@ function installSession(): void {
       context: {
         appId: 'sdkwork-im-sdkwork-im-pc',
         authLevel: 'password',
-        deploymentMode: 'local',
+        deploymentMode: 'saas',
         environment: 'dev',
         organizationId: 'organization.real.10',
         sessionId: 'session.real.1',

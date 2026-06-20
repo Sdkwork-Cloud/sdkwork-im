@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 import process from 'node:process';
 import { DEFAULT_RELEASE_VERSION, normalizeSdkworkImReleaseVersion } from './sdkwork-im-release-version.mjs';
@@ -328,8 +328,8 @@ function databasePolicyFor({ platform, runtimeProfile }) {
     defaultEngine: 'postgresql',
     defaultHost: 'db.example.com',
     defaultPort: 5432,
-    defaultDatabase: 'sdkwork_chat_prod',
-    defaultUsername: 'sdkwork_chat_prod',
+    defaultDatabase: 'sdkwork',
+    defaultUsername: 'sdkwork',
     passwordFile: {
       path: postgresPasswordFileFor(platform),
       required: true,

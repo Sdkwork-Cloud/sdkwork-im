@@ -141,9 +141,9 @@ runtime_directory = \"${run_dir}\"
 engine = \"postgresql\"
 host = \"127.0.0.1\"
 port = 5432
-database = \"sdkwork_chat_prod\"
-schema = \"sdkwork_chat_prod\"
-username = \"sdkwork_chat_prod\"
+database = \"sdkwork\"
+schema = \"sdkwork\"
+username = \"sdkwork\"
 password_file = \"${password_file}\"
 ssl_mode = \"require\"
 max_connections = 20
@@ -171,9 +171,9 @@ SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL=http://127.0.0.1:3900
 SDKWORK_IM_DATABASE_ENGINE=postgresql
 SDKWORK_IM_DATABASE_HOST=127.0.0.1
 SDKWORK_IM_DATABASE_PORT=5432
-SDKWORK_IM_DATABASE_NAME=sdkwork_chat_prod
-SDKWORK_IM_DATABASE_SCHEMA=sdkwork_chat_prod
-SDKWORK_IM_DATABASE_USERNAME=sdkwork_chat_prod
+SDKWORK_CLAW_DATABASE_NAME=sdkwork
+SDKWORK_CLAW_DATABASE_SCHEMA=public_chat_prod
+SDKWORK_CLAW_DATABASE_USERNAME=sdkwork
 SDKWORK_IM_DATABASE_PASSWORD_FILE=${password_file}
 SDKWORK_IM_DATABASE_SSL_MODE=require
 SDKWORK_IM_DATABASE_MAX_CONNECTIONS=20
@@ -185,15 +185,15 @@ write_if_needed "$postgresql_yaml" "provider: postgresql
 connection:
   host: 127.0.0.1
   port: 5432
-  database: sdkwork_chat_prod
-  username: sdkwork_chat_prod
+  database: sdkwork
+  username: sdkwork
   passwordFile: \"${password_file}\"
   sslmode: require
   applicationName: sdkwork-chat-server
   connectTimeoutSeconds: 10
 
 schema:
-  name: sdkwork_chat_prod
+  name: sdkwork
   provisioningMode: none
   migrationMode: apply
   expectedVersion: latest

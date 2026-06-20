@@ -30,10 +30,10 @@ for (const required of [
   'SDKWORK_IM_DATABASE_ENGINE=postgresql',
   'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
   'SDKWORK_IM_DATABASE_PORT=5432',
-  'SDKWORK_IM_DATABASE_NAME=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_SCHEMA=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_USERNAME=sdkwork_ai_dev',
-  'SDKWORK_IM_DATABASE_PASSWORD=sdkworkdev123',
+  'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
+  'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
+  'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
+  'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
   'SDKWORK_IM_DATABASE_SSL_MODE=disable',
   'SDKWORK_IM_DATABASE_MAX_CONNECTIONS=10',
   'SDKWORK_IM_REDIS_ENABLED=true',
@@ -252,8 +252,8 @@ assert.ok(
 
 const docs = [
   read('docs/部署/postgresql-database-configuration.md'),
-  read('docs/部署/开发环境PostgreSQL数据库配置教程.md'),
-  read('docs/部署/线上环境PostgreSQL数据库配置教程.md'),
+  read('docs/部署/开发环境PostgreSQL数据库配置教�?md'),
+  read('docs/部署/线上环境PostgreSQL数据库配置教�?md'),
   read('docs/部署/database-table-naming-standard.md'),
 ].join('\n');
 for (const required of [

@@ -46,7 +46,7 @@ async function main(): Promise<void> {
       userId: 'stale-user',
       sessionId: 'stale-session',
       environment: 'dev',
-      deploymentMode: 'local',
+      deploymentMode: 'saas',
       authLevel: 'password',
       dataScope: [],
       permissionScope: [],
