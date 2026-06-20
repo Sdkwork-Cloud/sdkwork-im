@@ -14,7 +14,7 @@ use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
 pub use r2d2_postgres::postgres::NoTls;
 use r2d2_postgres::postgres::{Row, Transaction};
-use sha2::{Digest, Sha256};
+use sdkwork_utils_rust::sha256_hash;
 use tokio::runtime::Handle;
 
 const DEFAULT_POOL_MAX_SIZE: u32 = 16;
@@ -1658,8 +1658,7 @@ fn high_risk_window_from_row(row: Row) -> Result<RealtimeEventWindowHighRiskReco
 }
 
 pub fn postgres_realtime_payload_hash(payload: &str) -> String {
-    let digest = Sha256::digest(payload.as_bytes());
-    format!("sha256:{digest:x}")
+    format!("sha256:{}", sha256_hash(payload.as_bytes()))
 }
 
 fn postgres_jsonb_value(

@@ -27,7 +27,7 @@ use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use sha2::{Digest, Sha256};
+use sdkwork_utils_rust::sha256_hash;
 
 mod binding;
 mod creation;
@@ -1742,8 +1742,8 @@ fn generated_message_id(conversation_id: &str, message_seq: u64) -> String {
         return raw_message_id;
     }
 
-    let digest = Sha256::digest(conversation_id.as_bytes());
-    let bounded_message_id = format!("msg_{digest:x}_{message_seq}");
+    let digest = sha256_hash(conversation_id.as_bytes());
+    let bounded_message_id = format!("msg_{digest}_{message_seq}");
     debug_assert!(bounded_message_id.len() <= CONVERSATION_MAX_ID_BYTES);
     bounded_message_id
 }
@@ -1751,8 +1751,7 @@ fn generated_message_id(conversation_id: &str, message_seq: u64) -> String {
 /// 计算消息 body 的 SHA256 哈希，用于真值表的 payload_hash 字段。
 fn sha256_message_hash(body: &MessageBody) -> String {
     let serialized = serde_json::to_vec(body).unwrap_or_default();
-    let digest = Sha256::digest(&serialized);
-    format!("sha256:{digest:x}")
+    format!("sha256:{}", sha256_hash(&serialized))
 }
 
 // This internal transition result keeps the full idempotent view and mutation

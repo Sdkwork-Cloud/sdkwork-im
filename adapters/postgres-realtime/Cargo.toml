@@ -13,6 +13,6 @@ postgres = { version = "0.19.13", features = ["with-chrono-0_4", "with-serde_jso
 r2d2 = "0.8.10"
 r2d2_postgres = "0.18.2"
 sdkwork_database_config.workspace = true
+sdkwork_utils_rust.workspace = true
 serde_json.workspace = true
-sha2 = "0.10.9"
 tokio.workspace = true

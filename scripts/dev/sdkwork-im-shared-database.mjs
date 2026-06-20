@@ -40,8 +40,18 @@ function encodePostgresPath(databaseName) {
   return encodeURIComponent(databaseName).replaceAll('%2F', '/');
 }
 
-function envValue(env, canonicalName, legacyName) {
-  return normalizeDatabaseField(env[canonicalName]) ?? normalizeDatabaseField(env[legacyName]);
+function envValue(env, canonicalName, ...legacyNames) {
+  const canonical = normalizeDatabaseField(env[canonicalName]);
+  if (canonical) {
+    return canonical;
+  }
+  for (const legacyName of legacyNames) {
+    const legacy = normalizeDatabaseField(env[legacyName]);
+    if (legacy) {
+      return legacy;
+    }
+  }
+  return undefined;
 }
 
 function assertNoCanonicalLegacyAliases(env) {
@@ -62,6 +72,7 @@ function resolvePostgresDatabaseUrlFromFields(env) {
   const engine = envValue(
     env,
     'SDKWORK_IM_DATABASE_ENGINE',
+    'SDKWORK_CLAW_DATABASE_ENGINE',
     'SDKWORK_CLAW_DATABASE_PROVIDER',
   );
   if (!engine) {
@@ -109,7 +120,12 @@ function resolvePostgresDatabaseUrlFromFields(env) {
   appendPostgresQueryParam(
     params,
     'sslmode',
-    envValue(env, 'SDKWORK_IM_DATABASE_SSL_MODE', 'SDKWORK_CLAW_DATABASE_SSLMODE'),
+    envValue(
+      env,
+      'SDKWORK_IM_DATABASE_SSL_MODE',
+      'SDKWORK_CLAW_DATABASE_SSL_MODE',
+      'SDKWORK_CLAW_DATABASE_SSLMODE',
+    ),
   );
   const query = params.toString();
   return `postgresql://${authority}/${encodePostgresPath(database)}${query ? `?${query}` : ''}`;
@@ -120,6 +136,7 @@ function resolveConfiguredSqliteUrl(env) {
   const engine = envValue(
     env,
     'SDKWORK_IM_DATABASE_ENGINE',
+    'SDKWORK_CLAW_DATABASE_ENGINE',
     'SDKWORK_CLAW_DATABASE_PROVIDER',
   );
   const deploymentMode = normalizeDatabaseField(env.SDKWORK_IM_DEPLOYMENT_MODE)

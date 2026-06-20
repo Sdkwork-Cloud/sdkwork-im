@@ -11,6 +11,7 @@ const standardChecks = [
   'test:sdkwork-workspace-structure-standard',
   'test:web-framework-standard',
   'test:database-framework-standard',
+  'test:utils-standard',
   'test:runtime-standard',
   'test:runtime-id-standard',
   'test:deprecated-service-boundary',

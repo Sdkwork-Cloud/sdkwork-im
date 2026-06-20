@@ -31,6 +31,12 @@ Read `sdkwork.app.config.json` only when changing IM application behavior, runti
 - Do not materialize RTC SDK packages under this repository; `sdks/` must not contain `sdkwork-rtc-sdk`.
 - Canonical boundary reference: `../sdkwork-rtc/docs/rtc-im-boundary.md`.
 
+## RPC and Discovery Boundary
+
+- RPC contracts live under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`, but no hosted gRPC service process is deployed yet.
+- `sdkwork-discovery` is deferred until hosted gRPC RPC service processes ship. Phased adoption plan: `docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md`.
+- Until Phase 1 RPC hosts ship, split-deploy routing uses static topology env vars in `configs/topology/` and gateway upstream URLs.
+
 ## Local Dictionary Structure
 
 - `AGENTS.md`: repository agent entrypoint and relative SDKWork spec index.

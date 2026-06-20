@@ -59,6 +59,17 @@ Use dynamic progressive loading:
 
 Language-specific specs are on-demand; do not load unrelated specs for unrelated tasks.
 
+## PC Package Naming
+
+Canonical console/admin package naming in this app root:
+
+- Console surface: `sdkwork-im-console-*`
+- Admin surface: `sdkwork-im-admin-*`
+- Normalized PC targets per `APP_PC_ARCHITECTURE_SPEC.md`: `sdkwork-im-pc-console-*`, `sdkwork-im-pc-admin-*`
+- PC-native capabilities: `sdkwork-im-pc-*`
+
+Historical `sdkwork-clawchat-*` names were retired and must not be reintroduced.
+
 ## Code Style Rules
 
 Read `../../../sdkwork-specs/CODE_STYLE_SPEC.md` and `../../../sdkwork-specs/NAMING_SPEC.md` before code changes. Root `src/` must stay thin; business pages, services, i18n, state, and route contributions belong in packages. Feature packages use generated SDK clients or approved composed wrappers, not raw HTTP or manual credential headers.

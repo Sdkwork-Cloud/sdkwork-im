@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { base64UrlEncode } from '@sdkwork/utils-typescript';
 import {
   createSdkworkChatRequestContext,
   createSdkworkChatRequestContextInterceptors,
@@ -10,8 +11,8 @@ import {
 } from '../../apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session';
 
 function createJwt(payload: Record<string, unknown>): string {
-  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
-  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const header = base64UrlEncode(JSON.stringify({ alg: 'none', typ: 'JWT' }));
+  const body = base64UrlEncode(JSON.stringify(payload));
   return `${header}.${body}.local`;
 }
 

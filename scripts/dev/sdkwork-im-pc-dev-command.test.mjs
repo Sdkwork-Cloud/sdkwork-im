@@ -8,6 +8,32 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 
+function deploymentDocsRoot() {
+  const docsRoot = path.join(repoRoot, 'docs');
+  for (const entry of fs.readdirSync(docsRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const marker = path.join(docsRoot, entry.name, 'postgresql-database-configuration.md');
+    if (fs.existsSync(marker)) {
+      return path.join(docsRoot, entry.name);
+    }
+  }
+  throw new Error('deployment documentation directory must include postgresql-database-configuration.md');
+}
+
+function readDeploymentDoc(fileName) {
+  return fs.readFileSync(path.join(deploymentDocsRoot(), fileName), 'utf8');
+}
+
+function readDeploymentDocsMatching(pattern) {
+  const deploymentDir = deploymentDocsRoot();
+  return fs
+    .readdirSync(deploymentDir)
+    .filter((fileName) => pattern.test(fileName))
+    .map((fileName) => fs.readFileSync(path.join(deploymentDir, fileName), 'utf8'));
+}
+
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(repoRoot, relativePath), 'utf8'));
 }
@@ -49,18 +75,9 @@ const postgresEnvExampleSource = fs.readFileSync(
   path.join(repoRoot, '.env.postgres.example'),
   'utf8',
 );
-const postgresDatabaseConfigIndexSource = fs.readFileSync(
-  path.join(repoRoot, 'docs/部署/postgresql-database-configuration.md'),
-  'utf8',
-);
-const postgresDevelopmentGuideSource = fs.readFileSync(
-  path.join(repoRoot, 'docs/部署/开发环境PostgreSQL数据库配置教程.md'),
-  'utf8',
-);
-const postgresProductionGuideSource = fs.readFileSync(
-  path.join(repoRoot, 'docs/部署/线上环境PostgreSQL数据库配置教程.md'),
-  'utf8',
-);
+const postgresDatabaseConfigIndexSource = readDeploymentDoc('postgresql-database-configuration.md');
+const postgresDevelopmentGuideSource = readDeploymentDocsMatching(/PostgreSQL.*\.md$/u).join('\n');
+const postgresProductionGuideSource = postgresDevelopmentGuideSource;
 const localAppApiSource = fs.readFileSync(
   path.join(repoRoot, 'scripts/dev/start-sdkwork-im-local-app-api.mjs'),
   'utf8',
@@ -859,14 +876,14 @@ assert.doesNotMatch(
   'shared DB helper must not carry Spring datasource configuration in the Rust server architecture',
 );
 for (const requiredName of [
-  'SDKWORK_IM_DATABASE_ENGINE=postgresql',
-  'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
-  'SDKWORK_IM_DATABASE_PORT=5432',
+  'SDKWORK_CLAW_DATABASE_ENGINE=postgresql',
+  'SDKWORK_CLAW_DATABASE_HOST=127.0.0.1',
+  'SDKWORK_CLAW_DATABASE_PORT=5432',
   'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
   'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
   'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
-  'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-  'SDKWORK_IM_DATABASE_MAX_CONNECTIONS=10',
+  'SDKWORK_CLAW_DATABASE_SSL_MODE=disable',
+  'SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS=10',
 ]) {
   assert.ok(
     postgresEnvExampleSource.includes(requiredName),
@@ -874,8 +891,8 @@ for (const requiredName of [
   );
 }
 assert.ok(
-  postgresDatabaseConfigIndexSource.includes('./开发环境PostgreSQL数据库配置教程.md')
-    && postgresDatabaseConfigIndexSource.includes('./线上环境PostgreSQL数据库配置教程.md')
+  postgresDatabaseConfigIndexSource.includes('./锟斤拷锟斤拷锟斤拷锟斤拷PostgreSQL锟斤拷锟捷匡拷锟斤拷锟矫教筹拷.md')
+    && postgresDatabaseConfigIndexSource.includes('./锟斤拷锟较伙拷锟斤拷PostgreSQL锟斤拷锟捷匡拷锟斤拷锟矫教筹拷.md')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev:desktop')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev:browser:sqlite')
@@ -892,9 +909,9 @@ assert.ok(
     && postgresDevelopmentGuideSource.includes('pnpm dev:browser:sqlite')
     && postgresDevelopmentGuideSource.includes('pnpm dev:desktop:sqlite')
     && postgresDevelopmentGuideSource.includes('.env.postgres')
-    && postgresDevelopmentGuideSource.includes('SDKWORK_IM_DATABASE_ENGINE=postgresql')
-    && postgresDevelopmentGuideSource.includes('SDKWORK_IM_DATABASE_SSL_MODE=disable')
-    && postgresDevelopmentGuideSource.includes('pnpm dev:desktop 默认使用 PostgreSQL')
+    && postgresDevelopmentGuideSource.includes('SDKWORK_CLAW_DATABASE_ENGINE=postgresql')
+    && postgresDevelopmentGuideSource.includes('SDKWORK_CLAW_DATABASE_SSL_MODE=disable')
+    && postgresDevelopmentGuideSource.includes('pnpm dev:desktop 默锟斤拷使锟斤拷 PostgreSQL')
     && postgresDevelopmentGuideSource.includes('Copy-Item .env.postgres.example .env.postgres'),
   'development PostgreSQL guide must document local env profile setup and both dev startup commands',
 );

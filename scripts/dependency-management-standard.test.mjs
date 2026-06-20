@@ -10,6 +10,7 @@ const expectedDependencyIds = [
   'sdkwork-core',
   'sdkwork-database',
   'sdkwork-web-framework',
+  'sdkwork-utils',
   'sdkwork-drive',
   'sdkwork-ui',
   'sdkwork-rtc',

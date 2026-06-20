@@ -1282,8 +1282,8 @@ dependencies = [
  "r2d2",
  "r2d2_postgres",
  "sdkwork-database-config",
+ "sdkwork-utils-rust",
  "serde_json",
- "sha2 0.10.9",
  "tokio",
 ]
 
@@ -1299,8 +1299,8 @@ dependencies = [
  "r2d2",
  "r2d2_postgres",
  "sdkwork-database-config",
+ "sdkwork-utils-rust",
  "serde_json",
- "sha2 0.10.9",
  "tokio",
 ]
 
@@ -1367,9 +1367,9 @@ name = "im-app-context"
 version = "0.1.0"
 dependencies = [
  "axum",
- "base64",
  "hmac 0.12.1",
  "sdkwork-im-ccp-core",
+ "sdkwork-utils-rust",
  "sdkwork-web-core",
  "serde_json",
  "sha2 0.10.9",
@@ -2585,9 +2585,9 @@ dependencies = [
  "sdkwork-im-contract-core",
  "sdkwork-im-contract-message",
  "sdkwork-im-openapi",
+ "sdkwork-utils-rust",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "tokio",
  "tower",
  "tracing",
@@ -3049,6 +3049,21 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "sdkwork-utils-rust"
+version = "0.10.0"
+dependencies = [
+ "base64",
+ "chrono",
+ "hmac 0.12.1",
+ "rand 0.8.6",
+ "regex",
+ "serde_json",
+ "sha2 0.10.9",
+ "urlencoding",
  "uuid",
 ]
 
@@ -4205,6 +4220,12 @@ dependencies = [
  "percent-encoding",
  "serde",
 ]
+
+[[package]]
+name = "urlencoding"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 
 [[package]]
 name = "utf-8"

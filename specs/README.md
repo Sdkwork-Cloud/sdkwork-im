@@ -39,9 +39,10 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | --- | --- | --- |
 | `sdkwork-web-framework` | **Integrated** | `Cargo.toml` workspace deps (`sdkwork-web-core`, `sdkwork-web-axum`, `sdkwork-web-bootstrap`, `sdkwork-iam-web-adapter`); gateway wraps routers in `services/sdkwork-im-gateway/src/web_framework.rs`. Verified by `pnpm test:web-framework-standard`. |
 | `sdkwork-database` | **Integrated** | `Cargo.toml` workspace deps (`sdkwork-database-config`, `sdkwork-database-sqlx`); pool bootstrap in `crates/sdkwork-im-database-pool`; postgres adapters consume unified pool config. Verified by `pnpm test:database-framework-standard`. |
+| `sdkwork-utils` | **Integrated** | `Cargo.toml` workspace dep (`sdkwork-utils-rust`); PC core consumes `@sdkwork/utils-typescript`. Crypto/encoding helpers must not duplicate `sha2` or ad-hoc base64url in shared runtime paths. Verified by `pnpm test:utils-standard`. |
 | `sdkwork-discovery` | **Deferred** | RPC contracts live under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`, but no hosted gRPC server is deployed yet. Phased adoption plan: [ADR-20260619-im-rpc-discovery-integration-deferred](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md). |
 
-Sibling checkout and release refs are declared in `sdkwork.workflow.json` (`sdkwork-web-framework`, `sdkwork-database`).
+Sibling checkout and release refs are declared in `sdkwork.workflow.json` (`sdkwork-web-framework`, `sdkwork-database`, `sdkwork-utils`).
 
 ## Canonical Specs
 

@@ -7,9 +7,9 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use hmac::{Hmac, Mac};
 use sdkwork_im_ccp_core::{CcpActor, CcpAuthority, CcpSender};
+use sdkwork_utils_rust::{base64url_decode, base64url_encode};
 use sdkwork_web_core::{
     ServerRequestId, WebAuthLevel, WebAuthMode, WebDeploymentMode, WebEnvironment, WebLoginScope,
     WebRequestContext, WebRequestContextProfile, WebRequestPrincipal, WebSubjectType,
@@ -445,7 +445,7 @@ pub fn sign_app_context_headers(
         AppContextError::invalid(format!("AppContext signature secret is invalid: {error}"))
     })?;
     mac.update(payload.as_bytes());
-    Ok(URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes()))
+    Ok(base64url_encode(&mac.finalize().into_bytes()))
 }
 
 pub fn require_app_context_signature(
@@ -893,9 +893,9 @@ fn decode_jwt_payload(raw: &str) -> Result<Option<Value>, AppContextError> {
     if parts.next().is_none() {
         return Ok(None);
     }
-    let decoded = URL_SAFE_NO_PAD
-        .decode(payload)
-        .map_err(|error| AppContextError::invalid(format!("invalid token payload: {error}")))?;
+    let decoded = base64url_decode(payload).ok_or_else(|| {
+        AppContextError::invalid("invalid token payload: base64url decode failed".to_owned())
+    })?;
     let value = serde_json::from_slice::<Value>(&decoded).map_err(|error| {
         AppContextError::invalid(format!("invalid token payload json: {error}"))
     })?;
@@ -913,8 +913,8 @@ fn dual_token_organization_id_claim(login_scope: &str, organization_id: &str) ->
 }
 
 fn encode_local_jwt_claims(claims: Value) -> String {
-    let header = URL_SAFE_NO_PAD.encode(r#"{"alg":"none","typ":"JWT"}"#);
-    let payload = URL_SAFE_NO_PAD.encode(claims.to_string());
+    let header = base64url_encode(r#"{"alg":"none","typ":"JWT"}"#.as_bytes());
+    let payload = base64url_encode(claims.to_string().as_bytes());
     format!("{header}.{payload}.local")
 }
 

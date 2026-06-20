@@ -20,7 +20,7 @@ im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-time = { path = "../../crates/im-time" }
 serde.workspace = true
 serde_json.workspace = true
-sha2 = "0.10"
+sdkwork_utils_rust.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

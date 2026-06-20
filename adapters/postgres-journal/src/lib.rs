@@ -33,7 +33,7 @@ use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
 use r2d2_postgres::postgres::NoTls;
-use sha2::{Digest, Sha256};
+use sdkwork_utils_rust::sha256_hash;
 use tokio::runtime::Handle;
 
 pub use r2d2_postgres::postgres::NoTls as PostgresJournalNoTls;
@@ -268,7 +268,7 @@ fn append_one(
         .map_err(|error| postgres_unavailable("journal append begin", error))?;
 
     let partition_key = compose_partition_key(prefix, &envelope.ordering_key);
-    let payload_hash = sha256_hex(envelope.payload.as_bytes());
+    let payload_hash = sha256_hash(envelope.payload.as_bytes());
     let created_at = now_rfc3339();
     let aggregate_seq = i64::try_from(envelope.ordering_seq).unwrap_or(0).max(1);
     let commit_offset = aggregate_seq;
@@ -331,7 +331,7 @@ fn append_many(
     let mut positions = Vec::with_capacity(envelopes.len());
     for envelope in &envelopes {
         let partition_key = compose_partition_key(prefix, &envelope.ordering_key);
-        let payload_hash = sha256_hex(envelope.payload.as_bytes());
+        let payload_hash = sha256_hash(envelope.payload.as_bytes());
         let created_at = now_rfc3339();
         let aggregate_seq = i64::try_from(envelope.ordering_seq).unwrap_or(0).max(1);
         let commit_offset = aggregate_seq;
@@ -488,12 +488,6 @@ pub(crate) fn compose_partition_key(prefix: &str, ordering_key: &str) -> String 
 pub(crate) fn now_rfc3339() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
-
-pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
-    let digest = Sha256::digest(bytes);
-    format!("{digest:x}")
-}
-
 pub(crate) fn postgres_unavailable(
     action: &'static str,
     error: impl std::fmt::Display,
