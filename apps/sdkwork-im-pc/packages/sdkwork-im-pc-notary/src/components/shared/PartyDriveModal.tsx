@@ -64,7 +64,7 @@ export const PartyDriveModal: React.FC<PartyDriveModalProps> = ({
   // Helper to get display size
   const getDisplaySize = (doc: NotaryDocument | LocalAttachment): string => {
     if (isApiDocument(doc)) {
-      return doc.size || '—';
+      return doc.size || t('common.notAvailable');
     }
     return `${Math.max(1, Math.round(doc.file.size / 1024))} KB`;
   };

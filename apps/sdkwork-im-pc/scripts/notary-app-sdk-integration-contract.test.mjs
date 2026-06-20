@@ -322,7 +322,7 @@ assert.doesNotMatch(
 
 assert.match(
   partyDrawerSource,
-  /toast\(['"]身份材料将在提交后由公证服务完成核验。['"],\s*['"]info['"]\)/u,
+  /toast\(t\(['"]toast\.identityWillBeVerified['"]\),\s*['"]info['"]\)/u,
   'Notary party identity compare must fail closed and tell users the SDK-backed notary service verifies identity materials after submission.',
 );
 

@@ -9,11 +9,15 @@ import type { NotaryStats } from '../../types';
 export interface NotaryHeaderProps {
   /** Called when "Create Task" button is clicked */
   onCreateTask: () => void;
+  /** Called when monthly report button is clicked */
+  onMonthlyReport: () => void;
   /** Statistics to display */
   stats: NotaryStats;
+  /** Whether statistics are loading */
+  loading?: boolean;
 }
 
-export const NotaryHeader: React.FC<NotaryHeaderProps> = ({ onCreateTask, stats }) => {
+export const NotaryHeader: React.FC<NotaryHeaderProps> = ({ onCreateTask, onMonthlyReport, stats, loading = false }) => {
   const { t } = useTranslation('notary');
 
   const statCards = [
@@ -21,16 +25,24 @@ export const NotaryHeader: React.FC<NotaryHeaderProps> = ({ onCreateTask, stats 
       icon: Clock,
       iconColor: 'text-orange-400',
       label: t('stats.pendingQueue'),
-      value: stats.pendingCount,
-      sub: t('stats.estimatedProcessingTime'),
+      value: loading ? t('stats.dash') : stats.pendingCount,
+      sub: loading
+        ? t('stats.loading')
+        : t('stats.estimatedProcessingTime', {
+            hours: stats.estimatedProcessHours ?? stats.pendingCount * 2,
+          }),
       bgIcon: Clock,
     },
     {
       icon: ShieldCheck,
       iconColor: 'text-green-400',
       label: t('stats.todayCompleted'),
-      value: stats.completedCount,
-      sub: t('stats.comparedToYesterday'),
+      value: loading ? t('stats.dash') : stats.completedCount,
+      sub: loading
+        ? t('stats.loading')
+        : (stats.comparedToYesterday ?? 0) >= 0
+          ? t('stats.comparedToYesterdayPositive', { delta: stats.comparedToYesterday ?? 0 })
+          : t('stats.comparedToYesterdayNegative', { delta: Math.abs(stats.comparedToYesterday ?? 0) }),
       subColor: 'text-green-500',
       bgIcon: ShieldCheck,
     },
@@ -38,7 +50,7 @@ export const NotaryHeader: React.FC<NotaryHeaderProps> = ({ onCreateTask, stats 
       icon: AlertCircle,
       iconColor: 'text-red-400',
       label: t('stats.anomalyIntercepted'),
-      value: stats.rejectedCount,
+      value: loading ? t('stats.dash') : stats.rejectedCount,
       sub: t('stats.riskControlAutoIntercept'),
       bgIcon: AlertCircle,
     },
@@ -46,10 +58,11 @@ export const NotaryHeader: React.FC<NotaryHeaderProps> = ({ onCreateTask, stats 
       icon: Layers,
       iconColor: 'text-indigo-400',
       label: t('stats.monthlyVolume'),
-      value: stats.totalCount.toLocaleString(),
+      value: loading ? t('stats.dash') : stats.totalCount.toLocaleString(),
       sub: (
         <div className="flex items-center gap-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Blockchain Sync OK
+          <div className={`w-1.5 h-1.5 rounded-full ${stats.blockchainSyncStatus === 'ok' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+          {stats.blockchainSyncStatus === 'ok' ? t('stats.blockchainSyncOk') : t('stats.blockchainSyncing')}
         </div>
       ),
       bgIcon: Layers,
@@ -65,7 +78,11 @@ export const NotaryHeader: React.FC<NotaryHeaderProps> = ({ onCreateTask, stats 
           {t('workspace.title')}
         </h1>
         <div className="flex items-center gap-3">
-          <button className="px-4 py-2 bg-[#2b2b2d] hover:bg-white/10 text-gray-200 text-sm rounded flex items-center gap-2 transition-colors border border-white/5">
+          <button
+            type="button"
+            onClick={onMonthlyReport}
+            className="px-4 py-2 bg-[#2b2b2d] hover:bg-white/10 text-gray-200 text-sm rounded flex items-center gap-2 transition-colors border border-white/5"
+          >
             <Download size={16} />{t('actions.monthlyReport')}
           </button>
           <button

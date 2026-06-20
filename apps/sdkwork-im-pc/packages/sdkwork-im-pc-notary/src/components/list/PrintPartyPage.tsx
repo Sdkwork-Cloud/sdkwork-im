@@ -20,6 +20,8 @@ export const PrintPartyPage: React.FC<PrintPartyPageProps> = ({
 }) => {
   const { t } = useTranslation('notary');
 
+  const na = t('common.notAvailable');
+
   return (
     <div className="w-[794px] min-h-[1123px] shrink-0 bg-white text-[#333] shadow-[0_10px_40px_rgba(0,0,0,0.5)] relative font-sans break-after-page print:w-full print:min-h-0 print:shadow-none print:m-0 print:p-[40px] p-[80px_100px]">
       {/* Title */}
@@ -35,7 +37,7 @@ export const PrintPartyPage: React.FC<PrintPartyPageProps> = ({
             <div className="w-24 font-bold text-gray-600">{t('party.name')}</div>
             <div className="flex-1 text-center font-medium text-black">{party.name}</div>
             <div className="w-20 font-bold text-gray-600">{t('party.gender')}</div>
-            <div className="w-20 font-medium text-black">{party.gender || t('party.male')}</div>
+            <div className="w-20 font-medium text-black">{party.gender || na}</div>
           </div>
 
           {/* Birth date / Ethnicity row */}
@@ -48,17 +50,17 @@ export const PrintPartyPage: React.FC<PrintPartyPageProps> = ({
                     parseInt(party.identityId.substring(10, 12)) - 1,
                     parseInt(party.identityId.substring(12, 14)),
                   ).toLocaleDateString()
-                : '—'}
+                : na}
             </div>
             <div className="w-20 font-bold text-gray-600">{t('print.ethnicity')}</div>
-            <div className="w-20 font-medium text-black">{party.ethnicity || '—'}</div>
+            <div className="w-20 font-medium text-black">{party.ethnicity || na}</div>
           </div>
 
           {/* Address row */}
           <div className="flex border-b border-gray-100 pb-2 mb-2 items-center">
             <div className="w-24 font-bold text-gray-600">{t('print.address')}</div>
             <div className="flex-1 text-center font-medium text-black leading-relaxed" style={{ textAlignLast: 'center' }}>
-              {party.address || '—'}
+              {party.address || na}
             </div>
           </div>
 
@@ -72,13 +74,13 @@ export const PrintPartyPage: React.FC<PrintPartyPageProps> = ({
           <div className="flex border-b border-gray-100 pb-2 items-center">
             <div className="w-24 font-bold text-gray-600">{t('print.issuingAuthority')}</div>
             <div className="flex-1 text-center text-[13px] font-medium text-black overflow-hidden whitespace-nowrap text-ellipsis">
-              {party.identityIssuingAuthority || '—'}
+              {party.identityIssuingAuthority || na}
             </div>
             <div className="w-24 font-bold text-right pr-4 text-gray-600">{t('print.validPeriod')}</div>
             <div className="w-36 text-sm font-medium text-black text-right pr-2">
               {party.identityValidDateStart && party.identityValidDateEnd
                 ? `${party.identityValidDateStart}-${party.identityValidDateEnd}`
-                : '—'}
+                : na}
             </div>
           </div>
         </div>
@@ -108,10 +110,10 @@ export const PrintPartyPage: React.FC<PrintPartyPageProps> = ({
       {/* Comparison score + result */}
       <div className="flex text-[15px] mb-8 items-center">
         <div className="w-24 font-bold text-gray-600">{t('print.comparisonScore')}</div>
-        <div className="w-[180px] text-gray-800 font-mono text-lg">{party.identityVerificationScore ?? '—'}</div>
+        <div className="w-[180px] text-gray-800 font-mono text-lg">{party.identityVerificationScore ?? na}</div>
         <div className="w-24 font-bold text-right pr-6 text-gray-600">{t('print.comparisonResult')}</div>
         <div className="flex-1 font-medium text-black text-left pl-6">
-          {party.identityVerificationStatus === 'verified' ? t('print.success') : '—'}
+          {party.identityVerificationStatus === 'verified' ? t('print.success') : na}
         </div>
       </div>
 
@@ -120,7 +122,7 @@ export const PrintPartyPage: React.FC<PrintPartyPageProps> = ({
         <div className="w-24 font-bold text-gray-600">{t('print.comparisonMethod')}</div>
         <div className="w-[180px] font-medium text-black">{t('print.faceComparison')}</div>
         <div className="w-24 font-bold text-right pr-6 text-gray-600">{t('print.referenceThreshold')}</div>
-        <div className="flex-1 text-gray-800 font-mono text-left pl-6">68</div>
+        <div className="flex-1 text-gray-800 font-mono text-left pl-6">{t('print.referenceThresholdValue')}</div>
       </div>
 
       {/* Signature */}

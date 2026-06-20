@@ -49,13 +49,13 @@ export const ConfirmationSummary: React.FC<ConfirmationSummaryProps> = ({
         {/* Business type */}
         <div className="flex">
           <span className="w-24 text-gray-500">{t('createTask.notaryType')}</span>
-          <span className="text-gray-200 font-medium">{businessType || '--'}</span>
+          <span className="text-gray-200 font-medium">{businessType || t('common.notAvailable')}</span>
         </div>
 
         {/* Notary */}
         <div className="flex">
           <span className="w-24 text-gray-500">{t('createTask.handleNotary')}</span>
-          <span className="text-gray-200">{notary || '--'}</span>
+          <span className="text-gray-200">{notary || t('common.notAvailable')}</span>
         </div>
 
         {/* Parties */}
@@ -63,7 +63,7 @@ export const ConfirmationSummary: React.FC<ConfirmationSummaryProps> = ({
           <span className="w-24 text-gray-500 mt-2">{t('createTask.partyLabel')}</span>
           <div className="flex flex-col gap-2 flex-1">
             {parties.length === 0 ? (
-              <span className="text-gray-500 mt-2">--</span>
+              <span className="text-gray-500 mt-2">{t('common.notAvailable')}</span>
             ) : (
               parties.map((p) => (
                 <div
@@ -76,7 +76,7 @@ export const ConfirmationSummary: React.FC<ConfirmationSummaryProps> = ({
                       <span className="font-medium text-gray-200 group-hover:text-indigo-400 transition-colors">{p.name}</span>
                       <span className="text-xs text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">{p.role}</span>
                       {p.signatureUrl && (
-                        <img src={p.signatureUrl} alt={`Signature for ${p.name}`} className="h-6 object-contain bg-white/90 rounded border border-white/20 ml-2" />
+                        <img src={p.signatureUrl} alt={t('createTask.signatureFor', { name: p.name })} className="h-6 object-contain bg-white/90 rounded border border-white/20 ml-2" />
                       )}
                     </div>
                     <div className="text-xs text-gray-500 flex items-center gap-3">
@@ -94,7 +94,7 @@ export const ConfirmationSummary: React.FC<ConfirmationSummaryProps> = ({
         {/* Description */}
         <div className="flex">
           <span className="w-24 text-gray-500 shrink-0">{t('createTask.applicationReason')}</span>
-          <span className="text-gray-300 bg-white/5 p-3 rounded-lg flex-1 min-h-[60px] line-clamp-3">{description || '--'}</span>
+          <span className="text-gray-300 bg-white/5 p-3 rounded-lg flex-1 min-h-[60px] line-clamp-3">{description || t('common.notAvailable')}</span>
         </div>
 
         {/* Attachments */}

@@ -21,3 +21,6 @@ export type { WizardNavigationProps } from './WizardNavigation';
 
 export { VideoCallQROverlay } from './VideoCallQROverlay';
 export type { VideoCallQROverlayProps } from './VideoCallQROverlay';
+
+export { PartyBindingStep } from './PartyBindingStep';
+export type { PartyBindingStepProps } from './PartyBindingStep';

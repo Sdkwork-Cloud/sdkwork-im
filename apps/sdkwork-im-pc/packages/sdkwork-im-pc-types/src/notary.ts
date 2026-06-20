@@ -16,6 +16,10 @@ export interface Party {
   identityVerificationScore?: number;
   identityVerificationStatus?: string;
   faceCaptureTime?: string;
+  /** Local identity media captured before case persistence */
+  identityFrontFile?: File;
+  identityBackFile?: File;
+  faceImageDataUrl?: string;
 }
 
 export interface NotaryDocument {
@@ -23,6 +27,11 @@ export interface NotaryDocument {
   size: string;
   status: 'verified' | 'pending' | 'error';
   category: 'identity' | 'evidence' | 'notary';
+  materialCode?: string;
+  partyId?: string;
+  file?: File;
+  nodeId?: string;
+  driveNodeId?: string;
 }
 
 export interface TimelineEvent {
@@ -46,4 +55,12 @@ export interface NotaryTask {
   parties?: Party[];
   documents: NotaryDocument[];
   timeline: TimelineEvent[];
+  caseNo?: string;
+  caseId?: string;
+  orderId?: string;
+  orderItemId?: string;
+  skuId?: string;
+  driveSpaceId?: string;
+  driveFolderNodeId?: string;
+  primaryNotaryMembershipId?: string;
 }

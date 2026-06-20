@@ -42,6 +42,23 @@ export interface NotaryStats {
   completedCount: number;
   rejectedCount: number;
   totalCount: number;
+  estimatedProcessHours?: number;
+  comparedToYesterday?: number;
+  blockchainSyncStatus?: string;
+}
+
+export interface NotaryMatterOption {
+  skuId: string;
+  title: string;
+  description?: string;
+}
+
+export interface MonthlyReportResult {
+  downloadUrl?: string;
+  reportId?: string;
+  month?: string;
+  format?: string;
+  caseCount?: number;
 }
 
 /**

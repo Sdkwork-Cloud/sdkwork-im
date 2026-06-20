@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileCheck, MoreHorizontal, Download, User as UserIcon, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { NotaryTask } from '@sdkwork/im-pc-types';
+import { getNotaryTaskDisplayNo } from '../../utils/notaryTask';
 
 export interface NotaryTaskTableProps {
   /** All tasks (for total count) */
@@ -22,6 +23,8 @@ export interface NotaryTaskTableProps {
   currentPage: number;
   /** Total number of pages */
   totalPages: number;
+  /** Whether the task list is loading */
+  loading?: boolean;
   /** Function to render status badge */
   getStatusBadge: (status: NotaryTask['status']) => React.ReactNode;
   /** Called when a task is selected */
@@ -48,6 +51,7 @@ export const NotaryTaskTable: React.FC<NotaryTaskTableProps> = ({
   pageSize,
   currentPage,
   totalPages,
+  loading = false,
   getStatusBadge,
   onSelectTask,
   onDropdownToggle,
@@ -77,7 +81,14 @@ export const NotaryTaskTable: React.FC<NotaryTaskTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            {paginatedTasks.map((task, idx) => (
+            {paginatedTasks.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-6 py-16 text-center text-sm text-gray-500">
+                  {loading ? t('stats.loading') : t('table.noTasks')}
+                </td>
+              </tr>
+            ) : (
+              paginatedTasks.map((task, idx) => (
               <tr
                 key={task.id}
                 onClick={() => onSelectTask(task)}
@@ -89,7 +100,7 @@ export const NotaryTaskTable: React.FC<NotaryTaskTableProps> = ({
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2 text-indigo-400 font-medium">
                     <FileCheck size={16} />
-                    {(task as any).caseNo ?? task.id}
+                    {getNotaryTaskDisplayNo(task)}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-gray-200 font-medium max-w-[200px] truncate" title={task.title}>
@@ -98,13 +109,13 @@ export const NotaryTaskTable: React.FC<NotaryTaskTableProps> = ({
                 <td className="px-6 py-4 text-gray-300">
                   <span className="bg-white/5 px-2 py-1 rounded text-xs border border-white/5">{task.type}</span>
                 </td>
-                <td className="px-6 py-4 text-gray-400 max-w-[150px] truncate" title={task.parties?.map(p => p.name).join(', ') || '--'}>
-                  {task.parties && task.parties.length > 0 ? task.parties.map(p => p.name).join(', ') : '--'}
+                <td className="px-6 py-4 text-gray-400 max-w-[150px] truncate" title={task.parties?.map(p => p.name).join(', ') || t('common.notAvailable')}>
+                  {task.parties && task.parties.length > 0 ? task.parties.map(p => p.name).join(', ') : t('common.notAvailable')}
                 </td>
                 <td className="px-6 py-4 text-gray-400">{task.notary}</td>
                 <td className="px-6 py-4">{getStatusBadge(task.status)}</td>
                 <td className="px-6 py-4 text-gray-400 max-w-[150px] truncate" title={task.remarks}>
-                  {task.remarks || '--'}
+                  {task.remarks || t('common.notAvailable')}
                 </td>
                 <td className="px-6 py-4 relative">
                   <div className="flex items-center gap-3">
@@ -174,7 +185,8 @@ export const NotaryTaskTable: React.FC<NotaryTaskTableProps> = ({
                   </div>
                 </td>
               </tr>
-            ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>

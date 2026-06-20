@@ -9,6 +9,8 @@ import { createDefaultAvatar } from '@sdkwork/im-pc-chat';
  */
 export const DEFAULT_NOTARY_CALLER_AVATAR = createDefaultAvatar('user');
 
+export { SYSTEM_ASSIGNED_NOTARY_LABEL } from './notary';
+
 /**
  * Empty 1x1 transparent GIF for print template placeholders
  * Used when party identity media URLs are not available

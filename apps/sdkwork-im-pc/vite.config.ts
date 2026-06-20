@@ -133,8 +133,11 @@ function sdkworkChatLocalApiPlugin(): Plugin {
 }
 
 export default defineConfig(({mode}) => {
-  loadEnv(mode, '.', '');
+  const env = loadEnv(mode, '.', '');
   return {
+    define: {
+      'process.env.SDKWORK_ACCESS_TOKEN': JSON.stringify(env.SDKWORK_ACCESS_TOKEN ?? ''),
+    },
     plugins: [sdkworkChatLocalApiPlugin(), react(), tailwindcss()],
     resolve: {
       alias: [

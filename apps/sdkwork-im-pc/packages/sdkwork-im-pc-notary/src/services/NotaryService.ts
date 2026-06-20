@@ -1,4 +1,5 @@
 ﻿import type { NotaryDocument, NotaryTask, Party, TimelineEvent } from '@sdkwork/im-pc-types';
+import type { MonthlyReportResult, NotaryMatterOption, NotaryStats } from '../types';
 import {
   createNotaryApi,
   type CreateNotaryApiOptions,
@@ -8,12 +9,17 @@ import {
   getDriveAppSdkClient,
   getNotaryAppSdkClient,
 } from '@sdkwork/im-pc-core';
+import { SYSTEM_ASSIGNED_NOTARY_LABEL } from '../constants';
 
 export interface NotaryService {
-  getTasks(filters?: { status?: string; searchTerm?: string; pageSize?: number; cursor?: string }): Promise<NotaryTask[]>;
+  getDashboardStatistics(): Promise<NotaryStats>;
+  getMonthlyReport(monthOrFilters?: string | { month?: string; format?: 'pdf' | 'excel' | 'csv' }): Promise<MonthlyReportResult>;
+  getMatters(filters?: { searchTerm?: string; pageSize?: number; cursor?: string }): Promise<NotaryMatterOption[]>;
+  getTasks(filters?: { businessType?: string; status?: string; searchTerm?: string; pageSize?: number; cursor?: string }): Promise<NotaryTask[]>;
   getTaskById(taskId: string): Promise<NotaryTask | null>;
   getStaff(filters?: { staffRole?: 'notary' | 'assistant' | 'reviewer' | 'approver'; searchTerm?: string; pageSize?: number; cursor?: string }): Promise<NotaryStaffOption[]>;
   createTask(data: CreateNotaryTaskInput): Promise<NotaryTask>;
+  assignNotary(taskId: string, membershipId: string): Promise<NotaryTask>;
   updateTaskStatus(taskId: string, status: NotaryTask['status']): Promise<NotaryTask>;
   updateTask(taskId: string, updates: Partial<NotaryTask>): Promise<NotaryTask>;
   addParty(taskId: string, party: Omit<Party, 'id'>): Promise<NotaryTask>;
@@ -44,6 +50,7 @@ export interface NotaryService {
 }
 
 export interface CreateNotaryTaskInput extends Partial<NotaryTask> {
+  skuId?: string;
   primaryNotaryMembershipId?: string;
   notaryMembershipId?: string;
   selectedNotaryStaff?: unknown;
@@ -69,6 +76,11 @@ export interface CreateChatPcNotaryServiceOptions {
   defaultSkuId?: string;
   skuIdsByType?: Record<string, string>;
 }
+
+const CASE_REJECTION_REASON = 'materials_need_correction';
+const CASE_COMPLETION_RESULT = 'manual_verification_completed';
+const FALLBACK_APPLICANT_NAME = 'unknown_applicant';
+const FALLBACK_CASE_TITLE_SUFFIX = 'notary_case';
 
 const DEFAULT_SKU_IDS_BY_TYPE: Record<string, string> = {
   '电子合同存证': 'sku-notary-electronic-contract',
@@ -125,10 +137,14 @@ export function createChatPcNotaryService(
 
   async function loadTask(taskId: string): Promise<NotaryTask> {
     const caseRecord = await notaryApi.getCase(taskId);
-    const fileResponse = await notaryApi.listCaseFiles(taskId, driveListScope);
+    const [fileResponse, eventsResponse] = await Promise.all([
+      notaryApi.listCaseFiles(taskId, driveListScope),
+      notaryApi.listCaseEvents(taskId, { pageSize: 100 }),
+    ]);
     return mapCaseToTask({
       ...asRecord(caseRecord),
       documents: extractItems(fileResponse),
+      timeline: extractItems(eventsResponse),
     });
   }
 
@@ -245,7 +261,51 @@ export function createChatPcNotaryService(
   }
 
   return {
-    async getTasks(filters?: { status?: string; searchTerm?: string; pageSize?: number; cursor?: string }): Promise<NotaryTask[]> {
+    async getDashboardStatistics(): Promise<NotaryStats> {
+      const response = asRecord(await notaryApi.getDashboardStatistics());
+      const pendingReviewQueue = asRecord(response.pendingReviewQueue);
+      const todayCompleted = asRecord(response.todayCompleted);
+      const anomalyIntercepted = asRecord(response.anomalyIntercepted);
+      const monthlyPreservationTotal = asRecord(response.monthlyPreservationTotal);
+      return {
+        pendingCount: numberValue(pendingReviewQueue.count),
+        completedCount: numberValue(todayCompleted.count),
+        rejectedCount: numberValue(anomalyIntercepted.count),
+        totalCount: numberValue(monthlyPreservationTotal.count),
+        estimatedProcessHours: optionalNumber(pendingReviewQueue.estimatedProcessHours),
+        comparedToYesterday: optionalNumber(todayCompleted.comparedToYesterday),
+        blockchainSyncStatus: optionalString(monthlyPreservationTotal.blockchainSyncStatus),
+      };
+    },
+
+    async getMonthlyReport(
+      monthOrFilters?: string | { month?: string; format?: 'pdf' | 'excel' | 'csv' },
+    ): Promise<MonthlyReportResult> {
+      const filters = typeof monthOrFilters === 'string'
+        ? { month: monthOrFilters }
+        : (monthOrFilters ?? {});
+      const report = asRecord(await notaryApi.getMonthlyReport(filters));
+      return {
+        downloadUrl: optionalString(report.downloadUrl),
+        reportId: optionalString(report.reportId),
+        month: optionalString(report.month),
+        format: optionalString(report.format),
+        caseCount: optionalNumber(report.caseCount),
+      };
+    },
+
+    async getMatters(
+      filters: { searchTerm?: string; pageSize?: number; cursor?: string } = {},
+    ): Promise<NotaryMatterOption[]> {
+      const response = await notaryApi.listMatters({
+        q: filters.searchTerm,
+        pageSize: filters.pageSize ?? 50,
+        cursor: filters.cursor,
+      });
+      return extractItems(response).map(mapMatterOption);
+    },
+
+    async getTasks(filters?: { businessType?: string; status?: string; searchTerm?: string; pageSize?: number; cursor?: string }): Promise<NotaryTask[]> {
       const response = await notaryApi.listCases(resolveListCaseQuery(filters));
       return extractItems(response).map(mapCaseToTask);
     },
@@ -276,9 +336,9 @@ export function createChatPcNotaryService(
         documents: data.documents ?? [],
       };
       const caseRecord = await notaryApi.createCase({
-        skuId: resolveSkuId(data.type, defaultSkuId, skuIdsByType),
-        title: data.title ?? `${data.type ?? 'General Notary'} Notary Case`,
-        applicantName: data.applicant ?? firstPartyName(data.parties) ?? 'Unknown Applicant',
+        skuId: optionalString(data.skuId) ?? resolveSkuId(data.type, defaultSkuId, skuIdsByType),
+        title: data.title ?? `${data.type ?? 'general'}_${FALLBACK_CASE_TITLE_SUFFIX}`,
+        applicantName: data.applicant ?? firstPartyName(data.parties) ?? FALLBACK_APPLICANT_NAME,
         remarks: data.remarks,
         parties: (data.parties ?? []).map(mapPartyToCreateRequest),
         driveFolderName: data.title ?? data.type ?? 'Notary Case',
@@ -299,9 +359,9 @@ export function createChatPcNotaryService(
           documents.map((document) =>
             notaryApi.uploadCaseFile({
               caseId: createdTask.id,
-              file: (document as any).file ?? document,
+              file: document.file ?? document,
               category: document.category,
-              materialCode: (document as any).materialCode ?? document.name,
+              materialCode: document.materialCode ?? document.name,
               partyId: resolveCreationDocumentPartyId(document, createdPartyIdByClientPartyId),
               source: 'sdkwork-im-pc',
             }),
@@ -317,6 +377,14 @@ export function createChatPcNotaryService(
       return loadTask(createdTask.id);
     },
 
+    async assignNotary(taskId: string, membershipId: string): Promise<NotaryTask> {
+      await notaryApi.assignCase(taskId, {
+        organizationMembershipId: membershipId,
+        assignmentRole: 'primary_notary',
+      });
+      return loadTask(taskId);
+    },
+
     async updateTaskStatus(taskId: string, status: NotaryTask['status']): Promise<NotaryTask> {
       if (status === 'PROCESSING') {
         return mapCaseToTask(await notaryApi.acceptCase(taskId));
@@ -324,14 +392,14 @@ export function createChatPcNotaryService(
       if (status === 'REJECTED') {
         return mapCaseToTask(
           await notaryApi.rejectCase(taskId, {
-            reason: 'Materials need correction',
+            reason: CASE_REJECTION_REASON,
           }),
         );
       }
       if (status === 'COMPLETED') {
         return mapCaseToTask(
           await notaryApi.completeCase(taskId, {
-            result: 'Manual verification completed',
+            result: CASE_COMPLETION_RESULT,
           }),
         );
       }
@@ -364,10 +432,10 @@ export function createChatPcNotaryService(
     async addDocument(taskId: string, doc: Omit<NotaryDocument, 'status'>): Promise<NotaryTask> {
       await notaryApi.uploadCaseFile({
         caseId: taskId,
-        file: (doc as any).file ?? doc,
+        file: doc.file ?? doc,
         category: doc.category,
-        materialCode: (doc as any).materialCode ?? doc.name,
-        partyId: (doc as any).partyId,
+        materialCode: doc.materialCode ?? doc.name,
+        partyId: doc.partyId,
         source: 'sdkwork-im-pc',
       });
       return loadTask(taskId);
@@ -519,30 +587,33 @@ export function createChatPcNotaryService(
   };
 }
 
-function resolveListCaseQuery(filters?: { status?: string; searchTerm?: string; pageSize?: number; cursor?: string }): Record<string, unknown> {
-  const selectedFilter = filters?.status && filters.status !== 'ALL' ? filters.status : undefined;
+function resolveListCaseQuery(filters?: { businessType?: string; status?: string; searchTerm?: string; pageSize?: number; cursor?: string }): Record<string, unknown> {
   const query: Record<string, unknown> = {
     q: filters?.searchTerm,
     pageSize: filters?.pageSize ?? 50,
     cursor: filters?.cursor,
   };
 
-  if (!selectedFilter) {
-    return query;
-  }
-  if (VALID_CASE_STATUSES.has(selectedFilter)) {
-    return {
-      ...query,
-      status: selectedFilter,
-    };
-  }
-  const skuId = FILTER_SKU_IDS_BY_TYPE[selectedFilter];
-  return skuId
-    ? {
-        ...query,
-        skuId,
+  const selectedBusinessType = filters?.businessType && filters.businessType !== 'ALL'
+    ? filters.businessType
+    : undefined;
+  if (selectedBusinessType) {
+    if (selectedBusinessType.startsWith('sku-')) {
+      query.skuId = selectedBusinessType;
+    } else {
+      const skuId = FILTER_SKU_IDS_BY_TYPE[selectedBusinessType];
+      if (skuId) {
+        query.skuId = skuId;
       }
-    : query;
+    }
+  }
+
+  const selectedStatus = filters?.status && filters.status !== 'ALL' ? filters.status : undefined;
+  if (selectedStatus && VALID_CASE_STATUSES.has(selectedStatus)) {
+    query.status = selectedStatus;
+  }
+
+  return query;
 }
 
 let delegate: NotaryService | null = null;
@@ -564,6 +635,15 @@ export function resetNotaryService(): void {
 }
 
 export const notaryService: NotaryService = {
+  getDashboardStatistics() {
+    return getDelegate().getDashboardStatistics();
+  },
+  getMonthlyReport(monthOrFilters) {
+    return getDelegate().getMonthlyReport(monthOrFilters);
+  },
+  getMatters(filters) {
+    return getDelegate().getMatters(filters);
+  },
   getTasks(filters) {
     return getDelegate().getTasks(filters);
   },
@@ -575,6 +655,9 @@ export const notaryService: NotaryService = {
   },
   createTask(data) {
     return getDelegate().createTask(data);
+  },
+  assignNotary(taskId, membershipId) {
+    return getDelegate().assignNotary(taskId, membershipId);
   },
   updateTaskStatus(taskId, status) {
     return getDelegate().updateTaskStatus(taskId, status);
@@ -628,7 +711,7 @@ function mapCaseToTask(caseRecord: unknown): NotaryTask {
     processTime: optionalString(record.processTime ?? record.updatedAt),
     applicant: stringValue(record.applicantName ?? record.applicant),
     title: stringValue(record.title),
-    notary: stringValue(record.primaryNotaryName ?? record.notary ?? 'System Assigned'),
+    notary: stringValue(record.primaryNotaryName ?? record.notary ?? SYSTEM_ASSIGNED_NOTARY_LABEL),
     remarks: stringValue(record.remarks),
     type: stringValue(record.matterTitle ?? record.type),
     status: mapStatus(record.status),
@@ -637,9 +720,6 @@ function mapCaseToTask(caseRecord: unknown): NotaryTask {
     parties,
     documents,
     timeline,
-  };
-
-  return Object.assign(task, {
     caseNo: optionalString(record.caseNo),
     caseId: optionalString(record.caseId ?? record.id),
     orderId: optionalString(record.orderId),
@@ -647,7 +727,12 @@ function mapCaseToTask(caseRecord: unknown): NotaryTask {
     skuId: optionalString(record.skuId),
     driveSpaceId: optionalString(record.driveSpaceId),
     driveFolderNodeId: optionalString(record.driveFolderNodeId),
-  });
+    primaryNotaryMembershipId: optionalString(
+      record.primaryNotaryMembershipId ?? record.primaryNotaryOrganizationMembershipId,
+    ),
+  };
+
+  return task;
 }
 
 function mapStaffMember(value: unknown): NotaryStaffOption {
@@ -736,6 +821,15 @@ function mapDocument(value: unknown): NotaryDocument {
     driveSpaceType: optionalString(record.driveSpaceType),
     parentNodeId: optionalString(record.parentNodeId),
   });
+}
+
+function mapMatterOption(value: unknown): NotaryMatterOption {
+  const record = asRecord(value);
+  return {
+    skuId: stringValue(record.skuId ?? record.id),
+    title: stringValue(record.title ?? record.matterTitle ?? record.name),
+    description: optionalString(record.description),
+  };
 }
 
 function mapTimelineEvent(value: unknown): TimelineEvent {
@@ -924,6 +1018,17 @@ function stringValue(value: unknown): string {
 
 function optionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
 }
 
 function numberValue(value: unknown): number {

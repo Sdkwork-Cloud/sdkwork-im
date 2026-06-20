@@ -14,6 +14,8 @@ export interface PrintOverlayProps {
   task: NotaryTask;
   /** Media URLs for party identity photos */
   partyMediaUrls: Record<string, PartyIdentityMediaUrls>;
+  /** Whether identity media URLs are still loading */
+  loading?: boolean;
   /** Called when overlay is closed */
   onClose: () => void;
 }
@@ -21,6 +23,7 @@ export interface PrintOverlayProps {
 export const PrintOverlay: React.FC<PrintOverlayProps> = ({
   task,
   partyMediaUrls,
+  loading = false,
   onClose,
 }) => {
   const { t } = useTranslation('notary');
@@ -59,7 +62,14 @@ export const PrintOverlay: React.FC<PrintOverlayProps> = ({
         </div>
 
         {/* Scrollable pages */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-10 print:p-0 print:overflow-visible print:bg-white" id="print-root-container">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-10 print:p-0 print:overflow-visible print:bg-white relative" id="print-root-container">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#222]/60 backdrop-blur-[1px] print:hidden">
+              <div className="px-4 py-2 rounded-lg bg-[#2b2b2d] border border-white/10 text-sm text-gray-300">
+                {t('print.loadingMedia')}
+              </div>
+            </div>
+          )}
           <div className="flex flex-col items-center gap-8 print:block print:gap-0">
             {parties.length === 0 ? (
               <div className="text-gray-400 mt-20 print:hidden">{t('detail.noPartyInfo')}</div>

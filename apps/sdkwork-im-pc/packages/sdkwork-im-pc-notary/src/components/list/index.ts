@@ -22,11 +22,14 @@ export type { MaterialsTabProps } from './MaterialsTab';
 export { PartyListTab } from './PartyListTab';
 export type { PartyListTabProps } from './PartyListTab';
 
+export { TimelineTab } from './TimelineTab';
+export type { TimelineTabProps } from './TimelineTab';
+
 export { DetailPaneFooter } from './DetailPaneFooter';
 export type { DetailPaneFooterProps } from './DetailPaneFooter';
 
 export { DetailPane } from './DetailPane';
-export type { DetailPaneProps } from './DetailPane';
+export type { DetailPaneProps, DetailPaneTab } from './DetailPane';
 
 export { PrintPartyPage } from './PrintPartyPage';
 export type { PrintPartyPageProps } from './PrintPartyPage';
