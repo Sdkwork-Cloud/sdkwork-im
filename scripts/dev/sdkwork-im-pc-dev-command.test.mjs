@@ -876,14 +876,14 @@ assert.doesNotMatch(
   'shared DB helper must not carry Spring datasource configuration in the Rust server architecture',
 );
 for (const requiredName of [
-  'SDKWORK_CLAW_DATABASE_ENGINE=postgresql',
-  'SDKWORK_CLAW_DATABASE_HOST=127.0.0.1',
-  'SDKWORK_CLAW_DATABASE_PORT=5432',
+  'SDKWORK_IM_DATABASE_ENGINE=postgresql',
+  'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
+  'SDKWORK_IM_DATABASE_PORT=5432',
   'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
   'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
   'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
-  'SDKWORK_CLAW_DATABASE_SSL_MODE=disable',
-  'SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS=10',
+  'SDKWORK_IM_DATABASE_SSL_MODE=disable',
+  'SDKWORK_IM_DATABASE_MAX_CONNECTIONS=10',
 ]) {
   assert.ok(
     postgresEnvExampleSource.includes(requiredName),
@@ -891,8 +891,8 @@ for (const requiredName of [
   );
 }
 assert.ok(
-  postgresDatabaseConfigIndexSource.includes('./��������PostgreSQL���ݿ����ý̳�.md')
-    && postgresDatabaseConfigIndexSource.includes('./���ϻ���PostgreSQL���ݿ����ý̳�.md')
+  postgresDatabaseConfigIndexSource.includes('./开发环境PostgreSQL数据库配置教程.md')
+    && postgresDatabaseConfigIndexSource.includes('./线上环境PostgreSQL数据库配置教程.md')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev:desktop')
     && postgresDatabaseConfigIndexSource.includes('pnpm dev:browser:sqlite')
@@ -909,9 +909,9 @@ assert.ok(
     && postgresDevelopmentGuideSource.includes('pnpm dev:browser:sqlite')
     && postgresDevelopmentGuideSource.includes('pnpm dev:desktop:sqlite')
     && postgresDevelopmentGuideSource.includes('.env.postgres')
-    && postgresDevelopmentGuideSource.includes('SDKWORK_CLAW_DATABASE_ENGINE=postgresql')
-    && postgresDevelopmentGuideSource.includes('SDKWORK_CLAW_DATABASE_SSL_MODE=disable')
-    && postgresDevelopmentGuideSource.includes('pnpm dev:desktop Ĭ��ʹ�� PostgreSQL')
+    && postgresDevelopmentGuideSource.includes('SDKWORK_IM_DATABASE_ENGINE=postgresql')
+    && postgresDevelopmentGuideSource.includes('SDKWORK_IM_DATABASE_SSL_MODE=disable')
+    && postgresDevelopmentGuideSource.includes('pnpm dev:desktop 默认使用 PostgreSQL')
     && postgresDevelopmentGuideSource.includes('Copy-Item .env.postgres.example .env.postgres'),
   'development PostgreSQL guide must document local env profile setup and both dev startup commands',
 );

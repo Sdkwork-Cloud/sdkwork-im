@@ -138,7 +138,7 @@ export default defineConfig(({mode}) => {
     define: {
       'process.env.SDKWORK_ACCESS_TOKEN': JSON.stringify(env.SDKWORK_ACCESS_TOKEN ?? ''),
     },
-    plugins: [sdkworkChatLocalApiPlugin(), react(), tailwindcss()],
+        plugins: [sdkworkChatLocalApiPlugin(), react(), tailwindcss()],
     resolve: {
       alias: [
         { find: '@', replacement: path.resolve(__dirname, '.') },

@@ -378,6 +378,16 @@
       "pnpm test:database-naming-standard",
       "pnpm test:component-spec-consistency",
       "pnpm test:apis-authority-standard",
+      "pnpm test:utils-standard",
+      "pnpm test:postgresql-ubuntu-wsl-guide",
+      "pnpm test:postgresql-pnpm-db-command",
+      "pnpm test:deployment-docs-encoding",
+      "pnpm test:governed-docs-encoding",
+      "pnpm test:review-step-docs-encoding",
+      "pnpm test:release-docs-encoding",
+      "pnpm check:agent-workflow-standard",
+      "pnpm check:pnpm-script-standard",
+      "pnpm test:workflow-commercial-gates",
       "pnpm verify"
     ]
   },

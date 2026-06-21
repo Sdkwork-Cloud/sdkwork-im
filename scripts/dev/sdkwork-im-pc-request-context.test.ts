@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { base64UrlEncode } from '@sdkwork/utils-typescript';
+import { base64UrlEncode } from '@sdkwork/utils';
 import {
   createSdkworkChatRequestContext,
   createSdkworkChatRequestContextInterceptors,

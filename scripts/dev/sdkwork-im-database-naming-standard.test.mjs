@@ -3,11 +3,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  DEPLOYMENT_DOC_FILES,
+  readDeploymentDoc,
+} from '../lib/deployment-docs.mjs';
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const workspaceRoot = path.resolve(repoRoot, '..');
 
 function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, ...relativePath.split('/')), 'utf8');
+}
+
+function readDeployment(relativePath) {
+  return readDeploymentDoc(repoRoot, relativePath);
 }
 
 function readWorkspace(relativePath) {
@@ -32,7 +41,8 @@ function extractRustRawStrings(source) {
 
 const prefixRegistry = readJson('specs/database-prefix-registry.json');
 const tableRegistry = readJson('specs/database-table-registry.json');
-const activeMigrationDir = 'deployments/database/postgres/migrations';
+const activeMigrationDir = 'database/ddl/baseline/postgres';
+const canonicalBaselineMigration = `${activeMigrationDir}/0001_im_legacy_baseline.sql`;
 const activeMigrationFiles = fs
   .readdirSync(path.join(repoRoot, ...activeMigrationDir.split('/')))
   .filter((entry) => entry.endsWith('.sql'))
@@ -49,8 +59,8 @@ const sharedSdkReleaseSources = readJson('config/shared-sdk-release-sources.json
 const chatPcPnpmWorkspace = read('apps/sdkwork-im-pc/pnpm-workspace.yaml');
 const componentSpec = readJson('specs/component.spec.json');
 const localSpecReadme = read('specs/README.md');
-const namingDoc = read('docs/部署/database-table-naming-standard.md');
-const ubuntuWslGuide = read('docs/部署/Ubuntu与WSL-PostgreSQL初始化建库授权手册.md');
+const namingDoc = readDeployment(DEPLOYMENT_DOC_FILES.databaseNaming);
+const ubuntuWslGuide = readDeployment(DEPLOYMENT_DOC_FILES.ubuntuWslGuide);
 
 assert.equal(prefixRegistry.appCode, 'chat');
 assert.equal(prefixRegistry.product, 'sdkwork-chat');
@@ -103,8 +113,8 @@ for (const entry of tableRegistry.tables) {
   const migrationPath = entry.migration;
   assert.match(
     migrationPath,
-    /^deployments\/database\/postgres\/migrations\/[0-9]{3}_[a-z0-9_]+\.sql$/u,
-    `${entry.tableName} must point to a numbered PostgreSQL migration under deployments/database/postgres/migrations`,
+    /^database\/ddl\/baseline\/postgres\/[0-9]{4}_[a-z0-9_]+\.sql$/u,
+    `${entry.tableName} must point to a canonical PostgreSQL baseline under database/ddl/baseline/postgres`,
   );
   assert.ok(
     fs.existsSync(path.join(repoRoot, ...migrationPath.split('/'))),
@@ -331,5 +341,43 @@ assert.doesNotMatch(
   /\blink:/u,
   'sdkwork-im-pc must consume appbase source packages through pnpm workspace declarations, not link: aliases',
 );
+
+const postgresSchemaTestFiles = [
+  'services/session-gateway/tests/database_schema_contract_test.rs',
+  'services/session-gateway/tests/postgres_realtime_live_runtime_test.rs',
+  'services/session-gateway/tests/postgres_realtime_websocket_live_drill_test.rs',
+  'crates/im-postgres-realtime-contracts/tests/postgres_realtime_contracts_test.rs',
+  'adapters/postgres-realtime/tests/postgres_realtime_live_integration_test.rs',
+];
+const postgresSchemaScriptFiles = [
+  'scripts/dev/sdkwork-im-runtime-id-standard.test.mjs',
+];
+for (const relativePath of postgresSchemaTestFiles) {
+  const source = read(relativePath);
+  assert.doesNotMatch(
+    source,
+    /deployments\/database\/postgres\/migrations/u,
+    `${relativePath} must not reference retired deployments/database migration paths`,
+  );
+  assert.match(
+    source,
+    /database\/ddl\/baseline\/postgres\/0001_im_legacy_baseline\.sql/u,
+    `${relativePath} must load the canonical PostgreSQL baseline DDL`,
+  );
+}
+
+for (const relativePath of postgresSchemaScriptFiles) {
+  const source = read(relativePath);
+  assert.doesNotMatch(
+    source,
+    /deployments\/database\/postgres\/migrations/u,
+    `${relativePath} must not reference retired deployments/database migration paths`,
+  );
+  assert.match(
+    source,
+    /0001_im_legacy_baseline\.sql/u,
+    `${relativePath} must validate the canonical PostgreSQL baseline DDL`,
+  );
+}
 
 console.log('sdkwork-chat database naming standard contract passed');

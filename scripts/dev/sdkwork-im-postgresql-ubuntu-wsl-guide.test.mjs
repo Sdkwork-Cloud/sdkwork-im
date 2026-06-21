@@ -2,21 +2,23 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  DEPLOYMENT_DOC_FILES,
+  readDeploymentDoc,
+  resolveDeploymentDocsRoot,
+} from '../lib/deployment-docs.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, '..', '..');
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-function read(relativePath) {
-  return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
-}
+assert.ok(
+  fs.existsSync(
+    path.join(resolveDeploymentDocsRoot(repoRoot), DEPLOYMENT_DOC_FILES.ubuntuWslGuide),
+  ),
+  'Ubuntu/WSL PostgreSQL initialization guide must exist',
+);
 
-const guidePath = 'docs/部署/Ubuntu与WSL-PostgreSQL初始化建库授权手册.md';
-const indexPath = 'docs/部署/postgresql-database-configuration.md';
-
-assert.ok(fs.existsSync(path.join(repoRoot, guidePath)), 'Ubuntu/WSL PostgreSQL initialization guide must exist');
-
-const guide = read(guidePath);
-const index = read(indexPath);
+const guide = readDeploymentDoc(repoRoot, DEPLOYMENT_DOC_FILES.ubuntuWslGuide);
+const index = readDeploymentDoc(repoRoot, DEPLOYMENT_DOC_FILES.postgresqlIndex);
 
 for (const required of [
   'sudo apt update',
@@ -30,7 +32,7 @@ for (const required of [
   'CREATE DATABASE sdkwork_ai_dev OWNER sdkwork_ai_dev',
   'CREATE SCHEMA IF NOT EXISTS sdkwork_ai_dev AUTHORIZATION sdkwork_ai_dev',
   'ALTER DEFAULT PRIVILEGES',
-  'deployments/database/postgres/migrations/001_im_core_schema.sql',
+  'database/ddl/baseline/postgres/0001_im_legacy_baseline.sql',
   'psql -h 127.0.0.1 -p 5432 -U sdkwork_ai_dev -d sdkwork_ai_dev',
   'listen_addresses',
   'pg_hba.conf',
@@ -42,7 +44,7 @@ for (const required of [
   'GRANT CONNECT ON DATABASE sdkwork_ai_dev TO sdkwork_ai_dev',
   'GRANT USAGE, CREATE ON SCHEMA sdkwork_ai_dev TO sdkwork_ai_dev',
   'SELECT current_database(), current_user, current_schema()',
-  'Windows 跑应用，PostgreSQL 跑在 WSL Ubuntu',
+  'Windows \u8dd1\u5e94\u7528\uff0cPostgreSQL \u8dd1\u5728 WSL Ubuntu',
   'Test-NetConnection 127.0.0.1 -Port 5432',
   'wsl hostname -I',
   'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
@@ -60,14 +62,14 @@ for (const required of [
   'pnpm dev:desktop',
   'pnpm dev:browser:sqlite',
   'pnpm dev:desktop:sqlite',
-  'pnpm dev:desktop 默认使用 PostgreSQL',
+  'pnpm dev:desktop \u9ed8\u8ba4\u4f7f\u7528 PostgreSQL',
   'host    sdkwork_ai_dev    sdkwork_ai_dev    127.0.0.1/32',
   'host    sdkwork_ai_dev    postgres          127.0.0.1/32',
   'host    sdkwork_ai_dev    sdkwork_ai_dev    <WINDOWS_HOST_CIDR>',
   'host    sdkwork_ai_dev    postgres          <WINDOWS_HOST_CIDR>',
   'database: sdkwork',
   'username: sdkwork',
-  'Windows 应用不应该使用 WSL 内部的 Unix socket',
+  'Windows \u5e94\u7528\u4e0d\u5e94\u8be5\u4f7f\u7528 WSL \u5185\u90e8\u7684 Unix socket',
 ]) {
   assert.ok(guide.includes(required), `Ubuntu/WSL PostgreSQL guide must include: ${required}`);
 }
@@ -78,7 +80,7 @@ assert.ok(
 );
 
 assert.ok(
-  index.includes('./Ubuntu与WSL-PostgreSQL初始化建库授权手册.md'),
+  index.includes(`./${DEPLOYMENT_DOC_FILES.ubuntuWslGuide}`),
   'PostgreSQL configuration index must link the Ubuntu/WSL initialization guide',
 );
 

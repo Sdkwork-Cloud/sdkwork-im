@@ -64,7 +64,7 @@ alias window.
 ### Environment variables
 
 `sdkwork_im_*` and `SDKWORK_CHAT_*` are renamed to `SDKWORK_IM_*` (including the
-`VITE_sdkwork_im_*` browser-prefixed variants â†?`VITE_SDKWORK_IM_*`).
+`VITE_sdkwork_im_*` browser-prefixed variants â†’`VITE_SDKWORK_IM_*`).
 
 ### Deferred: forbidden-suffix removal
 

@@ -1,12 +1,14 @@
-# Server �??�?��?�置�?PostgreSQL �?��?�?
+# Server 版本配置与 PostgreSQL 接入
 
-`sdkwork-im-server` �??SDKWork Chat �??server �??�?��?�口�??�?�?��?�??identity �?`chat`�?�?�?�??名为 `sdkwork-chat`�?对�?SDKWork 路�?�?`/sdkwork/chat`�??
+`sdkwork-im-server` 是 SDKWork Chat 的 server 安装入口。当前应用 identity 为 `chat`，发布包名为 `sdkwork-chat`，对外路径为 `/sdkwork/chat`。
 
-Server �??container �?认使�?�?PostgreSQL�??Desktop �?��?��?�据�?认使�?�?SQLite�?�??件位�?`~/.sdkwork/chat/data/chat.sqlite`�??
+Server 与 container 默认使用 PostgreSQL。Desktop 本地用户数据默认使用 SQLite，文件位于 `~/.sdkwork/chat/data/chat.sqlite`。
 
-## �?�??�??�?
+完整的线上 PostgreSQL 配置教程见 [线上环境PostgreSQL数据库配置教程](./线上环境PostgreSQL数据库配置教程.md)。本文只补充 server 侧 `postgresql.yaml` 外部配置文件契约。
 
-Linux server/service/container:
+## 标准路径
+
+Linux server/service/container：
 
 ```text
 /etc/sdkwork/chat/chat.toml
@@ -18,54 +20,17 @@ Linux server/service/container:
 /run/sdkwork/chat
 ```
 
-Windows Service:
+Windows Service 使用 `%ProgramFiles%/sdkwork/chat` 与 `%ProgramData%/sdkwork/chat`。
 
-```text
-%ProgramFiles%/sdkwork/chat
-%ProgramData%/sdkwork/chat/chat.toml
-%ProgramData%/sdkwork/chat/server.env
-%ProgramData%/sdkwork/chat/postgresql.yaml
-%ProgramData%/sdkwork/chat/database.secret
-%ProgramData%/sdkwork/chat/Data
-%ProgramData%/sdkwork/chat/Logs
-%ProgramData%/sdkwork/chat/Run
-```
+## postgresql.yaml 外部配置契约
 
-macOS service:
-
-```text
-/usr/lib/sdkwork/chat
-/Library/Application Support/sdkwork/chat/chat.toml
-/Library/Application Support/sdkwork/chat/server.env
-/Library/Application Support/sdkwork/chat/postgresql.yaml
-/Library/Application Support/sdkwork/chat/database.secret
-/Library/Application Support/sdkwork/chat/Data
-/Library/Logs/sdkwork/chat
-/Library/Application Support/sdkwork/chat/Run
-```
-
-## chat.toml �?�据�?�?
-
-```toml
-[database]
-engine = "postgresql"
-host = "10.10.20.15"
-port = 5432
-database = "sdkwork"
-schema = "public"
-username = "sdkwork"
-password_file = "/etc/sdkwork/chat/database.secret"
-ssl_mode = "require"
-max_connections = 20
-```
-
-## postgresql.yaml �?��?�??�?�?��?��?
+`postgresql.yaml` 是 server 侧 PostgreSQL 安装模式的外部配置文件。它冻结连接密钥引用 `passwordFile`、schema 生命周期字段 `migrationMode`，以及生命周期模式 `verify-only`、`bootstrap-schema`、`create-db-and-schema`。
 
 ```yaml
 provider: postgresql
 
 connection:
-  host: 10.10.20.15
+  host: postgres.internal.example.com
   port: 5432
   database: sdkwork
   username: sdkwork
@@ -87,21 +52,17 @@ pool:
   maxLifetimeSeconds: 1800
 ```
 
-## External configuration file contract
+## 生命周期模式
 
-`postgresql.yaml` is the server-side external configuration file for PostgreSQL install modes. It freezes the connection secret reference `passwordFile`, schema lifecycle field `migrationMode`, and lifecycle modes `verify-only`, `bootstrap-schema`, and `create-db-and-schema`.
+- `verify-only`：数据库、账号、schema 已存在，只校验配置与连通性
+- `bootstrap-schema`：PostgreSQL 已存在，应用账号可写，初始化 schema
+- `create-db-and-schema`：管理员权限下创建数据库与 schema
 
-## �?��?�??模�?
+`init-storage-server` 使用 `/etc/sdkwork/chat/postgresql.yaml` 与平台等价路径；密码来自 `database.secret`，不得写入 Git 或安装包。
 
-- `verify-only`: �?�?�已建�?�?�已建账号�?�已�?schema�?只校�?�?�置�??�?�?��??
-- `bootstrap-schema`: �?�?�已�?�?PostgreSQL�?�?�?�账号可�?��?�??schema�??
-- `create-db-and-schema`: 管�?�??�??�?�??�?��??建�?�据�?�??schema�??
+## server.env 最小字段
 
-`init-storage-server` 使�?�?`/etc/sdkwork/chat/postgresql.yaml` �??平台�?价路�?�??�?码来�??`database.secret` �??平台�?�?��?不�?��??�?��?�?�??�??
-
-## �?��?�?�?��?�??
-
-�?�??�?�?��?��?�??`SDKWORK_IM_*`�?
+生产 server 环境变量前缀为 `SDKWORK_IM_*`：
 
 ```env
 SDKWORK_IM_DEPLOYMENT_MODE=server
@@ -110,13 +71,17 @@ SDKWORK_IM_DATA_DIR=/var/lib/sdkwork/chat
 SDKWORK_IM_LOG_DIR=/var/log/sdkwork/chat
 SDKWORK_IM_RUN_DIR=/run/sdkwork/chat
 SDKWORK_IM_DATABASE_ENGINE=postgresql
-SDKWORK_IM_DATABASE_HOST=10.10.20.15
+SDKWORK_IM_DATABASE_HOST=postgres.internal.example.com
 SDKWORK_IM_DATABASE_PORT=5432
 SDKWORK_CLAW_DATABASE_NAME=sdkwork
-SDKWORK_CLAW_DATABASE_SCHEMA=public_chat_prod
+SDKWORK_CLAW_DATABASE_SCHEMA=public
 SDKWORK_CLAW_DATABASE_USERNAME=sdkwork
 SDKWORK_IM_DATABASE_PASSWORD_FILE=/etc/sdkwork/chat/database.secret
 SDKWORK_IM_DATABASE_SSL_MODE=require
 ```
 
-`DATABASE_PROVIDER` �??`DATABASE_SSLMODE` 不�?��?�??名称�??
+`DATABASE_PROVIDER` 与 `DATABASE_SSLMODE` 不是标准名称。请使用 `SDKWORK_IM_DATABASE_ENGINE` 与 `SDKWORK_IM_DATABASE_SSL_MODE`。
+
+## 数据库迁移
+
+Server 发布环境通过 `database/` 生命周期模块与 `sdkwork-database-cli` 执行 schema bootstrap，不再直接引用 `deployments/database/` 遗留目录。规范 DDL 基线为 `database/ddl/baseline/postgres/0001_im_legacy_baseline.sql`。

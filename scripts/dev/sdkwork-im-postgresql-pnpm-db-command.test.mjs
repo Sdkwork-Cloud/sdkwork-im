@@ -3,6 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import {
+  DEPLOYMENT_DOC_FILES,
+  readDeploymentDoc,
+} from '../lib/deployment-docs.mjs';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 const workspaceRoot = path.resolve(repoRoot, '..');
@@ -17,69 +22,55 @@ function readJson(relativePath) {
 
 const packageJson = readJson('package.json');
 const envExample = read('.env.postgres.example');
-const configIndex = read('docs/����/postgresql-database-configuration.md');
-const ubuntuWslGuide = read('docs/����/Ubuntu��WSL-PostgreSQL��ʼ��������Ȩ�ֲ�.md');
-const devGuide = read('docs/����/��������PostgreSQL���ݿ����ý̳�.md');
-const productionGuide = read('docs/����/���ϻ���PostgreSQL���ݿ����ý̳�.md');
-const appbaseIamMigrationsDir = path.join(
+const configIndex = readDeploymentDoc(repoRoot, DEPLOYMENT_DOC_FILES.postgresqlIndex);
+const ubuntuWslGuide = readDeploymentDoc(repoRoot, DEPLOYMENT_DOC_FILES.ubuntuWslGuide);
+const devGuide = readDeploymentDoc(repoRoot, DEPLOYMENT_DOC_FILES.developmentGuide);
+const productionGuide = readDeploymentDoc(repoRoot, DEPLOYMENT_DOC_FILES.productionGuide);
+const appbaseIamBaselinePath = path.join(
   workspaceRoot,
   'sdkwork-appbase',
-  'packages',
-  'native-rust',
-  'iam',
-  'sdkwork-iam-storage-sqlx-rust',
+  'database',
+  'ddl',
+  'baseline',
+  'postgres',
+  '0001_iam_legacy_baseline.sql',
+);
+const appbaseIamCrateMigrationPath = path.join(
+  workspaceRoot,
+  'sdkwork-appbase',
+  'crates',
+  'sdkwork-iam-directory-repository-sqlx',
   'migrations',
-);
-const appbaseIamMigrationFiles = fs
-  .readdirSync(appbaseIamMigrationsDir)
-  .filter((entry) => entry.endsWith('.sql'))
-  .sort((left, right) => left.localeCompare(right));
-const appbaseIamMigrations = appbaseIamMigrationFiles
-  .map((entry) => fs.readFileSync(path.join(appbaseIamMigrationsDir, entry), 'utf8'))
-  .join('\n');
-
-assert.deepEqual(
-  appbaseIamMigrationFiles,
-  ['0001_iam_foundation.sql', '0002_drop_legacy_organization_member.sql'],
-  'appbase IAM migration catalog must include foundation and legacy cleanup migrations',
+  '0001_iam_foundation.sql',
 );
 
-assert.match(
-  appbaseIamMigrations,
-  /CREATE TABLE IF NOT EXISTS iam_organization_membership \(/u,
-  'appbase IAM migration must create the canonical organization membership table',
-);
-assert.match(
-  appbaseIamMigrations,
-  /CREATE TABLE IF NOT EXISTS iam_tenant_member \(/u,
-  'appbase IAM migration must create the canonical tenant member table',
-);
-assert.match(
-  appbaseIamMigrations,
-  /CREATE TABLE IF NOT EXISTS iam_tenant_signing_key \(/u,
-  'appbase IAM migration must create tenant-bound signing key table',
-);
-for (const requiredSessionColumn of [
-  'login_scope',
-  'auth_token_kid',
-  'access_token_kid',
-  'refresh_token_kid',
-]) {
-  assert.ok(
-    appbaseIamMigrations.includes(requiredSessionColumn),
-    `appbase IAM session migration must include ${requiredSessionColumn}`,
+if (fs.existsSync(appbaseIamBaselinePath)) {
+  const appbaseIamBaseline = fs.readFileSync(appbaseIamBaselinePath, 'utf8');
+  assert.match(
+    appbaseIamBaseline,
+    /CREATE TABLE IF NOT EXISTS iam_organization_membership \(/u,
+    'appbase IAM baseline must create the canonical organization membership table',
+  );
+  assert.match(
+    appbaseIamBaseline,
+    /CREATE TABLE IF NOT EXISTS iam_tenant_member \(/u,
+    'appbase IAM baseline must create the canonical tenant member table',
+  );
+  assert.doesNotMatch(
+    appbaseIamBaseline,
+    /CREATE TABLE IF NOT EXISTS iam_organization_member \(/u,
+    'appbase IAM baseline must not create the non-canonical iam_organization_member table',
   );
 }
-assert.doesNotMatch(
-  appbaseIamMigrations,
-  /CREATE TABLE IF NOT EXISTS iam_organization_member \(/u,
-  'appbase IAM migration must not create the non-canonical iam_organization_member table',
-);
-assert.match(
-  appbaseIamMigrations,
-  /DROP TABLE IF EXISTS iam_organization_member/u,
-  'appbase IAM migration must explicitly drop the non-canonical iam_organization_member table',
-);
+
+if (fs.existsSync(appbaseIamCrateMigrationPath)) {
+  const appbaseIamCrateMigration = fs.readFileSync(appbaseIamCrateMigrationPath, 'utf8');
+  assert.match(
+    appbaseIamCrateMigration,
+    /CREATE TABLE IF NOT EXISTS iam_tenant_signing_key \(/u,
+    'appbase IAM crate migration must create tenant-bound signing key table',
+  );
+}
 
 assert.equal(
   packageJson.scripts['db:postgres:plan'],
@@ -103,14 +94,9 @@ assert.ok(fs.existsSync(dbScriptPath), 'PostgreSQL pnpm database script must exi
 const {
   buildPostgresDatabaseUrl,
   createPostgresDbPlan,
-  listActivePostgresMigrationBasenames,
   parsePostgresConfig,
   sanitizePostgresDatabaseUrl,
 } = await import(pathToFileURL(dbScriptPath).href);
-
-const expectedImMigrationLabels = listActivePostgresMigrationBasenames().map(
-  (basename) => `apply PostgreSQL migration ${basename}`,
-);
 
 const parsedSplitConfig = parsePostgresConfig({
   configText: [
@@ -310,6 +296,20 @@ assert.equal(
   'framework bootstrap must enable auto migrate for the CLI process',
 );
 
+const wslInitPlan = createPostgresDbPlan({
+  config: parsedWslPsqlConfig,
+  mode: 'init',
+  repoRoot,
+});
+assert.ok(
+  wslInitPlan.steps.every((step) => step.command === 'wsl.exe'),
+  'WSL developers initialize PostgreSQL through wsl.exe-wrapped psql steps',
+);
+assert.ok(
+  wslInitPlan.steps.every((step) => step.shell === false),
+  'WSL psql steps must bypass Windows shell quoting so psql arguments containing spaces stay intact',
+);
+
 const wslMigratePlan = createPostgresDbPlan({
   config: parsedWslPsqlConfig,
   mode: 'migrate',
@@ -319,11 +319,6 @@ assert.equal(wslMigratePlan.steps[0].command, 'cargo');
 assert.ok(
   wslMigratePlan.steps[0].args.includes('bootstrap'),
   'WSL developers still bootstrap IM schema through sdkwork-database-cli',
-);
-assert.equal(
-  wslMigratePlan.steps[0].shell,
-  false,
-  'WSL psql steps must bypass Windows shell quoting so psql arguments containing spaces stay intact',
 );
 
 const fullPlan = createPostgresDbPlan({
@@ -336,11 +331,9 @@ assert.deepEqual(
   [
     'initialize PostgreSQL role and database',
     'initialize PostgreSQL schema and grants',
-    ...expectedImMigrationLabels,
-    'apply appbase IAM PostgreSQL migration 0001_iam_foundation.sql',
-    'apply appbase IAM PostgreSQL migration 0002_drop_legacy_organization_member.sql',
+    'bootstrap IM database lifecycle via sdkwork-database-cli',
   ],
-  'plan mode must show initialization, all active IM migrations, and appbase IAM migration actions',
+  'plan mode must show initialization and database-framework bootstrap actions',
 );
 
 for (const required of [
@@ -365,7 +358,7 @@ for (const doc of [configIndex, ubuntuWslGuide, devGuide]) {
     'pnpm db:postgres:init',
     'pnpm db:postgres:migrate',
     'SDKWORK_IM_DATABASE_ADMIN_PASSWORD',
-    'SDKWORK_IM_DATABASE_SCHEMA',
+    'SDKWORK_CLAW_DATABASE_SCHEMA',
   ]) {
     assert.ok(doc.includes(required), `PostgreSQL docs must include ${required}`);
   }

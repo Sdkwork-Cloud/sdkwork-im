@@ -27,6 +27,8 @@ pnpm dev:server          # 仅服务端
 
 ## 数据库
 
+- [PostgreSQL 配置索引](./postgresql-database-configuration.md)
+- [Ubuntu与WSL-PostgreSQL初始化建库授权手册](./Ubuntu与WSL-PostgreSQL初始化建库授权手册.md)
 - [开发环境PostgreSQL数据库配置教程](./开发环境PostgreSQL数据库配置教程.md)
 - [线上环境PostgreSQL数据库配置教程](./线上环境PostgreSQL数据库配置教程.md)
 
@@ -50,7 +52,24 @@ pnpm dev:server          # 仅服务端
 
 ## 验证命令
 
-与根 [README.md](../../README.md) 一致：
+与根 [README.md](../../README.md) 一致。完整标准门禁：
+
+```bash
+pnpm verify
+```
+
+部署与数据库专项：
+
+```bash
+pnpm test:deployment-docs-encoding
+pnpm test:governed-docs-encoding
+pnpm test:postgresql-ubuntu-wsl-guide
+pnpm test:postgresql-pnpm-db-command
+pnpm test:database-framework-standard
+pnpm test:database-naming-standard
+```
+
+拓扑、运行时与商用门禁抽样：
 
 ```bash
 pnpm test:topology-baggage

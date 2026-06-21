@@ -35,8 +35,8 @@ const pcCorePackage = JSON.parse(
   read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/package.json'),
 );
 assert(
-  pcCorePackage.dependencies?.['@sdkwork/utils-typescript'],
-  '@sdkwork/im-pc-core must depend on @sdkwork/utils-typescript for shared utility standardization',
+  pcCorePackage.dependencies?.['@sdkwork/utils'],
+  '@sdkwork/im-pc-core must depend on @sdkwork/utils for shared utility standardization',
 );
 
 for (const relativePath of [
@@ -44,6 +44,9 @@ for (const relativePath of [
   'adapters/postgres-realtime/src/lib.rs',
   'adapters/postgres-journal/src/lib.rs',
   'crates/im-app-context/src/lib.rs',
+  'services/audit-service/src/lib.rs',
+  'services/social-service/src/runtime.rs',
+  'services/social-service/src/postgres/direct_chat.rs',
 ]) {
   const source = read(relativePath);
   assert.match(
@@ -57,6 +60,9 @@ for (const relativePath of [
   'services/sdkwork-comms-conversation-service/src/runtime.rs',
   'adapters/postgres-realtime/src/lib.rs',
   'adapters/postgres-journal/src/lib.rs',
+  'services/audit-service/src/lib.rs',
+  'services/social-service/src/runtime.rs',
+  'services/social-service/src/postgres/direct_chat.rs',
 ]) {
   const source = read(relativePath);
   assert.doesNotMatch(

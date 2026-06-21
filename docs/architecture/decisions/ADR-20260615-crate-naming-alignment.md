@@ -24,14 +24,14 @@ product/app key is `chat`. The IM domain vocabulary across the codebase is `im`
 
 The Rust workspace currently names its 55 crates with three non-standard prefixes:
 
-1. `sdkwork-im-*` �?the legacy product codename (contract, codec, runtime-link, gateway
+1. `sdkwork-im-*` — the legacy product codename (contract, codec, runtime-link, gateway
    helpers, openapi, api-registry).
-2. `im-*` �?a domain prefix missing the SDKWork owner token (domain-core, domain-events,
+2. `im-*` — a domain prefix missing the SDKWork owner token (domain-core, domain-events,
    platform-contracts, storage-*, app-context, time, adapters-*).
 3. Bare responsibility names for services and adapters (`conversation-runtime`,
-   `session-gateway`, `audit-service`, `local-disk`, �?.
+   `session-gateway`, `audit-service`, `local-disk`, etc.).
 
-`sdkwork-specs/README.md` �4 "Minimum Rules" and `NAMING_SPEC.md` require Rust crates to be
+`sdkwork-specs/README.md` §4 "Minimum Rules" and `NAMING_SPEC.md` require Rust crates to be
 named by responsibility under the SDKWork owner token:
 
 - Business logic: `sdkwork-<domain>-<capability>-service`
@@ -54,7 +54,7 @@ Generic suffixes are explicitly forbidden: `-product`, `-runtime`, `-backend`, `
 | `sdkwork-api-product-runtime` | `-product`, `-runtime` |
 | `conversation-runtime` | `-runtime` |
 
-This is a public-naming change. Per `ARCHITECTURE_DECISION_SPEC.md` �5 it requires human
+This is a public-naming change. Per `ARCHITECTURE_DECISION_SPEC.md` §5 it requires human
 review, and per `MIGRATION_SPEC.md` it needs a compatibility window because the crate names
 are referenced by: workspace `Cargo.toml` members and `[workspace.dependencies]`, every
 dependent crate's `Cargo.toml`, every `use <crate>::` / `extern crate` in Rust source,
@@ -68,32 +68,32 @@ authority. The canonical `<domain>` is `im` and the canonical `<app>` is `chat`.
 
 ### Target naming
 
-| Layer | Pattern | Examples (current �?target) |
+| Layer | Pattern | Examples (current → target) |
 | --- | --- | --- |
-| IM contracts | `sdkwork-im-<capability>-contract` | `sdkwork-im-contract-message` �?`sdkwork-im-message-contract`; drop forbidden `-core` from `sdkwork-im-contract-core` �?`sdkwork-im-contract` |
-| IM domain model | `sdkwork-im-domain` / `sdkwork-im-domain-events` | `im-domain-core` �?`sdkwork-im-domain`; `im-domain-events` �?`sdkwork-im-domain-events` |
-| CCP transport | `sdkwork-im-ccp-*` | `sdkwork-im-ccp-core` �?`sdkwork-im-ccp`; `sdkwork-im-ccp-binding-ws` �?`sdkwork-im-ccp-binding-ws` |
-| Storage | `sdkwork-im-storage-*` | `im-storage-contracts` �?`sdkwork-im-storage-contract`; `im-storage-runtime` �?`sdkwork-im-storage-service-host` |
-| Repository (DB) | `sdkwork-im-<capability>-repository-<tech>` | `im-adapters-postgres-realtime` �?`sdkwork-im-realtime-repository-postgres` |
-| HTTP services | `sdkwork-im-<capability>-service` | `conversation-runtime` �?`sdkwork-im-conversation-service`; `projection-service` �?`sdkwork-im-projection-service` |
-| Gateway | `sdkwork-<app>-gateway` | `session-gateway` �?`sdkwork-chat-session-gateway`; `web-gateway` �?`sdkwork-chat-web-gateway` |
+| IM contracts | `sdkwork-im-<capability>-contract` | `sdkwork-im-contract-message` → `sdkwork-im-message-contract`; drop forbidden `-core` from `sdkwork-im-contract-core` → `sdkwork-im-contract` |
+| IM domain model | `sdkwork-im-domain` / `sdkwork-im-domain-events` | `im-domain-core` → `sdkwork-im-domain`; `im-domain-events` → `sdkwork-im-domain-events` |
+| CCP transport | `sdkwork-im-ccp-*` | `sdkwork-im-ccp-core` → `sdkwork-im-ccp`; `sdkwork-im-ccp-binding-ws` → `sdkwork-im-ccp-binding-ws` |
+| Storage | `sdkwork-im-storage-*` | `im-storage-contracts` → `sdkwork-im-storage-contract`; `im-storage-runtime` → `sdkwork-im-storage-service-host` |
+| Repository (DB) | `sdkwork-im-<capability>-repository-<tech>` | `im-adapters-postgres-realtime` → `sdkwork-im-realtime-repository-postgres` |
+| HTTP services | `sdkwork-im-<capability>-service` | `conversation-runtime` → `sdkwork-im-conversation-service`; `projection-service` → `sdkwork-im-projection-service` |
+| Gateway | `sdkwork-<app>-gateway` | `session-gateway` → `sdkwork-chat-session-gateway`; `web-gateway` → `sdkwork-chat-web-gateway` |
 | Service host | `sdkwork-<app>-service-host` | `sdkwork-im-server` (retired unified node) -> `sdkwork-im-service-host` |
-| App config | `sdkwork-chat-*` | `sdkwork-im-gateway-config` �?`sdkwork-chat-gateway-config` |
+| App config | `sdkwork-chat-*` | `sdkwork-im-gateway-config` → `sdkwork-chat-gateway-config` |
 
 ### Migration batches
 
 Each batch is independently shippable and verified before the next starts.
 
-1. **Batch A �?forbidden-suffix removal (6 crates).** Highest priority: these violate an
+1. **Batch A — forbidden-suffix removal (6 crates).** Highest priority: these violate an
    explicit MUST NOT. Rename only the six forbidden-suffix crates, drop the suffix, and fix
    all references. Directory names may stay during this batch to limit churn.
-2. **Batch B �?IM contracts and domain (leaves).** The `sdkwork-im-contract-*` and
+2. **Batch B — IM contracts and domain (leaves).** The `sdkwork-im-contract-*` and
    `im-domain-*` crates have the fewest inbound runtime dependencies and are the natural
    leaves of the dependency graph.
-3. **Batch C �?CCP codec/binding/registry layer.** Self-contained transport family.
-4. **Batch D �?IM services and storage runtime.** `*-service` crates and
+3. **Batch C — CCP codec/binding/registry layer.** Self-contained transport family.
+4. **Batch D — IM services and storage runtime.** `*-service` crates and
    `sdkwork-im-storage-service-host`.
-5. **Batch E �?gateways, service host, adapters, tools.** Process crates and infrastructure
+5. **Batch E — gateways, service host, adapters, tools.** Process crates and infrastructure
    adapters; touch release scripts and deployment templates last.
 
 ### Compatibility rule
@@ -106,7 +106,7 @@ is removed once all consumers are updated, tracked as a follow-up under this ADR
 ## Alternatives
 
 - **Register a governance exception and keep `sdkwork-im-*`/`im-*`.** Rejected: the prefixes
-  also omit the SDKWork owner token, so the names are not just stylistically off �?they do
+  also omit the SDKWork owner token, so the names are not just stylistically off — they do
   not encode ownership at all, and the forbidden generic suffixes are a hard MUST NOT.
 - **One-shot rename of all 55 crates.** Rejected: the blast radius (workspace deps, RPC SDK
   family, app build wiring, release scripts, deployment templates) is too large to verify in
@@ -133,7 +133,7 @@ is removed once all consumers are updated, tracked as a follow-up under this ADR
 
 ### Batch-A pilot (verified 2026-06-15)
 
-The `im-storage-runtime` �?`sdkwork-im-storage-service-host` rename was applied end-to-end
+The `im-storage-runtime` → `sdkwork-im-storage-service-host` rename was applied end-to-end
 as the migration-pattern pilot and verified:
 
 - `[package].name` set to `sdkwork-im-storage-service-host`; `[lib].name = "im_storage_runtime"`

@@ -19,7 +19,7 @@ use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sdkwork_utils_rust::sha256_hash;
 use tokio::sync::Semaphore;
 
 const AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
@@ -583,17 +583,7 @@ fn compute_audit_record_chain_hash(input: AuditRecordHashInput<'_>) -> String {
         input.chain_prev_hash.unwrap_or(""),
     ]);
     let canonical_bytes = serde_json::to_vec(&canonical).expect("canonical audit hash payload");
-    let digest = Sha256::digest(canonical_bytes.as_slice());
-    digest_to_hex(digest.as_slice())
-}
-
-fn digest_to_hex(bytes: &[u8]) -> String {
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        use std::fmt::Write;
-        let _ = write!(&mut output, "{byte:02x}");
-    }
-    output
+    sha256_hash(&canonical_bytes)
 }
 
 pub fn build_default_app() -> Router {

@@ -61,7 +61,13 @@ assert.match(
   'release package database/runtime env override policy must preserve SDKWORK_IM_ID_NODE_ID.',
 );
 
-const postgresMigration = readText('deployments', 'database', 'postgres', 'migrations', '001_im_core_schema.sql');
+const postgresMigration = readText(
+  'database',
+  'ddl',
+  'baseline',
+  'postgres',
+  '0001_im_legacy_baseline.sql',
+);
 assert.doesNotMatch(
   postgresMigration,
   /\b(?:bigserial|serial)\b|generated\s+.*\s+identity|\bnextval\s*\(/iu,

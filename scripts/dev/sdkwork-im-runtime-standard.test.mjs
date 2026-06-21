@@ -55,24 +55,29 @@ assert.equal(manifest.artifacts.installConfig.uninstallCommand, 'sdkwork uninsta
 
 const envExample = read('.env.postgres.example');
 for (const required of [
-  'SDKWORK_CLAW_DATABASE_ENGINE=postgresql',
-  'SDKWORK_CLAW_DATABASE_HOST=127.0.0.1',
-  'SDKWORK_CLAW_DATABASE_PORT=5432',
+  'SDKWORK_IM_DATABASE_ENGINE=postgresql',
+  'SDKWORK_IM_DATABASE_HOST=127.0.0.1',
   'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
   'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
   'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
   'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
-  'SDKWORK_CLAW_DATABASE_SSL_MODE=disable',
-  'SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS=10',
+  'SDKWORK_IM_DATABASE_SSL_MODE=disable',
+  'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
+  'SDKWORK_IM_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
+  'SDKWORK_IM_DATABASE_ADMIN_DATABASE=postgres',
+  'SDKWORK_IM_DATABASE_ADMIN_SSL_MODE=disable',
+]) {
+  assert.ok(envExample.includes(required), `.env.postgres.example must document ${required}`);
+}
+for (const required of [
+  'SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev',
   'SDKWORK_IM_REDIS_ENABLED=true',
   'SDKWORK_IM_REDIS_HOST=127.0.0.1',
   'SDKWORK_IM_REDIS_PORT=6379',
   'SDKWORK_IM_REDIS_DATABASE=0',
   'SDKWORK_IM_REDIS_KEY_PREFIX=chat',
   'SDKWORK_IM_REDIS_TLS=false',
-  'SDKWORK_CLAW_DATABASE_ADMIN_USERNAME=postgres',
-  'SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
-  'SDKWORK_CLAW_DATABASE_ADMIN_SSL_MODE=disable',
+  'SDKWORK_IM_DATABASE_MAX_CONNECTIONS=10',
 ]) {
   assert.ok(envExample.includes(required), `.env.postgres.example must document ${required}`);
 }

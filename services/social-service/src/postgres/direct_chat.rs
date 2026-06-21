@@ -5,6 +5,7 @@ use axum::extract::{Extension, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use im_app_context::AppContext;
+use sdkwork_utils_rust::sha256_hash;
 use serde::{Deserialize, Serialize};
 
 use im_adapters_social_postgres::direct_chat_store::{DirectChatRecord, DirectChatStore};
@@ -52,15 +53,12 @@ pub struct ListQuery {
 }
 
 fn normalize_pair_hash(left: &str, right: &str) -> String {
-    use sha2::{Digest, Sha256};
     let (low, high) = if left < right {
         (left, right)
     } else {
         (right, left)
     };
-    let mut hasher = Sha256::new();
-    hasher.update(format!("{low}:{high}"));
-    format!("{:x}", hasher.finalize())
+    sha256_hash(format!("{low}:{high}").as_bytes())
 }
 
 pub async fn create_direct_chat(

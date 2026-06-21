@@ -1,0 +1,75 @@
+/**
+ * Curated phrase repairs for strip-damage left by prior U+FFFD batch fixes.
+ * Apply only to known affected markdown files; do not use open-ended regex stripping.
+ */
+export const DOC_PHRASE_REPAIRS = [
+  ['继续`runtime-link` 收口', '继续由 `runtime-link` 收口'],
+  ['继续`session-gateway` 收回到`runtime-link`', '继续从 `session-gateway` 收回到 `runtime-link`'],
+  ['继续`session-gateway` 收口', '继续由 `session-gateway` 收口'],
+  ['继续`Step 04`', '继续由 `Step 04`'],
+  ['继续只围`', '继续只围绕 `'],
+  ['是否继续`session-gateway` 收', '是否继续由 `session-gateway` 收'],
+  ['# Step 04 架构兑现与回写决议- ', '# Step 04 架构兑现与回写决议 — '],
+  ['# S05 执行卡- ', '# S05 执行卡 — '],
+  ['回写7 尚未', '回写，Step 97 尚未'],
+  ['本轮已兑现能', '本轮已兑现能力'],
+  ['本轮未兑现能', '本轮未兑现能力'],
+  ['最owner', '最早 owner'],
+  ['这说Link', '这说明 Link'],
+  ['这说route', '这说明 route'],
+  ['只step 文档', '只在 step 文档'],
+  ['当slice', '当前 slice'],
+  ['只完成skeleton', '只完成了 skeleton'],
+  ['说明确\n', '说明：\n'],
+  ['最as-built', '最新 as-built'],
+  ['判断已失', '判断已失效'],
+  ['已成`session-gateway`', '已成为 `session-gateway`'],
+  ['已降runtime', '已降为 runtime'],
+  ['新增长`', '新增回写 `'],
+  ['不允许宣`95 / 97`', '不允许宣称 `95 / 97`'],
+  ['实施阶\n', '实施阶段\n'],
+  ['热路径抽\n', '热路径抽离\n'],
+  ['的方\n', '的方向\n'],
+  ['不宣`', '不宣称 `'],
+  ['不伪SDK', '不伪造 SDK'],
+  ['不伪invitation', '不伪造 invitation'],
+  ['更接`', '更接近 `'],
+  ['只围`', '只围绕 `'],
+  ['当前增量`', '当前增量以 `'],
+  ['关系durable', '关系 durable'],
+  ['达step_closure', '达到 step_closure'],
+  ['强repair-marker', '强 repair-marker'],
+  ['显runtime-dir', '显式 runtime-dir'],
+  ['落`state/', '落地到 `state/'],
+  ['信snapshot', '信任 snapshot'],
+  ['回刷 derived', '回刷 derived'],
+  ['直replay', '直接 replay'],
+  ['直返', '直接返回'],
+  ['独repair', '独立 repair'],
+  ['返committed', '返回 committed'],
+  ['返`', '返回 `'],
+  ['允operator', '允许 operator'],
+  ['显式暴', '显式暴露'],
+  ['收敛`current`', '收敛为 `current`'],
+  ['核`current`', '核实为 `current`'],
+  ['扩`S07`', '扩展 `S07`'],
+  ['保绿', '保持通过'],
+  ['已全部消', '已全部消除'],
+  ['重`social-state.json`', '重写 `social-state.json`'],
+  ['收敛`journal authority', '收敛为 journal authority'],
+  ['更深`staged', '更深层的 `staged'],
+  ['最durable', '最小 durable'],
+  ['显式暴露露', '显式暴露'],
+  ['journal-first persistence`', 'journal-first persistence'],
+  ['从默认空状replay', '从默认空状态 replay'],
+  ['证明确\n', '证明确认\n'],
+  ['已接`ProviderRegistry', '已接入 `ProviderRegistry'],
+];
+
+export function repairDocPhrases(source) {
+  let next = source;
+  for (const [from, to] of DOC_PHRASE_REPAIRS) {
+    next = next.split(from).join(to);
+  }
+  return next;
+}

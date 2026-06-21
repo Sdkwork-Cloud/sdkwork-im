@@ -19,6 +19,8 @@
 
 `docs/架构/` 为 2026-04 前后架构设计、实施计划与专项标准归档；正文 profile / lifecycle 词汇已迁移到 Topology v2。文件名中保留的历史词（如 `*-local-minimal-*`）仅用于链接定位，不代表当前运行时。
 
+**治理入口文档**（`pnpm test:governed-docs-encoding` 覆盖）必须保持 UTF-8 干净，包括 `06/08` 核心架构、`09-实施计划.md`、`27/29/30` 认证授权标准、`48-公网上行Bearer必须进行签名校验标准-2026-04-05.md`、`124–129` CLI/GUI 验证标准、`131–144` 连接/代码/观测/数据/CCP 标准、`152CJ` 与 `sdkwork-im-rtc-complete-integration-guide.md`。150 系列历史归档若仍有编码损坏，不影响运行与 verify，但新增或修订的治理入口文档不得引入 `\uFFFD` 或 mojibake。
+
 ## 专项设计索引（130–150 系列）
 
 长期架构总纲与专项设计见目录内 `130-*` 至 `150-*` 文档；执行层细化见 [docs/step/README.md](../step/README.md)。

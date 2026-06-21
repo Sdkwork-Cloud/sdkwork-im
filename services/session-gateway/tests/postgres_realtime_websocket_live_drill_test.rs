@@ -16,8 +16,9 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 const POSTGRES_TEST_DATABASE_URL_ENV: &str = "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL";
-const CORE_SCHEMA_SQL: &str =
-    include_str!("../../../deployments/database/postgres/migrations/001_im_core_schema.sql");
+const CORE_SCHEMA_SQL: &str = include_str!(
+    "../../../database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+);
 const TENANT_ID_PREFIX: &str = "t_ws_pg_drill";
 const PRINCIPAL_ID_PREFIX: &str = "u_ws_pg_drill";
 const SESSION_ID: &str = "s_ws_pg_drill";

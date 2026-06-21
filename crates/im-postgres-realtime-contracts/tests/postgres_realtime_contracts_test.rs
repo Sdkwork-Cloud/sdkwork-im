@@ -5,8 +5,9 @@ use im_postgres_realtime_contracts::{
     UPSERT_REALTIME_CHECKPOINT_SQL, UPSERT_REALTIME_CLIENT_ROUTE_EVENT_SQL,
 };
 
-const POSTGRES_CORE_SCHEMA: &str =
-    include_str!("../../../deployments/database/postgres/migrations/001_im_core_schema.sql");
+const POSTGRES_CORE_SCHEMA: &str = include_str!(
+    "../../../database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+);
 
 #[test]
 fn test_postgres_realtime_contract_crate_exports_complete_executable_contract_set() {

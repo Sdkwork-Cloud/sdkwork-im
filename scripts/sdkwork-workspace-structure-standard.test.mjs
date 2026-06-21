@@ -11,6 +11,7 @@ const rootStandardDirectories = [
   'apis',
   'apps',
   'crates',
+  'database',
   'sdks',
   'jobs',
   'tools',

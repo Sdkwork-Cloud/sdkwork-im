@@ -1,10 +1,47 @@
-# IM Database Module
+# Database
 
-Canonical lifecycle assets for `sdkwork-im` per `DATABASE_FRAMEWORK_SPEC.md`.
+## Purpose
+
+Canonical database lifecycle assets for `sdkwork-im`: contract schema, DDL baseline, migrations,
+seeds, drift policy, and bootstrap metadata governed by `DATABASE_FRAMEWORK_SPEC.md`.
 
 - moduleId: `im`
 - serviceCode: `IM`
 - tablePrefix: `im_`
+
+## Owner
+
+SDKWork Chat maintainers.
+
+## Allowed Content
+
+- `database.manifest.json`, `contract/`, `ddl/`, `migrations/`, and `seeds/` lifecycle assets.
+- Contract-first schema definitions and versioned migration pairs.
+- Database validation fixtures and module-local README guidance.
+
+## Forbidden Content
+
+- Runtime service binaries, HTTP handlers, or repository business logic.
+- Generated SDK output or secrets committed to Git.
+- Ad-hoc SQL executed outside the `sdkwork-database-cli` lifecycle.
+
+## Related Specs
+
+- `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`
+- `../sdkwork-specs/DATABASE_SPEC.md`
+- `../sdkwork-specs/DATABASE_FRAMEWORK_SPEC.md`
+- `../sdkwork-specs/TEST_SPEC.md`
+
+## Verification
+
+Run from the repository root:
+
+```bash
+pnpm db:validate
+pnpm test:database-framework-standard
+pnpm test:database-naming-standard
+pnpm test:contract:database
+```
 
 ## Commands
 
@@ -23,12 +60,12 @@ pnpm run db:drift:check
 Legacy SQL was consolidated into `ddl/baseline/postgres/0001_*_legacy_baseline.sql` for bootstrap review.
 Author contract-first tables in `contract/schema.yaml`, then split baseline into versioned `migrations/` pairs.
 
-Imported legacy sources:
-- `deployments/database/postgres/migrations/001_im_core_schema.sql`
-- `deployments/database/postgres/migrations/010_im_tenant_organization_isolation.sql`
-- `deployments/database/postgres/migrations/011_im_projections_rtc_streams.sql`
-- `deployments/database/postgres/migrations/012_im_social_org_interactions.sql`
-- `deployments/database/postgres/migrations/014_im_search_cjk.sql`
+Imported legacy sources (archived under `deployments/database/postgres/migrations/`, see `DEPRECATED.md`):
+
+- Historical fragments consolidated into `ddl/baseline/postgres/0001_im_legacy_baseline.sql`
+- Provenance markers inside the baseline file reference the original migration filenames
+
+Runtime tests and bootstrap MUST use `database/ddl/baseline/postgres/0001_im_legacy_baseline.sql`, not the legacy `deployments/database/` tree.
 
 Runtime services MUST create pools through `sdkwork-database-sqlx` and register `DefaultDatabaseModule` at bootstrap.
 

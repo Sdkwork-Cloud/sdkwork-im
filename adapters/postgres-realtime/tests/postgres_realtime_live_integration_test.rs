@@ -16,8 +16,9 @@ use im_platform_contracts::{
 use r2d2_postgres::postgres::{Client, NoTls};
 
 const POSTGRES_TEST_DATABASE_URL_ENV: &str = "SDKWORK_IM_POSTGRES_TEST_DATABASE_URL";
-const CORE_SCHEMA_SQL: &str =
-    include_str!("../../../deployments/database/postgres/migrations/001_im_core_schema.sql");
+const CORE_SCHEMA_SQL: &str = include_str!(
+    "../../../database/ddl/baseline/postgres/0001_im_legacy_baseline.sql"
+);
 
 #[test]
 fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured() {

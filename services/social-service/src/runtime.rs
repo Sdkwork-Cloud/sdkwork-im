@@ -20,7 +20,7 @@ use im_domain_core::social::{
 use im_platform_contracts::{CommitEnvelope, CommitJournal, ContractError};
 use im_time::utc_now_rfc3339_millis;
 use serde::{Deserialize, Serialize};
-use sha2::Digest;
+use sdkwork_utils_rust::sha256_hash;
 
 use crate::SharedChannelLinkedMemberSyncRequest;
 
@@ -3708,8 +3708,7 @@ pub(crate) fn archive_active_direct_chats_for_pair(
 // ---------------------------------------------------------------------------
 
 pub(crate) fn deterministic_social_id(prefix: &str, seed: &str) -> String {
-    let digest = sha2::Sha256::digest(seed.as_bytes());
-    let digest = format!("{digest:x}");
+    let digest = sha256_hash(seed.as_bytes());
     format!("{prefix}{}", &digest[..24])
 }
 
