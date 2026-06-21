@@ -10,8 +10,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
 
 static UNIQUE_CATALOG_COUNTER: AtomicU64 = AtomicU64::new(0);
-const CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
-    "SDKWORK_IM_CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS";
 
 struct ScopedEnvVar {
     name: &'static str,
@@ -149,10 +147,7 @@ async fn test_public_app_serves_docs_page_for_live_openapi() {
 
 #[tokio::test]
 async fn test_public_app_rejects_missing_access_token_header_over_http() {
-    let dual_token_env =
-        ScopedEnvVar::set(CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV, "true");
     let app = conversation_runtime::build_public_app();
-    drop(dual_token_env);
 
     let response = app
         .oneshot(

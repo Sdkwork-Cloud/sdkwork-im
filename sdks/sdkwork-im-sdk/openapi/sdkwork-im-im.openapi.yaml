@@ -62,6 +62,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/presence/me:
     get:
       tags:
@@ -104,6 +106,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/realtime/subscriptions/sync:
     post:
       tags:
@@ -152,6 +156,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/realtime/ws:
     get:
       tags:
@@ -194,6 +200,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/realtime/events/ack:
     post:
       tags:
@@ -242,6 +250,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/realtime/events:
     get:
       tags:
@@ -287,6 +297,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/calls/sessions:
     post:
       tags:
@@ -335,6 +347,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/calls/sessions/{rtcSessionId}:
     parameters:
       - $ref: '#/components/parameters/RtcSessionIdPath'
@@ -381,6 +395,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/calls/sessions/{rtcSessionId}/invite:
     parameters:
       - $ref: '#/components/parameters/RtcSessionIdPath'
@@ -433,6 +449,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/calls/sessions/{rtcSessionId}/accept:
     parameters:
       - $ref: '#/components/parameters/RtcSessionIdPath'
@@ -485,6 +503,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/calls/sessions/{rtcSessionId}/reject:
     parameters:
       - $ref: '#/components/parameters/RtcSessionIdPath'
@@ -537,6 +557,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/calls/sessions/{rtcSessionId}/end:
     parameters:
       - $ref: '#/components/parameters/RtcSessionIdPath'
@@ -589,6 +611,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/calls/sessions/{rtcSessionId}/signals:
     parameters:
       - $ref: '#/components/parameters/RtcSessionIdPath'
@@ -641,6 +665,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/calls/sessions/{rtcSessionId}/credentials:
     parameters:
       - $ref: '#/components/parameters/RtcSessionIdPath'
@@ -693,6 +719,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/social/users:
     get:
       tags:
@@ -739,6 +767,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/social/friend_requests:
     get:
       tags:
@@ -786,6 +816,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - social
@@ -833,6 +865,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/social/friend_requests/{requestId}/accept:
     parameters:
       - $ref: '#/components/parameters/RequestIdPath'
@@ -879,6 +913,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/social/friend_requests/{requestId}/decline:
     parameters:
       - $ref: '#/components/parameters/RequestIdPath'
@@ -925,6 +961,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/social/friend_requests/{requestId}/cancel:
     parameters:
       - $ref: '#/components/parameters/RequestIdPath'
@@ -971,6 +1009,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/social/friendships/{friendshipId}/remove:
     parameters:
       - $ref: '#/components/parameters/FriendshipIdPath'
@@ -1017,6 +1057,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/social/contacts/tags:
     get:
       tags:
@@ -1062,6 +1104,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - social
@@ -1109,6 +1153,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/social/contacts/tags/{tagId}:
     parameters:
       - $ref: '#/components/parameters/TagIdPath'
@@ -1161,6 +1207,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     delete:
       tags:
         - social
@@ -1204,6 +1252,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/social/contacts/{targetUserId}/recommendations:
     parameters:
       - $ref: '#/components/parameters/TargetUserIdPath'
@@ -1256,6 +1306,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/social/contacts/{targetUserId}/preferences:
     parameters:
       - $ref: '#/components/parameters/TargetUserIdPath'
@@ -1302,6 +1354,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     patch:
       tags:
         - social
@@ -1351,6 +1405,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/contacts:
     get:
       tags:
@@ -1396,6 +1452,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/inbox:
     get:
       tags:
@@ -1441,6 +1499,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations:
     post:
       tags:
@@ -1489,6 +1549,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/agent_dialogs:
     post:
       tags:
@@ -1537,6 +1599,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/agent_handoffs:
     post:
       tags:
@@ -1585,6 +1649,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/system_channels:
     post:
       tags:
@@ -1633,6 +1699,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/threads:
     post:
       tags:
@@ -1681,6 +1749,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/direct_chats/bindings:
     post:
       tags:
@@ -1729,6 +1799,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/agent_handoff:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -1775,6 +1847,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/agent_handoff/accept:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -1821,6 +1895,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/agent_handoff/resolve:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -1867,6 +1943,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/agent_handoff/close:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -1913,6 +1991,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -1959,6 +2039,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/members:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2007,6 +2089,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/members/add:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2059,6 +2143,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/members/remove:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2111,6 +2197,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/members/transfer_owner:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2163,6 +2251,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/members/change_role:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2215,6 +2305,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/members/leave:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2261,6 +2353,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/preferences:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2307,6 +2401,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     patch:
       tags:
         - chat
@@ -2356,6 +2452,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/profile:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2402,6 +2500,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     patch:
       tags:
         - chat
@@ -2451,6 +2551,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/read_cursor:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2497,6 +2599,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - chat
@@ -2546,6 +2650,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/member_directory:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2592,6 +2698,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/messages:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2640,6 +2748,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - chat
@@ -2689,6 +2799,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/system_channel/publish:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2741,6 +2853,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/pins:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2787,6 +2901,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/conversations/{conversationId}/messages/{messageId}/interaction_summary:
     parameters:
       - $ref: '#/components/parameters/ConversationIdPath'
@@ -2835,6 +2951,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/messages/{messageId}/edit:
     parameters:
       - $ref: '#/components/parameters/MessageIdPath'
@@ -2887,6 +3005,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/messages/{messageId}/recall:
     parameters:
       - $ref: '#/components/parameters/MessageIdPath'
@@ -2933,6 +3053,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/messages/favorites:
     get:
       tags:
@@ -2980,6 +3102,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/messages/{messageId}/favorites:
     parameters:
       - $ref: '#/components/parameters/MessageIdPath'
@@ -3032,6 +3156,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/messages/favorites/{favoriteId}:
     parameters:
       - $ref: '#/components/parameters/FavoriteIdPath'
@@ -3078,6 +3204,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/messages/{messageId}/visibility:
     parameters:
       - $ref: '#/components/parameters/MessageIdPath'
@@ -3124,6 +3252,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/messages/{messageId}/reactions:
     parameters:
       - $ref: '#/components/parameters/MessageIdPath'
@@ -3176,6 +3306,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/messages/{messageId}/reactions/remove:
     parameters:
       - $ref: '#/components/parameters/MessageIdPath'
@@ -3228,6 +3360,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/messages/{messageId}/pin:
     parameters:
       - $ref: '#/components/parameters/MessageIdPath'
@@ -3274,6 +3408,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/chat/messages/{messageId}/unpin:
     parameters:
       - $ref: '#/components/parameters/MessageIdPath'
@@ -3320,6 +3456,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/streams:
     post:
       tags:
@@ -3368,6 +3506,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/streams/{streamId}/frames:
     parameters:
       - $ref: '#/components/parameters/StreamIdPath'
@@ -3416,6 +3556,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - streams
@@ -3465,6 +3607,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/streams/{streamId}/checkpoint:
     parameters:
       - $ref: '#/components/parameters/StreamIdPath'
@@ -3511,6 +3655,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/streams/{streamId}/complete:
     parameters:
       - $ref: '#/components/parameters/StreamIdPath'
@@ -3557,6 +3703,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/streams/{streamId}/abort:
     parameters:
       - $ref: '#/components/parameters/StreamIdPath'
@@ -3603,6 +3751,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces:
     post:
       tags:
@@ -3627,6 +3777,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     get:
       tags:
         - spaces
@@ -3644,6 +3796,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}:
     get:
       tags:
@@ -3664,6 +3818,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     patch:
       tags:
         - spaces
@@ -3689,6 +3845,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     delete:
       tags:
         - spaces
@@ -3704,6 +3862,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/members:
     get:
       tags:
@@ -3724,6 +3884,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: List spaces members
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - spaces
@@ -3749,6 +3911,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Create spaces members
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/members/{userId}:
     get:
       tags:
@@ -3770,6 +3934,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Get spaces members
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     patch:
       tags:
         - spaces
@@ -3796,6 +3962,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Update spaces members
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     delete:
       tags:
         - spaces
@@ -3812,6 +3980,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Delete spaces members
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/groups:
     get:
       tags:
@@ -3832,6 +4002,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: List spaces groups
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - spaces
@@ -3857,6 +4029,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Create spaces groups
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/groups/{groupId}:
     get:
       tags:
@@ -3878,6 +4052,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Get spaces groups
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     patch:
       tags:
         - spaces
@@ -3904,6 +4080,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Update spaces groups
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     delete:
       tags:
         - spaces
@@ -3920,6 +4098,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Delete spaces groups
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/groups/{groupId}/members:
     get:
       tags:
@@ -3941,6 +4121,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: List spaces groups members
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - spaces
@@ -3967,6 +4149,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Create spaces groups members
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/groups/{groupId}/members/{userId}:
     get:
       tags:
@@ -3989,6 +4173,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Get spaces groups members
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     patch:
       tags:
         - spaces
@@ -4012,6 +4198,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Update spaces groups members
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     delete:
       tags:
         - spaces
@@ -4029,6 +4217,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Delete spaces groups members
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/channels:
     get:
       tags:
@@ -4049,6 +4239,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: List spaces channels
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - spaces
@@ -4074,6 +4266,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Create spaces channels
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/channels/{channelId}:
     get:
       tags:
@@ -4095,6 +4289,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Get spaces channels
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     patch:
       tags:
         - spaces
@@ -4121,6 +4317,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Update spaces channels
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     delete:
       tags:
         - spaces
@@ -4137,6 +4335,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Delete spaces channels
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules:
     get:
       tags:
@@ -4158,6 +4358,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: List spaces channels access Rules
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - spaces
@@ -4184,6 +4386,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Create spaces channels access Rules
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/channels/{channelId}/access_rules/{ruleId}:
     delete:
       tags:
@@ -4202,6 +4406,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Delete spaces channels access Rules
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/invites:
     get:
       tags:
@@ -4222,6 +4428,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: List spaces invites
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - spaces
@@ -4247,6 +4455,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Create spaces invites
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/invites/{inviteCode}:
     get:
       tags:
@@ -4268,6 +4478,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Get spaces invites
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     delete:
       tags:
         - spaces
@@ -4284,6 +4496,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Revoke spaces invites
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/invites/{inviteCode}/accept:
     post:
       tags:
@@ -4301,6 +4515,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Accept spaces invites
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/bans:
     get:
       tags:
@@ -4321,6 +4537,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: List spaces bans
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     post:
       tags:
         - spaces
@@ -4346,6 +4564,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Create spaces bans
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
   /im/v3/api/spaces/{spaceId}/bans/{userId}:
     get:
       tags:
@@ -4367,6 +4587,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Get spaces bans
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
     delete:
       tags:
         - spaces
@@ -4383,6 +4605,8 @@ paths:
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.im
       summary: Delete spaces bans
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: open-api
 components:
   parameters:
     ConversationIdPath:

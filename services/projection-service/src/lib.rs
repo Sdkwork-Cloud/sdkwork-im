@@ -12,7 +12,7 @@ use im_domain_events::CommitEnvelope;
 mod access;
 mod client_route_sync;
 mod contacts;
-mod http;
+pub mod http;
 mod inbox;
 mod interactions;
 mod member_directory;
@@ -42,7 +42,10 @@ use scope::{
 };
 
 pub use access::{ClientRouteSyncStateSnapshot, ProjectionAccessError};
-pub use http::{build_app, build_default_app, build_public_app, build_public_app_with_service};
+pub use http::{
+    build_app, build_default_app, build_public_app, build_public_app_with_service,
+    default_projection_service,
+};
 pub use model::{
     ClientRouteSyncFeedWindowView, ContactView, ContactWindowView,
     ConversationMemberDirectoryEntry, ConversationSummaryView, InboxWindowView,

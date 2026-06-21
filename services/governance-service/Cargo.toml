@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "governance-service"
 edition.workspace = true
 license.workspace = true
@@ -26,3 +26,5 @@ http-body-util.workspace = true
 ops-service = { path = "../ops-service" }
 session-gateway = { path = "../session-gateway" }
 tower.workspace = true
+sdkwork-router-im-governance-backend-api = { path = "../../crates/sdkwork-router-im-governance-backend-api" }
+

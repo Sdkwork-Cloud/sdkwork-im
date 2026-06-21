@@ -11,6 +11,7 @@ import {
 } from './workspace-openapi-source-shared.mjs';
 import { applySdkworkV3OpenApiStandard } from './workspace-openapi-v3-standard.mjs';
 import { mergeImSpacesOpenApiFragments } from './merge-im-spaces-openapi-fragments.mjs';
+import { applyWebFrameworkOpenApiExtensions } from '../scripts/sdkwork-im-web-framework-openapi-extensions.mjs';
 
 const sdkRoot = path.dirname(fileURLToPath(import.meta.url));
 const imRoot = path.join(sdkRoot, 'sdkwork-im-sdk');
@@ -647,6 +648,7 @@ const dependencyBackendRouteSet = appbaseBackendRouteSet;
 
 const consolidatedIm = normalizeImAuthority(im);
 applySdkworkV3OpenApiStandard(consolidatedIm);
+applyWebFrameworkOpenApiExtensions(consolidatedIm, 'open-api');
 annotateOwnerMetadata(consolidatedIm, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.im' });
 const consolidatedImSdkgen = sdkgenDerivedDocument(consolidatedIm, {
   describeRealtimeWebsocketExclusion: true,
@@ -659,10 +661,12 @@ const consolidatedImFlutter = sdkgenDerivedDocument(consolidatedIm, {
 
 const consolidatedBackend = normalizeBackendAuthority(backend, dependencyBackendRouteSet);
 applySdkworkV3OpenApiStandard(consolidatedBackend);
+applyWebFrameworkOpenApiExtensions(consolidatedBackend, 'backend-api');
 annotateOwnerMetadata(consolidatedBackend, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.backend' });
 
 const consolidatedApp = normalizeAppAuthority(app, im, dependencyAppRouteSet);
 applySdkworkV3OpenApiStandard(consolidatedApp);
+applyWebFrameworkOpenApiExtensions(consolidatedApp, 'app-api');
 annotateOwnerMetadata(consolidatedApp, { owner: 'sdkwork-im', apiAuthority: 'sdkwork-im.app' });
 const consolidatedAppSdkgen = sdkgenDerivedDocument(consolidatedApp);
 const consolidatedAppFlutter = sdkgenDerivedDocument(consolidatedApp, {
@@ -718,5 +722,22 @@ writeOpenApiYamlDocument({ filePath: backendDerivedPath, document: consolidatedB
 writeOpenApiYamlDocument({ filePath: appAuthorityPath, document: consolidatedApp, yaml });
 writeOpenApiYamlDocument({ filePath: appDerivedPath, document: consolidatedAppSdkgen, yaml });
 writeOpenApiYamlDocument({ filePath: appFlutterDerivedPath, document: consolidatedAppFlutter, yaml });
+
+const imRepoRoot = path.join(sdkRoot, '..');
+writeOpenApiYamlDocument({
+  filePath: path.join(imRepoRoot, 'apis', 'open-api', 'im', 'sdkwork-im-im.openapi.yaml'),
+  document: consolidatedIm,
+  yaml,
+});
+writeOpenApiYamlDocument({
+  filePath: path.join(imRepoRoot, 'apis', 'backend-api', 'communication', 'sdkwork-im-backend-api.openapi.yaml'),
+  document: consolidatedBackend,
+  yaml,
+});
+writeOpenApiYamlDocument({
+  filePath: path.join(imRepoRoot, 'apis', 'app-api', 'communication', 'sdkwork-im-app-api.openapi.yaml'),
+  document: consolidatedApp,
+  yaml,
+});
 
 console.log('[materialize-im-v3-openapi-boundaries] OpenAPI SDK boundaries materialized.');

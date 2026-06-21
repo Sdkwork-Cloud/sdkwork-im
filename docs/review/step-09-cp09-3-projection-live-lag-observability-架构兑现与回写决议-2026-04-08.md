@@ -7,7 +7,7 @@
 - `docs/架构/140-可观测性与SLO治理设计-2026-04-06.md`
 - `docs/架构/141-数据生命周期与归档成本治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave C / Step 09 / CP09-3` 已完成第五段真实落地：
     - `Projection Plane` 新增 projection-owned live lag owner seam
@@ -31,7 +31,7 @@
     - `replay throughput`
     - `inbox/timeline update delay`
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - `140`
   - `rebuild duration` 仍未落地
   - 更完整的 SLO / alert threshold / error taxonomy 仍未落地

@@ -1,4 +1,4 @@
-use im_app_context::AppContext;
+﻿use im_app_context::AppContext;
 use im_platform_contracts::{
     ConversationAggregateStore, ConversationMemberRecord, ConversationSeqAllocator, IdGenerator,
     MessageStore, OutboxStore, ReadCursorRecord, StoredMessageRecord,
@@ -33,7 +33,7 @@ mod binding;
 mod creation;
 mod governance;
 mod handoff;
-mod http;
+pub mod http;
 mod membership;
 mod policy;
 mod recovery;

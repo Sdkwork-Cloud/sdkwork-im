@@ -1,24 +1,22 @@
 #![allow(dead_code, unused_imports)]
 
-mod block;
-mod direct_chat;
-mod external;
-mod friendship;
+pub mod block;
+pub mod direct_chat;
+pub mod external;
+pub mod friendship;
+pub mod shared_channel;
+mod control_routes;
 mod http;
 mod openapi;
-mod postgres;
+pub mod postgres;
 mod runtime;
-mod shared_channel;
 
 use serde::{Deserialize, Serialize};
 
-pub use http::{
-    build_app, build_embedded_app, build_public_app, build_public_app_with_contact_extension,
-    build_public_app_with_postgres_extension,
-};
+pub use control_routes::{build_control_domain_api_router, build_control_public_router};
+pub use http::build_app;
 pub use postgres::{
-    PostgresAppState, app_state_from_postgres_pool, build_supplemental_app,
-    build_supplemental_public_app, try_postgres_app_state_from_database_url_env,
+    PostgresAppState, app_state_from_postgres_pool, try_postgres_app_state_from_database_url_env,
 };
 pub use runtime::SocialRuntime;
 

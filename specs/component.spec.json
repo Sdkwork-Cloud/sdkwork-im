@@ -385,6 +385,8 @@
       "pnpm test:governed-docs-encoding",
       "pnpm test:review-step-docs-encoding",
       "pnpm test:release-docs-encoding",
+      "pnpm test:architecture-docs-encoding",
+      "pnpm test:docs-strip-damage",
       "pnpm check:agent-workflow-standard",
       "pnpm check:pnpm-script-standard",
       "pnpm test:workflow-commercial-gates",

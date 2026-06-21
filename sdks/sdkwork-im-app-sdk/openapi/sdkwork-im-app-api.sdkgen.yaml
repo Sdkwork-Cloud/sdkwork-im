@@ -84,6 +84,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/automation/agent_responses/{streamId}/complete:
     post:
       tags:
@@ -152,6 +154,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/automation/agent_responses/{streamId}/frames:
     post:
       tags:
@@ -220,6 +224,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/automation/agent_tool_calls:
     post:
       tags:
@@ -286,6 +292,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/automation/executions:
     post:
       tags:
@@ -346,6 +354,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/automation/executions/{executionId}:
     get:
       tags:
@@ -390,6 +400,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/automation/executions/{executionId}/agent_tool_calls/{toolCallId}/complete:
     post:
       tags:
@@ -459,6 +471,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/notifications:
     get:
       tags:
@@ -495,6 +509,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/notifications/requests:
     post:
       tags:
@@ -555,6 +571,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/notifications/{notificationId}:
     get:
       tags:
@@ -599,6 +617,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/portal/access:
     get:
       tags:
@@ -615,6 +635,8 @@ paths:
                 $ref: '#/components/schemas/PortalSnapshot'
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/portal/automation:
     get:
       tags:
@@ -645,6 +667,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/portal/conversations:
     get:
       tags:
@@ -675,6 +699,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/portal/dashboard:
     get:
       tags:
@@ -705,6 +731,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/portal/governance:
     get:
       tags:
@@ -735,6 +763,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/portal/home:
     get:
       tags:
@@ -751,6 +781,8 @@ paths:
                 $ref: '#/components/schemas/PortalSnapshot'
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/portal/media:
     get:
       tags:
@@ -781,6 +813,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/portal/realtime:
     get:
       tags:
@@ -811,6 +845,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/portal/workspace:
     get:
       tags:
@@ -841,6 +877,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/media/provider_health:
     get:
       tags:
@@ -878,6 +916,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
   /app/v3/api/principal/profiles/provider_health:
     get:
       tags:
@@ -915,6 +955,8 @@ paths:
           AccessToken: []
       x-sdkwork-owner: sdkwork-im
       x-sdkwork-api-authority: sdkwork-im.app
+      x-sdkwork-request-context: WebRequestContext
+      x-sdkwork-api-surface: app-api
 components:
   securitySchemes:
     AuthToken:

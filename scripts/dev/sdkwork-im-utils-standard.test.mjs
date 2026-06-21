@@ -47,6 +47,7 @@ for (const relativePath of [
   'services/audit-service/src/lib.rs',
   'services/social-service/src/runtime.rs',
   'services/social-service/src/postgres/direct_chat.rs',
+  'services/social-service/src/friendship.rs',
 ]) {
   const source = read(relativePath);
   assert.match(
@@ -69,6 +70,18 @@ for (const relativePath of [
     source,
     /use sha2::/u,
     `${relativePath} must not import sha2 directly when sdkwork-utils provides sha256_hash`,
+  );
+}
+
+for (const relativePath of [
+  'services/social-service/src/friendship.rs',
+  'crates/im-app-context/src/lib.rs',
+]) {
+  const source = read(relativePath);
+  assert.doesNotMatch(
+    source,
+    /use base64::/u,
+    `${relativePath} must use sdkwork_utils_rust base64url helpers instead of direct base64 imports`,
   );
 }
 

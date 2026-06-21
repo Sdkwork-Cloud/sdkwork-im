@@ -79,7 +79,7 @@
   - 初始失败：CMD 转发后的 PowerShell 仍落到 `.runtime/self-hosted.split-services.development`
 
 ### Green
-- 补齐 profile selector、config 解析顺序、PowerShell 单文件 fallback 与文档合同后，上述 red 用例全部转绿
+- 补齐 profile selector、config 解析顺序、PowerShell 单文件 fallback 与文档合同后，上述 red 用例全部保持通过
 - `deployment_profile_test` 全量 fresh 通过，证明本轮修复没有破坏既有 deployment/runtime scripts 合同
 
 ## Fresh 验证

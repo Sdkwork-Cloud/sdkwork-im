@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Component-spec ù?workspace crate consistency check.
+ * Component-spec ‚Üî workspace crate consistency check.
  *
  * Validates that the authored workspace stays aligned with `specs/component.spec.json`
  * and the SDKWork standards it references. This complements
  * `sdkwork-workspace-structure-standard.test.mjs` (which owns the directory dictionary
- * and governance artifacts) by focusing on the contract ù?implementation boundary:
+ * and governance artifacts) by focusing on the contract ‚Üî implementation boundary:
  *
  *  1. Every Cargo workspace member under crates/, services/, adapters/, tools/ ships a
  *     module README (DOCUMENTATION_SPEC.md module README rule).

@@ -1,0 +1,18 @@
+﻿[package]
+name = "ops-service-bin"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "ops-service"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+ops-service = { path = "../ops-service" }
+sdkwork-router-im-ops-backend-api = { path = "../../crates/sdkwork-router-im-ops-backend-api" }
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

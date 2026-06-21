@@ -58,7 +58,7 @@
   - `cargo test -p conversation-runtime --offline --tests -- --nocapture`
 - results:
   - red 阶段先失败：缺少 `CreateThreadConversationCommand` 与 `create_thread_conversation_with_creator_kind`
-  - green 阶段 runtime / HTTP 回归均转绿
+  - green 阶段 runtime / HTTP 回归均保持通过
   - `im-domain-core --tests = 36 passed`
   - `conversation-runtime --tests = 123 passed`
 - unverified_risks:

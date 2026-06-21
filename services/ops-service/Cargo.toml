@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "ops-service"
 edition.workspace = true
 license.workspace = true
@@ -19,3 +19,5 @@ tracing-subscriber.workspace = true
 [dev-dependencies]
 http-body-util.workspace = true
 tower.workspace = true
+sdkwork-router-im-ops-backend-api = { path = "../../crates/sdkwork-router-im-ops-backend-api" }
+

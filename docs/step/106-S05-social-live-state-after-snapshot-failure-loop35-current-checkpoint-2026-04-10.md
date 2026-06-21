@@ -5,7 +5,7 @@
 - 本轮已兑现:
   - `journal append` 成功后，即使 `social-state.json` 保存失败，live state 也会推进到已提交 truth
   - `snapshot save fail` 不再让同进程后续写入继续基于旧内存放大 pair/scope 冲突
-  - 新增并转绿：
+  - 新增并保持通过：
     - `test_control_plane_social_file_runtime_keeps_direct_chat_pair_guard_after_snapshot_save_failure`
   - `snapshot missing` 与 `snapshot ahead of journal` 回归继续为绿
 - 当前仍缺:

@@ -1,0 +1,16 @@
+[package]
+name = "sdkwork-router-im-realtime-open-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "sdkwork_router_im_realtime_open_api"
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+sdkwork_web_contract.workspace = true
+sdkwork_web_core.workspace = true
+sdkwork_im_web_bootstrap.workspace = true
+session-gateway = { path = "../../services/session-gateway" }

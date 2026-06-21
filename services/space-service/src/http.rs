@@ -3,9 +3,7 @@
 use std::sync::Arc;
 
 use axum::Router;
-use axum::middleware;
 use axum::routing::{delete, get, post};
-use im_app_context::inject_app_request_context_middleware;
 use im_platform_contracts::IdGenerator;
 
 use crate::ban;
@@ -138,5 +136,5 @@ async fn readyz() -> &'static str {
 }
 
 pub fn build_public_app(state: AppState) -> Router {
-    build_app(state).layer(middleware::from_fn(inject_app_request_context_middleware))
+    build_app(state)
 }

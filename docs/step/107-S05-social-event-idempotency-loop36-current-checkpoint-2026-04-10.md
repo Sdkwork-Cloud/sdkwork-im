@@ -6,7 +6,7 @@
   - `same tenant + same eventId` 重试会回放已提交 social commit，而不是再次命中对象冲突
   - replay key 已按 `(tenant_id, event_id)` 收敛，避免 replay 阶段错误折叠跨租户同名事件
   - same-event replay 不再重复追加 `social-commit-journal.json`
-  - 新增并转绿：
+  - 新增并保持通过：
     - `test_control_plane_social_file_runtime_replays_same_event_id_after_snapshot_save_failure`
 - 当前仍缺:
   - `atomic tx boundary`

@@ -5,7 +5,7 @@
 - 本轮已兑现:
   - runtime-dir startup 改为 `journal authority`：只要 `social-commit-journal.json` 存在，就从默认空状态 replay 并回写 `social-state.json`
   - social 写入顺序改为 `append journal -> save snapshot`
-  - `snapshot ahead of journal` 幻影场景已被 TDD 锁定并转绿：
+  - `snapshot ahead of journal` 幻影场景已被 TDD 锁定并保持通过：
     - `test_control_plane_social_file_runtime_discards_friend_request_snapshot_ahead_of_journal`
     - `test_control_plane_social_file_runtime_discards_direct_chat_snapshot_ahead_of_journal`
   - `snapshot missing` replay 回归继续为绿：

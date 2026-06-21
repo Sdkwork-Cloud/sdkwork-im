@@ -8,3 +8,4 @@ version.workspace = true
 axum.workspace = true
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 social-service = { path = "../social-service" }
+sdkwork-router-im-social-open-api = { path = "../../crates/sdkwork-router-im-social-open-api" }

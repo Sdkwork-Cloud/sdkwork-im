@@ -37,7 +37,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 | Framework | Status | Integration point |
 | --- | --- | --- |
-| `sdkwork-web-framework` | **Integrated** | `Cargo.toml` workspace deps (`sdkwork-web-core`, `sdkwork-web-axum`, `sdkwork-web-bootstrap`, `sdkwork-iam-web-adapter`); gateway wraps routers in `services/sdkwork-im-gateway/src/web_framework.rs`. Verified by `pnpm test:web-framework-standard`. |
+| `sdkwork-web-framework` | **Integrated** | Gateway (`services/sdkwork-im-gateway`) and upstream HTTP services wrap routers through `crates/sdkwork-im-web-bootstrap` (`WebFrameworkLayer`, `ImAppContextInjector`, IAM resolver). OpenAPI authorities materialize `x-sdkwork-request-context` / `x-sdkwork-api-surface`. Verified by `pnpm test:web-framework-standard`. |
 | `sdkwork-database` | **Integrated** | `Cargo.toml` workspace deps (`sdkwork-database-config`, `sdkwork-database-sqlx`); pool bootstrap in `crates/sdkwork-im-database-pool`; postgres adapters consume unified pool config. Verified by `pnpm test:database-framework-standard`. |
 | `sdkwork-utils` | **Integrated** | `Cargo.toml` workspace dep (`sdkwork-utils-rust`); PC core consumes `@sdkwork/utils`. Crypto/encoding helpers must not duplicate `sha2` or ad-hoc base64url in shared runtime paths. Verified by `pnpm test:utils-standard`. |
 | `sdkwork-discovery` | **Deferred** | RPC contracts live under `apis/rpc/` with generated `sdkwork-im-rpc-sdk`, but no hosted gRPC server is deployed yet. Phased adoption plan: [ADR-20260619-im-rpc-discovery-integration-deferred](../docs/architecture/decisions/ADR-20260619-im-rpc-discovery-integration-deferred.md). |
@@ -117,4 +117,6 @@ Historical `sdkwork-clawchat-*` package names were retired by the
 - `pnpm test:governed-docs-encoding`
 - `pnpm test:review-step-docs-encoding`
 - `pnpm test:release-docs-encoding`
+- `pnpm test:architecture-docs-encoding`
+- `pnpm test:docs-strip-damage`
 - `node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json`

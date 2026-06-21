@@ -54,7 +54,7 @@
   - 统一 profile 校验与诊断输
 - `bin/_cmd-forward-powershell.cmd`
   - 已把 `/profile`、`/profilename`、`--profile`、`--profile-name`、`--profileName`
-    收口径`-ProfileName`
+    收口到 `-ProfileName`
 
 ### 3. 文档与回归门禁已追平当前真实脚本合同
 - `services/sdkwork-im-gateway/tests/deployment_profile_test.rs`

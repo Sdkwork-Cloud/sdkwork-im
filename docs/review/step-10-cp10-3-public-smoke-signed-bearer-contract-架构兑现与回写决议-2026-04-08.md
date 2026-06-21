@@ -5,7 +5,7 @@
 - `docs/架构/137-部署拓扑与容量规划设计-2026-04-06.md`
 - `docs/架构/142-控制面与配置治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave D / Step 10 / CP10-3` 已从“入口可传 smoke base-url”推进到“public smoke 认证闭环真实可执行”
 - `137`
@@ -15,7 +15,7 @@
   - deploy-time/operator config 已新增 public bearer secret 真源与 smoke secret 解析顺序
   - smoke auth 现在从隐式脚本常量，提升为显式配置合同
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - `CP10-4` 的 inspect / repair / restore 多 profile 交付闭环尚未开始
 - `Step 10` 整步尚未通过
 - `Wave D` 尚未达到 `93` 总验收条件

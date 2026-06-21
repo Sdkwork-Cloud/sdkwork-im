@@ -5,7 +5,7 @@
 - `docs/架构/137-部署拓扑与容量规划设计-2026-04-06.md`
 - `docs/架构/142-控制面与配置治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave D / Step 10 / CP10-2` 已把多环境 profile/template 的“真实边界”从口头约定推进为：
     - 文档矩阵
@@ -22,7 +22,7 @@
   - 本地 deploy-time config 已从“初始化时生成一个 env 文件”推进到“按 profile 拥有稳定模板入口”
   - `retired-lifecycle-deploy` 的 profile selector 也让 deploy-time config 与 operator action 之间的接口变得显式，而不再依赖手工改脚本或硬编码 compose 路径
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - `self-hosted.split-services.development` 尚未演进为独立依赖拓扑或独立 smoke/recovery 闭环
 - `private-saas-single-cell`、`cloud-shared-cell`、`cloud-dedicated-cell` 仍未形成真实 compose/template/script 资产
 - `Step 10 / CP10-3` 的健康检查与 smoke 重复执行证据尚未闭环

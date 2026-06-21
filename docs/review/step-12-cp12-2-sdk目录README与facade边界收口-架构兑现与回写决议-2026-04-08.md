@@ -6,7 +6,7 @@
 - `docs/架构/148-CCP控制面注册表与协议发布治理设计2026-04-06.md`
 - `docs/架构/149-多Cell多Region协议升级与灾备兼容设计2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave D / Step 12` 已从“CLI 主链路可信”推进到“SDK workspace 入口facade 边界可信”
   - README、`sdks/README.md` 与两SDK README 现在形成了一套真实、可回归的目录入口
@@ -18,7 +18,7 @@
   - admin README 已把 `control-plane`、`protocol governance`、`compatibility matrix` 固定为管理侧 SDK 的权威来源
   - 这意味着管理facade 的职责已control-plane snapshot 口径对齐，而不是在各语言目录内本地拼装协议能力决策
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - `146`
   - 多语言 SDK 的真实生成链、样例代码与发布流程尚未完成
   - close / error registry 的客户端恢复语义尚未纳入 SDK README 范围

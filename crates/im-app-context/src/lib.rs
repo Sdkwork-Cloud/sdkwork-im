@@ -381,6 +381,43 @@ impl AppContext {
     }
 }
 
+/// Maps a framework-resolved [`WebRequestContext`] into the IM domain [`AppContext`].
+pub fn app_context_from_web_request(context: &WebRequestContext) -> Option<AppContext> {
+    let principal = context.principal.as_ref()?;
+    Some(app_context_from_web_principal(principal))
+}
+
+pub fn app_context_from_web_principal(principal: &WebRequestPrincipal) -> AppContext {
+    let environment = Some(format_environment(&principal.app.environment).to_owned());
+    let deployment_mode = Some(format_deployment_mode(&principal.app.deployment_mode).to_owned());
+    let auth_level = Some(format_auth_level(&principal.auth.auth_level).to_owned());
+    let actor_kind = match principal.subject.subject_type {
+        WebSubjectType::User => "user".to_owned(),
+        WebSubjectType::Service => "service".to_owned(),
+        WebSubjectType::System => "system".to_owned(),
+        WebSubjectType::ApiKey => "api_key".to_owned(),
+    };
+
+    AppContext {
+        tenant_id: principal.tenant_id().to_owned(),
+        organization_id: principal
+            .organization_id()
+            .map(str::to_owned)
+            .unwrap_or_else(|| "default".to_owned()),
+        user_id: principal.user_id().to_owned(),
+        session_id: principal.session_id().map(str::to_owned),
+        app_id: Some(principal.app_id().to_owned()),
+        environment,
+        deployment_mode,
+        auth_level,
+        data_scope: principal.scopes.data_scope.iter().cloned().collect(),
+        permission_scope: principal.scopes.permission_scope.iter().cloned().collect(),
+        actor_id: principal.user_id().to_owned(),
+        actor_kind,
+        device_id: None,
+    }
+}
+
 pub fn resolve_app_context(headers: &HeaderMap) -> Result<AppContext, AppContextError> {
     resolve_app_context_for_request(headers, "", "").map(|resolved| resolved.app_context)
 }

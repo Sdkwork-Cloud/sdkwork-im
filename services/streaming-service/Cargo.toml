@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "streaming-service"
 edition.workspace = true
 license.workspace = true
@@ -24,3 +24,5 @@ tracing-subscriber.workspace = true
 http-body-util.workspace = true
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tower.workspace = true
+sdkwork-router-im-stream-app-api = { path = "../../crates/sdkwork-router-im-stream-app-api" }
+

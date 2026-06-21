@@ -5,7 +5,7 @@
 - `docs/架构/138-高可用与灾备恢复设计-2026-04-06.md`
 - `docs/架构/141-数据生命周期与归档成本治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `CP09-4` 现在不再只有 archive path，而是具备 archive lifecycle metadata、retention policy、legal hold 与 prune 动作
 - `138`
@@ -14,7 +14,7 @@
   - `storageClass / retentionPolicy / retentionDays / archivedAt / restoreStatus / legalHold` 已进入真实 archive metadata
   - legal hold archive 已有“不得清理”的真实执行语义
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - tenant-aware plan policy
 - 后台异步 lifecycle worker
 - object storage hot / warm / archive bucket 分层

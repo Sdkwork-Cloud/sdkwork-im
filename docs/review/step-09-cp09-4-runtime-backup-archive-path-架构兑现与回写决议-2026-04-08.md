@@ -7,7 +7,7 @@
 - `docs/架构/140-可观测性与SLO治理设计-2026-04-06.md`
 - `docs/架构/141-数据生命周期与归档成本治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave C / Step 09 / CP09-4` 已开始出现第一段真实落地：
     - runtime-dir backup snapshot 已有正式 archive 代码与脚本入口
@@ -22,7 +22,7 @@
     - catalog 可区分 `active / archived`
     - archived snapshot 仍可恢复
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - `141`
   - retention policy 仍未建立
   - `legal hold` 仍未建立

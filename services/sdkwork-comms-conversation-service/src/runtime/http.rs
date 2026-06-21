@@ -6,16 +6,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{DefaultBodyLimit, Extension, FromRequest, Path, Query, State};
-use axum::http::{HeaderMap, Request, StatusCode};
+use axum::http::{HeaderMap, Request};
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{
     Json, Router,
     routing::{get, post},
 };
-use im_app_context::{
-    AppContext, AppContextError, resolve_app_context, resolve_app_context_for_request,
-};
+use im_app_context::{AppContext, AppContextError, resolve_app_context};
 use im_domain_core::conversation::{
     ConversationMember, ConversationReadCursorView, MembershipRole,
 };
@@ -39,11 +37,9 @@ const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_ENV: &str =
     "SDKWORK_IM_CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES";
 const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
-const CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
-    "SDKWORK_IM_CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
-struct AppState {
+pub struct AppState {
     runtime: Arc<ConversationRuntime<InMemoryJournal>>,
     principal_directory: Arc<dyn PrincipalDirectory>,
     shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter,
@@ -52,7 +48,6 @@ struct AppState {
 #[derive(Clone)]
 struct PublicAppGuardrails {
     request_gate: Arc<Semaphore>,
-    require_dual_token_headers: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -739,73 +734,64 @@ impl IntoResponse for ApiError {
     }
 }
 
-pub fn build_default_app() -> Router {
-    let state = AppState {
+pub fn default_app_state() -> AppState {
+    AppState {
         runtime: Arc::new(ConversationRuntime::new(InMemoryJournal::default())),
         principal_directory: Arc::new(AllowAllPrincipalDirectory),
         shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
-    };
-    build_app(state)
+    }
+}
+
+pub fn app_state_with_principal_directory(
+    principal_directory: Arc<dyn PrincipalDirectory>,
+) -> AppState {
+    AppState {
+        runtime: Arc::new(ConversationRuntime::new(InMemoryJournal::default())),
+        principal_directory,
+        shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
+    }
+}
+
+pub fn build_default_app() -> Router {
+    build_app(default_app_state())
 }
 
 pub fn build_default_app_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
 ) -> Router {
-    let state = AppState {
-        runtime: Arc::new(ConversationRuntime::new(InMemoryJournal::default())),
-        principal_directory,
-        shared_channel_sync_rate_limiter: SharedChannelSyncRateLimiter::from_env(),
+    build_app(app_state_with_principal_directory(principal_directory))
+}
+
+pub fn apply_public_http_guardrails(router: Router) -> Router {
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
     };
-    build_app(state)
+    router
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            enforce_in_flight_gate,
+        ))
 }
 
 pub fn build_public_app() -> Router {
-    let guardrails = PublicAppGuardrails {
-        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
-        require_dual_token_headers: resolve_require_dual_token_headers(),
-    };
-    build_default_app()
-        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
-        .layer(middleware::from_fn_with_state(
-            guardrails,
-            require_app_context,
-        ))
+    apply_public_http_guardrails(build_default_app())
 }
 
 pub fn build_public_app_with_allow_all_principals() -> Router {
-    let guardrails = PublicAppGuardrails {
-        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
-        require_dual_token_headers: resolve_require_dual_token_headers(),
-    };
-    build_default_app()
-        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
-        .layer(middleware::from_fn_with_state(
-            guardrails,
-            require_app_context,
-        ))
+    build_public_app()
 }
 
 pub fn build_public_app_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
 ) -> Router {
-    let guardrails = PublicAppGuardrails {
-        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
-        require_dual_token_headers: resolve_require_dual_token_headers(),
-    };
-    build_default_app_with_principal_directory(principal_directory)
-        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
-        .layer(middleware::from_fn_with_state(
-            guardrails,
-            require_app_context,
-        ))
+    apply_public_http_guardrails(build_default_app_with_principal_directory(
+        principal_directory,
+    ))
 }
 
-fn build_app(state: AppState) -> Router {
+pub fn build_domain_api_router(state: AppState) -> Router {
     Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
-        .route("/openapi.json", get(openapi_json))
-        .route("/docs", get(docs))
         .route("/im/v3/api/chat/conversations", post(create_conversation))
         .route(
             "/im/v3/api/chat/conversations/threads",
@@ -914,90 +900,41 @@ fn build_app(state: AppState) -> Router {
         .with_state(state)
 }
 
-async fn require_app_context(
+fn build_app(state: AppState) -> Router {
+    Router::new()
+        .route("/healthz", get(healthz))
+        .route("/readyz", get(readyz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
+        .merge(build_domain_api_router(state))
+}
+
+async fn enforce_in_flight_gate(
     State(guardrails): State<PublicAppGuardrails>,
-    mut request: Request<axum::body::Body>,
+    request: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
-    match request.uri().path() {
-        "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => {
-            let permit = match guardrails.request_gate.clone().try_acquire_owned() {
-                Ok(permit) => permit,
-                Err(_) => {
-                    return ApiError {
-                        status: StatusCode::SERVICE_UNAVAILABLE,
-                        code: "http_overloaded",
-                        message:
-                            "server is at maximum in-flight request capacity, please retry later"
-                                .to_owned(),
-                    }
-                    .into_response();
-                }
-            };
-            if guardrails.require_dual_token_headers
-                && let Err(error) = require_dual_token_headers(request.headers())
-            {
-                return error.into_response();
+    if matches!(
+        request.uri().path(),
+        "/healthz" | "/readyz" | "/openapi.json" | "/docs"
+    ) {
+        return next.run(request).await;
+    }
+    let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+        Ok(permit) => permit,
+        Err(_) => {
+            return ApiError {
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                code: "http_overloaded",
+                message:
+                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
             }
-            let resolved = match resolve_app_context_for_request(
-                request.headers(),
-                request.uri().path(),
-                request.method().as_str(),
-            ) {
-                Ok(resolved) => resolved,
-                Err(error) => return ApiError::from(error).into_response(),
-            };
-            request
-                .extensions_mut()
-                .insert(resolved.app_request_context);
-            request.extensions_mut().insert(resolved.app_context);
-            let response = next.run(request).await;
-            drop(permit);
-            response
+            .into_response();
         }
-    }
-}
-
-fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), ApiError> {
-    if !has_bearer_auth_token(headers) {
-        return Err(ApiError {
-            status: StatusCode::UNAUTHORIZED,
-            code: "auth_token_missing",
-            message: "authorization header must provide a bearer token".to_owned(),
-        });
-    }
-    if !has_access_token_header(headers) {
-        return Err(ApiError {
-            status: StatusCode::UNAUTHORIZED,
-            code: "access_token_missing",
-            message: "access-token header is required".to_owned(),
-        });
-    }
-    Ok(())
-}
-
-fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
-    headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .and_then(|value| {
-            let (scheme, token) = value.split_once(' ')?;
-            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() {
-                return Some(());
-            }
-            None
-        })
-        .is_some()
-}
-
-fn has_access_token_header(headers: &HeaderMap) -> bool {
-    headers
-        .get("access-token")
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .is_some_and(|value| !value.is_empty())
+    };
+    let response = next.run(request).await;
+    drop(permit);
+    response
 }
 
 fn resolve_max_in_flight_requests() -> usize {
@@ -1016,22 +953,6 @@ fn resolve_max_http_request_body_bytes() -> usize {
         .filter(|&parsed| parsed > 0)
         .unwrap_or(CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_DEFAULT)
         .min(CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_MAX)
-}
-
-fn resolve_require_dual_token_headers() -> bool {
-    std::env::var(CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
-        .ok()
-        .map(|value| parse_truthy_env_flag(Some(value)))
-        .unwrap_or(false)
-}
-
-fn parse_truthy_env_flag(raw: Option<String>) -> bool {
-    raw.as_deref().map(str::trim).is_some_and(|value| {
-        matches!(
-            value.to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        )
-    })
 }
 
 async fn healthz() -> Json<HealthResponse> {
@@ -2086,50 +2007,6 @@ mod tests {
         assert!(
             limiter.try_acquire("tenant_a"),
             "existing tenant should still be serviceable when cap is reached"
-        );
-    }
-
-    #[test]
-    fn parse_truthy_env_flag_accepts_common_truthy_values() {
-        for value in ["1", "true", "TRUE", " yes ", "On"] {
-            assert!(parse_truthy_env_flag(Some(value.to_owned())));
-        }
-        for value in ["0", "false", "off", "no", "", "  "] {
-            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
-        }
-        assert!(!parse_truthy_env_flag(None));
-    }
-
-    #[test]
-    fn dual_token_header_helpers_validate_auth_and_access_headers() {
-        let mut headers = HeaderMap::new();
-        assert!(!has_bearer_auth_token(&headers));
-        assert!(!has_access_token_header(&headers));
-
-        headers.insert(
-            axum::http::header::AUTHORIZATION,
-            HeaderValue::from_static("Bearer token"),
-        );
-        assert!(has_bearer_auth_token(&headers));
-        assert!(!has_access_token_header(&headers));
-        let error =
-            require_dual_token_headers(&headers).expect_err("access-token should be required");
-        assert_eq!(error.status, StatusCode::UNAUTHORIZED);
-        assert_eq!(error.code, "access_token_missing");
-
-        headers.insert("access-token", HeaderValue::from_static("access"));
-        assert!(has_access_token_header(&headers));
-        require_dual_token_headers(&headers).expect("dual token headers should pass");
-    }
-
-    #[test]
-    fn dual_token_guardrail_defaults_to_app_context_projection() {
-        let _guard = rate_limit_env_guard();
-        let _env = ScopedEnvVar::remove(CONVERSATION_RUNTIME_REQUIRE_DUAL_TOKEN_HEADERS_ENV);
-
-        assert!(
-            !resolve_require_dual_token_headers(),
-            "conversation runtime should default to SDKWork AppContext projection without legacy bearer/access-token headers"
         );
     }
 

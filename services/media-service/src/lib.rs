@@ -1,4 +1,4 @@
-use std::sync::Arc;
+﻿use std::sync::Arc;
 
 use axum::extract::{DefaultBodyLimit, Extension, State};
 use axum::http::{HeaderMap, Request, StatusCode};
@@ -21,17 +21,15 @@ const MEDIA_MAX_IN_FLIGHT_REQUESTS_MAX: usize = 20_000;
 const MEDIA_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_MEDIA_MAX_REQUEST_BODY_BYTES";
 const MEDIA_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 256 * 1024;
 const MEDIA_MAX_REQUEST_BODY_BYTES_MAX: usize = 1024 * 1024;
-const MEDIA_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str = "SDKWORK_IM_MEDIA_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
-struct AppState {
+pub struct AppState {
     runtime: Arc<MediaRuntime>,
 }
 
 #[derive(Clone)]
 struct PublicAppGuardrails {
     request_gate: Arc<Semaphore>,
-    require_dual_token_headers: bool,
 }
 
 pub struct MediaRuntime;
@@ -160,32 +158,44 @@ impl IntoResponse for MediaError {
     }
 }
 
+pub fn default_app_state() -> AppState {
+    AppState {
+        runtime: Arc::new(MediaRuntime::new()),
+    }
+}
+
 pub fn build_default_app() -> Router {
     build_app(Arc::new(MediaRuntime::new()))
 }
 
-pub fn build_public_app() -> Router {
-    let request_gate = Arc::new(Semaphore::new(resolve_usize_env_with_upper_bound(
-        MEDIA_MAX_IN_FLIGHT_REQUESTS_ENV,
-        MEDIA_MAX_IN_FLIGHT_REQUESTS_DEFAULT,
-        MEDIA_MAX_IN_FLIGHT_REQUESTS_MAX,
-    )));
+pub fn apply_public_http_guardrails(router: Router) -> Router {
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_usize_env_with_upper_bound(
+            MEDIA_MAX_IN_FLIGHT_REQUESTS_ENV,
+            MEDIA_MAX_IN_FLIGHT_REQUESTS_DEFAULT,
+            MEDIA_MAX_IN_FLIGHT_REQUESTS_MAX,
+        ))),
+    };
     let body_limit = resolve_usize_env_with_upper_bound(
         MEDIA_MAX_REQUEST_BODY_BYTES_ENV,
         MEDIA_MAX_REQUEST_BODY_BYTES_DEFAULT,
         MEDIA_MAX_REQUEST_BODY_BYTES_MAX,
     );
-    build_default_app()
+    router
         .layer(DefaultBodyLimit::max(body_limit))
         .layer(middleware::from_fn_with_state(
-            PublicAppGuardrails {
-                request_gate,
-                require_dual_token_headers: parse_truthy_env_flag(
-                    std::env::var(MEDIA_REQUIRE_DUAL_TOKEN_HEADERS_ENV).ok(),
-                ),
-            },
-            enforce_public_guardrails,
+            guardrails,
+            enforce_in_flight_gate,
         ))
+}
+
+pub fn build_domain_api_router(state: AppState) -> Router {
+    Router::new()
+        .route(
+            "/app/v3/api/media/provider_health",
+            get(get_media_provider_health),
+        )
+        .with_state(state)
 }
 
 pub fn build_app(runtime: Arc<MediaRuntime>) -> Router {
@@ -195,11 +205,7 @@ pub fn build_app(runtime: Arc<MediaRuntime>) -> Router {
         .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs_html))
-        .route(
-            "/app/v3/api/media/provider_health",
-            get(get_media_provider_health),
-        )
-        .with_state(state)
+        .merge(build_domain_api_router(state))
 }
 
 async fn healthz() -> Json<HealthResponse> {
@@ -271,7 +277,7 @@ fn summarize_media_route(path: &str, _method: HttpMethod) -> String {
     }
 }
 
-async fn get_media_provider_health(
+pub async fn get_media_provider_health(
     headers: HeaderMap,
     auth: Option<Extension<AppContext>>,
     State(state): State<AppState>,
@@ -294,13 +300,16 @@ fn resolve_active_auth_context(
     }
 }
 
-async fn enforce_public_guardrails(
+async fn enforce_in_flight_gate(
     State(guardrails): State<PublicAppGuardrails>,
     request: Request<axum::body::Body>,
     next: Next,
 ) -> Result<Response, MediaError> {
-    if guardrails.require_dual_token_headers {
-        require_dual_token_headers(request.headers())?;
+    if matches!(
+        request.uri().path(),
+        "/healthz" | "/readyz" | "/openapi.json" | "/docs"
+    ) {
+        return Ok(next.run(request).await);
     }
     let permit = guardrails
         .request_gate
@@ -315,54 +324,6 @@ async fn enforce_public_guardrails(
     let response = next.run(request).await;
     drop(permit);
     Ok(response)
-}
-
-fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), MediaError> {
-    if !has_bearer_auth_token(headers) {
-        return Err(MediaError::unauthorized(
-            "auth_token_missing",
-            "Authorization bearer token is required",
-        ));
-    }
-    if !has_access_token_header(headers) {
-        return Err(MediaError::unauthorized(
-            "access_token_missing",
-            "Access-Token header is required",
-        ));
-    }
-    Ok(())
-}
-
-fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
-    headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| {
-            value
-                .trim_start()
-                .get(..7)
-                .is_some_and(|prefix| prefix.eq_ignore_ascii_case("bearer "))
-        })
-}
-
-fn has_access_token_header(headers: &HeaderMap) -> bool {
-    headers
-        .get("access-token")
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| !value.trim().is_empty())
-}
-
-fn parse_truthy_env_flag(value: Option<String>) -> bool {
-    value
-        .as_deref()
-        .map(str::trim)
-        .map(|value| {
-            value == "1"
-                || value.eq_ignore_ascii_case("true")
-                || value.eq_ignore_ascii_case("yes")
-                || value.eq_ignore_ascii_case("on")
-        })
-        .unwrap_or(false)
 }
 
 fn resolve_usize_env_with_upper_bound(name: &str, default: usize, max: usize) -> usize {
@@ -388,17 +349,6 @@ fn reject_oversized_payload(bytes: usize, limit: usize) -> Result<(), MediaError
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_parse_truthy_env_flag_accepts_common_values() {
-        for value in ["1", "true", "TRUE", " yes ", "On"] {
-            assert!(parse_truthy_env_flag(Some(value.to_owned())));
-        }
-        for value in ["0", "false", "off", "no", "", "  "] {
-            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
-        }
-        assert!(!parse_truthy_env_flag(None));
-    }
 
     #[test]
     fn test_openapi_document_excludes_drive_owned_lifecycle_paths() {

@@ -2,9 +2,7 @@
 //! Canonical client paths live under `/im/v3/api/chat/` in `sdkwork-im-im.openapi.yaml`.
 
 use axum::Router;
-use axum::middleware;
 use axum::routing::get;
-use im_app_context::inject_app_request_context_middleware;
 
 pub fn build_app() -> Router {
     Router::new()
@@ -21,5 +19,5 @@ async fn readyz() -> &'static str {
 }
 
 pub fn build_public_app() -> Router {
-    build_app().layer(middleware::from_fn(inject_app_request_context_middleware))
+    build_app()
 }

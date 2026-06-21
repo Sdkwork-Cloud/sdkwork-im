@@ -6,7 +6,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::{Json, response::Response};
-use base64::Engine as _;
+use sdkwork_utils_rust::{base64url_decode, base64url_encode};
 use getrandom::fill as fill_random;
 use hmac::{Hmac, Mac};
 use im_app_context::AppContext;
@@ -454,8 +454,8 @@ pub(crate) struct SocialFriendshipSnapshotResponse {
 // ---------------------------------------------------------------------------
 
 #[derive(Clone)]
-pub(crate) struct AppState {
-    pub(crate) social_runtime: std::sync::Arc<SocialRuntime>,
+pub struct AppState {
+    pub social_runtime: std::sync::Arc<SocialRuntime>,
 }
 
 // ---------------------------------------------------------------------------
@@ -639,8 +639,8 @@ fn encode_signed_cursor_payload(
             "cursor payload could not be encoded",
         )
     })?;
-    let header_segment = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(header_bytes);
-    let payload_segment = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload_bytes);
+    let header_segment = base64url_encode(&header_bytes);
+    let payload_segment = base64url_encode(&payload_bytes);
     let signing_input = format!("{header_segment}.{payload_segment}");
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|_| {
         SocialServiceError::invalid(
@@ -649,8 +649,7 @@ fn encode_signed_cursor_payload(
         )
     })?;
     mac.update(signing_input.as_bytes());
-    let signature_segment =
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes());
+    let signature_segment = base64url_encode(mac.finalize().into_bytes().as_slice());
     Ok(format!("{signing_input}.{signature_segment}"))
 }
 
@@ -686,14 +685,12 @@ fn decode_signed_friend_request_cursor_payload(
             "friend request cursor must be a signed compact token",
         ));
     }
-    let header_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(segments[0])
-        .map_err(|_| {
-            SocialServiceError::invalid(
-                "cursor_invalid",
-                "friend request cursor header must be valid base64url",
-            )
-        })?;
+    let header_bytes = base64url_decode(segments[0]).ok_or_else(|| {
+        SocialServiceError::invalid(
+            "cursor_invalid",
+            "friend request cursor header must be valid base64url",
+        )
+    })?;
     let header: serde_json::Value = serde_json::from_slice(&header_bytes).map_err(|_| {
         SocialServiceError::invalid(
             "cursor_invalid",
@@ -718,14 +715,12 @@ fn decode_signed_friend_request_cursor_payload(
         ));
     }
 
-    let signature = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(segments[2])
-        .map_err(|_| {
-            SocialServiceError::invalid(
-                "cursor_invalid",
-                "friend request cursor signature must be valid base64url",
-            )
-        })?;
+    let signature = base64url_decode(segments[2]).ok_or_else(|| {
+        SocialServiceError::invalid(
+            "cursor_invalid",
+            "friend request cursor signature must be valid base64url",
+        )
+    })?;
     let secret = resolve_friend_request_cursor_signing_secret();
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|_| {
         SocialServiceError::invalid(
@@ -742,14 +737,12 @@ fn decode_signed_friend_request_cursor_payload(
         )
     })?;
 
-    let payload_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(segments[1])
-        .map_err(|_| {
-            SocialServiceError::invalid(
-                "cursor_invalid",
-                "friend request cursor payload must be valid base64url",
-            )
-        })?;
+    let payload_bytes = base64url_decode(segments[1]).ok_or_else(|| {
+        SocialServiceError::invalid(
+            "cursor_invalid",
+            "friend request cursor payload must be valid base64url",
+        )
+    })?;
     serde_json::from_slice(&payload_bytes).map_err(|_| {
         SocialServiceError::invalid(
             "cursor_invalid",
@@ -772,7 +765,7 @@ fn resolve_friend_request_cursor_signing_secret() -> String {
                     "{} is unset; using ephemeral in-memory friend request cursor signing secret",
                     FRIEND_REQUEST_CURSOR_HS256_SECRET_ENV
                 );
-                return base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+                return base64url_encode(&bytes);
             }
             let fallback = format!(
                 "ephemeral-friend-request-cursor-secret-{}",

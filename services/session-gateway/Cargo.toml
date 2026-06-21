@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "session-gateway"
 edition.workspace = true
 license.workspace = true
@@ -35,3 +35,5 @@ im-adapters-postgres-realtime = { path = "../../adapters/postgres-realtime" }
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tokio-tungstenite = "0.28.0"
 tower.workspace = true
+sdkwork-router-im-realtime-open-api = { path = "../../crates/sdkwork-router-im-realtime-open-api" }
+

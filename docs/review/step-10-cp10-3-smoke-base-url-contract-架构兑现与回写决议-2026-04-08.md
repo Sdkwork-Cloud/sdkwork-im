@@ -5,7 +5,7 @@
 - `docs/架构/137-部署拓扑与容量规划设计-2026-04-06.md`
 - `docs/架构/142-控制面与配置治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave D / Step 10 / CP10-3` 已开始把“可重复执行的 smoke”从底层工具脚本提升到标准 `retired-lifecycle-deploy` 交付入口
 - `137`
@@ -15,7 +15,7 @@
   - deploy-time/operator config 现在新增了显式 `SmokeBaseUrl` 参数层
   - 这使 smoke 目标地址不再是底层脚本里的隐式硬编码，而是进入统一的 operator contract
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - 真实容器链路上的 repeatable smoke 演练证据仍未完整闭环
 - health/readiness 更完整的部署后验证口径仍待继续补齐
 - `CP10-3` 整体尚未通过

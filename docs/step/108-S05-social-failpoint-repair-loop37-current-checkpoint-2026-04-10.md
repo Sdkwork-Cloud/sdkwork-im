@@ -5,7 +5,7 @@
 - 本轮已兑现:
   - 新增 `state/social-failpoints.json` 的一次性 `failNextSnapshotSave` 注入点
   - 新增 `POST /backend/v3/api/control/social/runtime/repair-derived-snapshot`
-  - 新增并转绿：
+  - 新增并保持通过：
     - `test_control_plane_social_file_runtime_failpoint_forces_next_snapshot_save_failure_once`
     - `test_control_plane_social_file_runtime_operator_repair_rebuilds_snapshot_after_failpoint`
   - fresh 包级回归：`cargo test -p control-plane-api --offline --tests -- --nocapture` = `58 passed`

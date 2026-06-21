@@ -6,7 +6,7 @@
 - `docs/架构/140-可观测性与SLO治理设计-2026-04-06.md`
 - `docs/架构/141-数据生命周期与归档成本治理设计2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave C / Step 09 / CP09-2` 已完成第一段真实落地：
     - `projection-service` 可以conversation summary + timeline snapshot 导出到统一 storage port
@@ -16,7 +16,7 @@
   - `MetadataStore / TimelineProjectionStore` 不再只是落盘接口，而开始进projection rebuild 链路
   - snapshot restore 明确使用 tenant-scoped key，避免多租户 conversation id 冲突污染同一projection store
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - `140`
   - snapshot persist / restore metrics / tracing / logging 本轮未触发
 - `141`

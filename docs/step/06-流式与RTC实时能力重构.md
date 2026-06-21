@@ -322,7 +322,7 @@ RTC 只负责信令：
     - `test_local_minimal_profile_maps_rtc_provider_callback_over_http`
     - `test_local_minimal_profile_gets_rtc_recording_artifact_over_http`
 - Step 06 / `06-B`
-  - provider external surface 已从 `session + credential + health` 收口径`callback + artifact`
+  - provider external surface 已从 `session + credential + health` 收口到 `callback + artifact`
   - 下一轮优`rtc-aliyun / rtc-tencent` adapter `ObjectStorageProvider` 录制产物归档接入
 ## 12. 2026-04-08 As-Built（RTC Aliyun / Tencent adapters
 

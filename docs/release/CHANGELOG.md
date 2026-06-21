@@ -1198,7 +1198,7 @@
   - recovery replay 可恢复 thread binding 与 owner metadata
 - TDD：
   - red：`cargo test -p conversation-runtime --offline --test conversation_flow_test test_create_thread_conversation_binds_parent_message_runtime_and_survives_recovery_replay -- --nocapture` 先因缺少 thread command/path 失败
-  - green：runtime 与 HTTP thread 回归转绿
+  - green：runtime 与 HTTP thread 回归保持通过
 - fresh verification：
   - `cargo test -p conversation-runtime --offline --test conversation_flow_test test_create_thread_conversation_binds_parent_message_runtime_and_survives_recovery_replay -- --nocapture` = `passed`
   - `cargo test -p conversation-runtime --offline --test http_smoke_test test_create_thread_conversation_over_http_and_query_binding -- --nocapture` = `passed`
@@ -1245,7 +1245,7 @@
   - `POST /backend/v3/api/control/social/runtime/repair-derived-snapshot` 现显式返回本次是否清理了 pending marker
   - `control-plane-api repair-social-runtime-dir --json` 现显式返回 `transactionMarkerCleared`
   - 文本型 CLI 输出新增 `transaction-marker-cleared: <bool>`
-- 以 TDD 新增并转绿：
+- 以 TDD 新增并保持通过：
   - `test_control_plane_repair_social_runtime_dir_cli_reports_transaction_marker_clearance_after_snapshot_failure`
 - 同步锁定 HTTP repair：
   - failpoint 路径 `transactionMarkerCleared = true`
@@ -1272,7 +1272,7 @@
   - runtime-dir social 写路径现在收敛为 `append social-commit-journal -> write social-transaction-marker -> save social-state -> clear marker`
   - 当 `snapshot save` 失败时，`state/social-transaction-marker.json` 会作为 durable pending marker 保留下来
   - startup replay、same-event retry、HTTP `repair-derived-snapshot` 与 standalone `repair-social-runtime-dir` CLI 在修复成功后都会清除 marker
-- 以 TDD 新增并转绿：
+- 以 TDD 新增并保持通过：
   - `test_control_plane_social_file_runtime_leaves_pending_tx_marker_after_snapshot_failure_and_clears_it_after_restart_replay`
 - fresh verification：
   - `cargo test -p control-plane-api --offline --test social_friend_request_test test_control_plane_social_file_runtime_leaves_pending_tx_marker_after_snapshot_failure_and_clears_it_after_restart_replay -- --nocapture` = `passed`
@@ -1298,7 +1298,7 @@
   - 当 social repair 失败时，wrapper 显式失败并传播退出码，避免 generic repair 成功掩盖 social snapshot 仍未修复的状态
 - 在 `services/local-minimal-node/src/node.rs` 补齐 `conversation_runtime::RuntimeError::InvalidInput` 与 `ConversationBindingNotFound` 的 `ApiError` 映射，恢复本轮 `local-minimal-node` regression 的可编译状态
 - 将 `docs/prompts/反复执行Step指令.md` 收敛为 concise repeated-step prompt，恢复 `provider_plugin_docs_test` 的文档门禁
-- 以 TDD 新增并转绿：
+- 以 TDD 新增并保持通过：
   - `test_repair_runtime_local_ps1_propagates_social_repair_failure_when_social_journal_exists`
   - `test_repair_runtime_local_sh_invokes_social_repair_after_generic_repair_when_social_journal_exists`
 - fresh verification：
@@ -1325,7 +1325,7 @@
   - `control-plane-api repair-social-runtime-dir --runtime-dir <path> [--json]`
   - 该命令会在 control-plane 进程外直接 replay `state/social-commit-journal.json`
   - replay 成功后会重建 `state/social-state.json`，并以 JSON/文本输出 repair 结果与 aggregate counts
-- 以 TDD 新增并转绿：
+- 以 TDD 新增并保持通过：
   - `test_control_plane_repair_social_runtime_dir_cli_replays_journal_into_snapshot`
 - fresh verification：
   - `cargo test -p control-plane-api --offline --test social_runtime_cli_test test_control_plane_repair_social_runtime_dir_cli_replays_journal_into_snapshot -- --nocapture` = `passed`
@@ -1348,7 +1348,7 @@
   - runtime-dir 模式新增 `journal_path` 持有
   - `POST /backend/v3/api/control/social/runtime/repair-derived-snapshot` 现在直接 replay journal 并刷新 live state + derived snapshot
   - repair 现可吸收 runtime 启动后由外部追加到 journal 的 committed truth
-- 以 TDD 新增并转绿：
+- 以 TDD 新增并保持通过：
   - `test_control_plane_social_file_runtime_operator_repair_replays_external_journal_append_into_live_state`
   - `test_control_plane_social_file_runtime_operator_repair_rebuilds_snapshot_after_failpoint`
 - fresh verification：
@@ -1373,7 +1373,7 @@
   - 当 `social-commit-journal.json` 已 durable 而 `social-state.json` 写失败时，首次写口不再返回 `social_state_unavailable`
   - 写口直接返回 committed truth，并显式带出 `persistence.journalAuthority + persistence.snapshotStatus`
   - `same-event retry` 在 snapshot 可修复时会把 `snapshotStatus` 收敛回 `current`
-- 以 TDD 更新并转绿：
+- 以 TDD 更新并保持通过：
   - `test_control_plane_social_file_runtime_keeps_direct_chat_pair_guard_after_snapshot_save_failure`
   - `test_control_plane_social_file_runtime_replays_same_event_id_after_snapshot_save_failure`
   - `test_control_plane_social_file_runtime_failpoint_forces_next_snapshot_save_failure_once`
@@ -1403,7 +1403,7 @@
   - 一次性 `failNextSnapshotSave` 可稳定制造 `journal committed + snapshot unavailable`
   - 新增 `POST /backend/v3/api/control/social/runtime/repair-derived-snapshot`
   - operator repair 后可直接回写 `social-state.json`，并在重启后读回 repaired truth
-- 以 TDD 新增并转绿：
+- 以 TDD 新增并保持通过：
   - `test_control_plane_social_file_runtime_failpoint_forces_next_snapshot_save_failure_once`
   - `test_control_plane_social_file_runtime_operator_repair_rebuilds_snapshot_after_failpoint`
 - fresh verification：
@@ -1430,7 +1430,7 @@
   - 同租户同 `eventId` 且 commit 一致时，直接回放已提交结果
   - same-event replay 不再重复追加 `social-commit-journal.json`
   - 同租户复用相同 `eventId` 但提交不同 commit 时，显式返回 `social_event_id_conflict`
-- 以 TDD 新增并转绿：
+- 以 TDD 新增并保持通过：
   - `test_control_plane_social_file_runtime_replays_same_event_id_after_snapshot_save_failure`
 - fresh verification：
   - `cargo test -p control-plane-api --offline --test social_friend_request_test test_control_plane_social_file_runtime_replays_same_event_id_after_snapshot_save_failure -- --nocapture` = `passed`
@@ -1454,7 +1454,7 @@
   - 若 `social-state.json` 保存失败，live state 仍推进到 `next_state`
   - 因此后续 `direct_chat pair guard` 等冲突校验不再继续跑在旧内存上
   - 接口仍返回 `social_state_unavailable`，客户端确认/重试语义仍属 deferred
-- 以 TDD 新增并转绿：
+- 以 TDD 新增并保持通过：
   - `test_control_plane_social_file_runtime_keeps_direct_chat_pair_guard_after_snapshot_save_failure`
 - fresh verification：
   - `cargo fmt -p control-plane-api` = `passed`
@@ -1477,7 +1477,7 @@
   - 若 `social-commit-journal.json` 存在，则从默认空状态 replay 并回写 `social-state.json`
   - 持久化顺序改为 `append social-commit-journal.json -> save social-state.json`
   - `snapshot ahead of journal` 不再在重启后形成 phantom truth
-- 以 TDD 新增并转绿：
+- 以 TDD 新增并保持通过：
   - `test_control_plane_social_file_runtime_discards_friend_request_snapshot_ahead_of_journal`
   - `test_control_plane_social_file_runtime_discards_direct_chat_snapshot_ahead_of_journal`
 - 既有 replay 回归继续通过：
@@ -1507,7 +1507,7 @@
 - 在 `crates/im-domain-events` 补齐 replay 所需 payload：
   - `FriendRequestSubmittedPayload.requestMessage`
   - `UserBlockedPayload.expiresAt`
-- 以 TDD 新增并转绿：
+- 以 TDD 新增并保持通过：
   - `test_control_plane_social_file_runtime_replays_friend_request_when_snapshot_is_missing`
   - `test_control_plane_social_file_runtime_replays_direct_chat_pair_guard_when_snapshot_is_missing`
 - fresh verification：
@@ -1774,7 +1774,7 @@
 - 在 `crates/im-domain-core/src/conversation.rs` 收紧 `ConversationPolicy::normalize()`：仅允许 `joined / world_readable`，并对 `invited/shared` 返回显式 unsupported，终止“已发布但未实现”的 history visibility 漂移。
 - 在 `crates/sdkwork-im-ccp-registry/src/lib.rs` 把 `businessPolicyVocabulary.historyVisibilityModes` 收敛为 `joined / world_readable`，使 registry、control-plane、runtime 对外口径一致。
 - 在 `services/conversation-runtime/src/runtime/policy.rs` 移除 `invited/shared` 的隐式活跃成员语义；若 runtime 读路径遇到 legacy 快照，返回显式 unsupported，而不是继续伪装成受支持模式。
-- 以 TDD 扩展 `crates/im-domain-core/tests/conversation_domain_builder_test.rs`、`crates/sdkwork-im-ccp-registry/tests/governance_snapshot_test.rs`、`services/control-plane-api/tests/protocol_governance_test.rs`、`services/conversation-runtime/tests/http_smoke_test.rs`，先证明 domain/registry/control-plane/runtime 都在错误接受或发布未实现模式，再转绿。
+- 以 TDD 扩展 `crates/im-domain-core/tests/conversation_domain_builder_test.rs`、`crates/sdkwork-im-ccp-registry/tests/governance_snapshot_test.rs`、`services/control-plane-api/tests/protocol_governance_test.rs`、`services/conversation-runtime/tests/http_smoke_test.rs`，先证明 domain/registry/control-plane/runtime 都在错误接受或发布未实现模式，再保持通过。
 - 更新 `docs/review/S09-*`、`docs/review/S10-准入判断-2026-04-10.md`、`docs/架构/152CJ-current-architecture-as-built-alignment-2026-04-09.md`、`docs/架构/152CJ-Loop19补充-2026-04-10.md`、`docs/release/2026-04-10-v0.0.19-loop-19.md`，把 `S09` 正式提升为 `step_closure`，并解除 `S10` 准入阻塞。
 - fresh verification：
   - `cargo test -p im-domain-core --offline`：`passed`

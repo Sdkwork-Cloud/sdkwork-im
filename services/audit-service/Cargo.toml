@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "audit-service"
 edition.workspace = true
 license.workspace = true
@@ -20,3 +20,5 @@ sdkwork_utils_rust.workspace = true
 [dev-dependencies]
 http-body-util.workspace = true
 tower.workspace = true
+sdkwork-router-im-audit-backend-api = { path = "../../crates/sdkwork-router-im-audit-backend-api" }
+

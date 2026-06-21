@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "notification-service"
 edition.workspace = true
 license.workspace = true
@@ -27,3 +27,5 @@ tracing-subscriber.workspace = true
 http-body-util.workspace = true
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tower.workspace = true
+sdkwork-router-im-notification-app-api = { path = "../../crates/sdkwork-router-im-notification-app-api" }
+

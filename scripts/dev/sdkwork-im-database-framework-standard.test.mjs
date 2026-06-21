@@ -50,4 +50,11 @@ assert.match(databaseHostCargo, /sdkwork_database_lifecycle/u);
 const specsReadme = read('specs/README.md');
 assert.match(specsReadme, /DATABASE_SPEC\.md/u);
 
+for (const engine of ['postgres', 'sqlite']) {
+  const migrationUp = `database/migrations/${engine}/0001_im_legacy_baseline.up.sql`;
+  const migrationDown = `database/migrations/${engine}/0001_im_legacy_baseline.down.sql`;
+  assert.ok(fs.existsSync(path.join(repoRoot, migrationUp)), `${migrationUp} must exist for L2 lifecycle`);
+  assert.ok(fs.existsSync(path.join(repoRoot, migrationDown)), `${migrationDown} must exist for L2 lifecycle`);
+}
+
 process.stdout.write('sdkwork-im database framework standard contract passed\n');

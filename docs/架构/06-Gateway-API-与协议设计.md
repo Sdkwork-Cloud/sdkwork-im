@@ -103,8 +103,8 @@
 - `GET /im/v3/api/chat/conversations/{id}/messages`
 - `POST /im/v3/api/chat/messages/{id}/edit`
 - `POST /im/v3/api/chat/messages/{id}/recall`
-- 当前最小实现中，`POST /im/v3/api/chat/conversations/{id}/messages` 支持 `text` 与 `parts` 混合提交；`parts` 可包含`text/data/media/signal/stream_ref`
-- 已读推进统一按`POST /im/v3/api/chat/conversations/{id}/read-cursor`，避免把 read/ack 状态混入消息发送命令
+- 当前最小实现中，`POST /im/v3/api/chat/conversations/{id}/messages` 支持 `text` 与 `parts` 混合提交；`parts` 可包含 `text/data/media/signal/stream_ref`
+- 已读推进统一使用 `POST /im/v3/api/chat/conversations/{id}/read-cursor`，避免把 read/ack 状态混入消息发送命令
 - `POST /im/v3/api/chat/messages/{id}/edit` `POST /im/v3/api/chat/messages/{id}/recall` 作用于既有消息，服务端必须自行解析消息所属会话，客户端无需重复提交 `conversationId`
 - 编辑和撤回都采用事件追加，不允许原地覆盖 durable message log
 
@@ -140,7 +140,7 @@
 - `POST /im/v3/api/calls/sessions/{id}/end`
 - `POST /im/v3/api/calls/sessions/{id}/signals`
 - 当前最小实现先通过 `invite/accept/reject/end` 写入信令状态，独立 `signals` 接口保留为后续扩展
-- 当前最小实现中，当 RTC 会话已绑定`conversationId` 时，`invite/accept/reject/end` 会额外提交一条 `messageType=signal` 的消息，消息体包含 `SignalPart`，并进入时间线与摘要投影
+- 当前最小实现中，当 RTC 会话已绑定 `conversationId` 时，`invite/accept/reject/end` 会额外提交一条 `messageType=signal` 的消息，消息体包含 `SignalPart`，并进入时间线与摘要投影
 
 ### 3.6 文件资源
 
@@ -171,11 +171,11 @@
 - `GET /backend/v3/api/ops/cluster`
 - `GET /backend/v3/api/ops/lag`
 - `GET /backend/v3/api/ops/diagnostics`
-- 当前最小实现中，消息提交、通知请求、自动化执行都会留下审计锚点；运维面暴露单节点`self-hosted.split-services.development` 的 cluster / lag / diagnostic 视图：
+- 当前最小实现中，消息提交、通知请求、自动化执行都会留下审计锚点；运维面暴露单节点 `self-hosted.split-services.development` 的 cluster / lag / diagnostic 视图：
 
 ### 3.10 认证上下文约定
 
-- 外部 API 请求体不得显式提供`tenantId`、`creatorId`、`senderId`、`initiatorId`
+- 外部 API 请求体不得显式提供 `tenantId`、`creatorId`、`senderId`、`initiatorId`
 - `tenant`、`actor`、`session` 必须从已校验的 JWT / session / trusted identity context 中提取
 - `clientRouteId` 优先从 JWT claim 或可信头提取；仅在设备首次注册时允许显式输入，并在进入命令与投影层前绑定到认证上下文档
 - gateway 负责把认证上下文转换成内部命令上下文与 envelope 字段：
@@ -213,7 +213,7 @@
 ```
 
 - `readSeq` 只能前进不能回退；小于当前游标的重复提交按幂等处理，返回当前高水位
-- 当成员经`left -> rejoin` 形成新的 membership episode 时：
+- 当成员经由 `left -> rejoin` 形成新的 membership episode 时：
   - `GET /read-cursor` 只返回当前 active episode 对应的 `memberId`
   - 新 episode 的初始游标必须从 `readSeq = 0` 开启
   - 历史 episode 的游标仅作为历史数据保留，不能复用到新 episode

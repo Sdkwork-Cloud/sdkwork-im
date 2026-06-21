@@ -57,7 +57,7 @@ fn gateway_test_access_token_header() -> String {
 
 fn gateway_numeric_auth_headers() -> HeaderMap {
     let mut context = local_service_app_context(
-        "20001",
+        "100001",
         "user_numeric",
         "user",
         Some("device_numeric"),
@@ -373,7 +373,7 @@ async fn gateway_accepts_numeric_appbase_session_context_ids_for_proxied_im_rout
 
     assert_eq!(response.status(), StatusCode::OK);
     let context = read_json_body(response).await;
-    assert_eq!(context["tenantId"], "20001");
+    assert_eq!(context["tenantId"], "100001");
     assert_eq!(context["organizationId"], "30001");
     assert_eq!(context["userId"], "user_numeric");
     assert_eq!(context["sdkworkInternalHeadersForwarded"], false);

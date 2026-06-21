@@ -7,7 +7,7 @@
 - `docs/架构/140-可观测性与SLO治理设计-2026-04-06.md`
 - `docs/架构/141-数据生命周期与归档成本治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave C / Step 09 / CP09-1` 已完成第一段真实落地：`local-disk` 补齐 `MetadataStore` 与 `TimelineProjectionStore`
 - `132`
@@ -15,7 +15,7 @@
   - metadata snapshot 与 timeline projection 现在都拥有 file-backed 本地适配器
   - `local-memory / local-disk` 的平台端口对齐更接近统一 storage abstraction baseline
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - `138`
   - projection rebuild / recovery / tenant-scoped recovery 仍未进入真实恢复链路
 - `140`

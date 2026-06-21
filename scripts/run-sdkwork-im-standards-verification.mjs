@@ -10,6 +10,7 @@ const pnpmExecutable = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const standardChecks = [
   'test:sdkwork-workspace-structure-standard',
   'test:web-framework-standard',
+  'test:web-backend-standard',
   'test:database-framework-standard',
   'test:utils-standard',
   'test:runtime-standard',
@@ -25,6 +26,8 @@ const standardChecks = [
   'test:governed-docs-encoding',
   'test:review-step-docs-encoding',
   'test:release-docs-encoding',
+  'test:architecture-docs-encoding',
+  'test:docs-strip-damage',
   'test:component-spec-consistency',
   'test:apis-authority-standard',
   'check:agent-workflow-standard',

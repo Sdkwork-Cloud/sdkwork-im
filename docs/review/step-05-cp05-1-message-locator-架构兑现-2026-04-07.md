@@ -7,14 +7,14 @@
 - `docs/架构/136-关键业务链路与跨Plane时序设计-2026-04-06.md`
 - `docs/架构/147-CCP到Crate与接口模块落地映射设计-2026-04-06.md`
 
-## 2. 已兑现能力
+## 2. 已兑现能力力力
 
 - `MessageLocatorIndex` 作为跨会话消息定位 owner 已落到 `im-domain-core::message`
 - runtime live path 与 replay path 统一通过 domain owner 完成 message -> conversation 定位
 - runtime 不再维护 direct `message_index`
 - `CP05-1` 可以据此改判为已闭环
 
-## 3. 未兑现能力
+## 3. 未兑现能力力力
 
 - `CP05-2`
   - `sender / tenant` authority closure

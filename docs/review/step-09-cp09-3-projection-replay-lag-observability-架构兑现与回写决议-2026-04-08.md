@@ -7,7 +7,7 @@
 - `docs/架构/140-可观测性与SLO治理设计-2026-04-06.md`
 - `docs/架构/141-数据生命周期与归档成本治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave C / Step 09 / CP09-3` 已完成第二段真实落地：
     - projection replay 现在具备 `backlog / replayed count / duration` 指标
@@ -33,7 +33,7 @@
     - `replay duration`
   - `ops/lag` 也开始拥有 plane-specific replay lag evidence，而不是只有通用静态占位
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - `140`
   - 持续运行态的 live projection lag 仍未落地
   - `replay throughput / rebuild duration / inbox-timeline update delay` 仍未落地

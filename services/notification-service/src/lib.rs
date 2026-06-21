@@ -9,9 +9,7 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use im_app_context::{
-    AppContext, AppContextError, resolve_app_context, resolve_app_context_for_request,
-};
+use im_app_context::{AppContext, AppContextError, resolve_app_context};
 pub use im_domain_core::notification::{NotificationStatus, NotificationTask};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_time::utc_now_rfc3339_millis;
@@ -34,18 +32,15 @@ const NOTIFICATION_MAX_REQUEST_BODY_BYTES_ENV: &str =
     "SDKWORK_IM_NOTIFICATION_MAX_REQUEST_BODY_BYTES";
 const NOTIFICATION_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const NOTIFICATION_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
-const NOTIFICATION_REQUIRE_DUAL_TOKEN_HEADERS_ENV: &str =
-    "SDKWORK_IM_NOTIFICATION_REQUIRE_DUAL_TOKEN_HEADERS";
 
 #[derive(Clone)]
-struct AppState {
+pub struct AppState {
     runtime: Arc<NotificationRuntime>,
 }
 
 #[derive(Clone)]
 struct PublicAppGuardrails {
     request_gate: Arc<Semaphore>,
-    require_dual_token_headers: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -826,29 +821,18 @@ impl NotificationTaskStore for RuntimeMemoryNotificationTaskStore {
     }
 }
 
+pub fn default_app_state() -> AppState {
+    AppState {
+        runtime: Arc::new(NotificationRuntime::default()),
+    }
+}
+
 pub fn build_default_app() -> Router {
     build_app(Arc::new(NotificationRuntime::default()))
 }
 
-pub fn build_public_app() -> Router {
-    let guardrails = PublicAppGuardrails {
-        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
-        require_dual_token_headers: resolve_require_dual_token_headers(),
-    };
-    build_default_app()
-        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
-        .layer(middleware::from_fn_with_state(
-            guardrails,
-            require_app_context,
-        ))
-}
-
-pub fn build_app(runtime: Arc<NotificationRuntime>) -> Router {
+pub fn build_domain_api_router(state: AppState) -> Router {
     Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
-        .route("/openapi.json", get(openapi_json))
-        .route("/docs", get(docs))
         .route(
             "/app/v3/api/notifications/requests",
             post(request_notification),
@@ -858,52 +842,61 @@ pub fn build_app(runtime: Arc<NotificationRuntime>) -> Router {
             "/app/v3/api/notifications/{notification_id}",
             get(get_notification),
         )
-        .with_state(AppState { runtime })
+        .with_state(state)
 }
 
-async fn require_app_context(
+pub fn apply_public_http_guardrails(router: Router) -> Router {
+    let guardrails = PublicAppGuardrails {
+        request_gate: Arc::new(Semaphore::new(resolve_max_in_flight_requests())),
+    };
+    router
+        .layer(DefaultBodyLimit::max(resolve_max_http_request_body_bytes()))
+        .layer(middleware::from_fn_with_state(
+            guardrails,
+            enforce_in_flight_gate,
+        ))
+}
+
+pub fn build_public_app() -> Router {
+    apply_public_http_guardrails(build_default_app())
+}
+
+pub fn build_app(runtime: Arc<NotificationRuntime>) -> Router {
+    let state = AppState { runtime };
+    Router::new()
+        .route("/healthz", get(healthz))
+        .route("/readyz", get(readyz))
+        .route("/openapi.json", get(openapi_json))
+        .route("/docs", get(docs))
+        .merge(build_domain_api_router(state))
+}
+
+async fn enforce_in_flight_gate(
     State(guardrails): State<PublicAppGuardrails>,
-    mut request: Request<axum::body::Body>,
+    request: Request<axum::body::Body>,
     next: Next,
 ) -> Response {
-    match request.uri().path() {
-        "/healthz" | "/readyz" | "/openapi.json" | "/docs" => next.run(request).await,
-        _ => {
-            let permit = match guardrails.request_gate.clone().try_acquire_owned() {
-                Ok(permit) => permit,
-                Err(_) => {
-                    return NotificationError {
-                        status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                        code: "http_overloaded",
-                        message:
-                            "server is at maximum in-flight request capacity, please retry later"
-                                .to_owned(),
-                    }
-                    .into_response();
-                }
-            };
-            if guardrails.require_dual_token_headers
-                && let Err(error) = require_dual_token_headers(request.headers())
-            {
-                return error.into_response();
-            }
-            let resolved = match resolve_app_context_for_request(
-                request.headers(),
-                request.uri().path(),
-                request.method().as_str(),
-            ) {
-                Ok(resolved) => resolved,
-                Err(error) => return NotificationError::from(error).into_response(),
-            };
-            request
-                .extensions_mut()
-                .insert(resolved.app_request_context);
-            request.extensions_mut().insert(resolved.app_context);
-            let response = next.run(request).await;
-            drop(permit);
-            response
-        }
+    if matches!(
+        request.uri().path(),
+        "/healthz" | "/readyz" | "/openapi.json" | "/docs"
+    ) {
+        return next.run(request).await;
     }
+    let permit = match guardrails.request_gate.clone().try_acquire_owned() {
+        Ok(permit) => permit,
+        Err(_) => {
+            return NotificationError {
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                code: "http_overloaded",
+                message:
+                    "server is at maximum in-flight request capacity, please retry later".to_owned(),
+            }
+            .into_response();
+        }
+    };
+    let response = next.run(request).await;
+    drop(permit);
+    response
 }
 
 async fn healthz() -> Json<HealthResponse> {
@@ -1228,47 +1221,6 @@ fn resolve_request_app_context(
     }
 }
 
-fn require_dual_token_headers(headers: &HeaderMap) -> Result<(), NotificationError> {
-    if !has_bearer_auth_token(headers) {
-        return Err(NotificationError {
-            status: axum::http::StatusCode::UNAUTHORIZED,
-            code: "auth_token_missing",
-            message: "authorization header must provide a bearer token".to_owned(),
-        });
-    }
-    if !has_access_token_header(headers) {
-        return Err(NotificationError {
-            status: axum::http::StatusCode::UNAUTHORIZED,
-            code: "access_token_missing",
-            message: "access-token header is required".to_owned(),
-        });
-    }
-    Ok(())
-}
-
-fn has_bearer_auth_token(headers: &HeaderMap) -> bool {
-    headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .and_then(|value| {
-            let (scheme, token) = value.split_once(' ')?;
-            if scheme.eq_ignore_ascii_case("bearer") && !token.trim().is_empty() {
-                return Some(());
-            }
-            None
-        })
-        .is_some()
-}
-
-fn has_access_token_header(headers: &HeaderMap) -> bool {
-    headers
-        .get("access-token")
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .is_some_and(|value| !value.is_empty())
-}
-
 fn resolve_max_in_flight_requests() -> usize {
     std::env::var(NOTIFICATION_MAX_IN_FLIGHT_REQUESTS_ENV)
         .ok()
@@ -1285,22 +1237,6 @@ fn resolve_max_http_request_body_bytes() -> usize {
         .filter(|&parsed| parsed > 0)
         .unwrap_or(NOTIFICATION_MAX_REQUEST_BODY_BYTES_DEFAULT)
         .min(NOTIFICATION_MAX_REQUEST_BODY_BYTES_MAX)
-}
-
-fn resolve_require_dual_token_headers() -> bool {
-    std::env::var(NOTIFICATION_REQUIRE_DUAL_TOKEN_HEADERS_ENV)
-        .ok()
-        .map(|value| parse_truthy_env_flag(Some(value)))
-        .unwrap_or(true)
-}
-
-fn parse_truthy_env_flag(raw: Option<String>) -> bool {
-    raw.as_deref().map(str::trim).is_some_and(|value| {
-        matches!(
-            value.to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        )
-    })
 }
 
 const NOTIFICATION_MAX_TITLE_BYTES: usize = 8 * 1024;
@@ -1662,31 +1598,5 @@ mod tests {
             Some("2026-05-06T00:00:02.000Z")
         );
         assert_eq!(restored.updated_at, "2026-05-06T00:00:02.000Z");
-    }
-
-    #[test]
-    fn parse_truthy_env_flag_accepts_common_truthy_values() {
-        for value in ["1", "true", "TRUE", " yes ", "On"] {
-            assert!(parse_truthy_env_flag(Some(value.to_owned())));
-        }
-        for value in ["0", "false", "off", "no", "", "  "] {
-            assert!(!parse_truthy_env_flag(Some(value.to_owned())));
-        }
-        assert!(!parse_truthy_env_flag(None));
-    }
-
-    #[test]
-    fn dual_token_header_helpers_validate_auth_and_access_headers() {
-        let mut headers = HeaderMap::new();
-        assert!(!has_bearer_auth_token(&headers));
-        assert!(!has_access_token_header(&headers));
-
-        headers.insert(
-            axum::http::header::AUTHORIZATION,
-            HeaderValue::from_static("Bearer auth_token"),
-        );
-        headers.insert("access-token", HeaderValue::from_static("access_token"));
-        assert!(has_bearer_auth_token(&headers));
-        assert!(has_access_token_header(&headers));
     }
 }

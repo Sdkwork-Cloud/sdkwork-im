@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "projection-service"
 edition.workspace = true
 license.workspace = true
@@ -23,3 +23,5 @@ tracing-subscriber.workspace = true
 http-body-util.workspace = true
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tower.workspace = true
+sdkwork-router-im-projection-open-api = { path = "../../crates/sdkwork-router-im-projection-open-api" }
+

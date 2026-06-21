@@ -6,7 +6,7 @@
 - `docs/架构/138-高可用与灾备恢复设计-2026-04-06.md`
 - `docs/架构/142-控制面与配置治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Step 10 / CP10-1` 现在已经把 `self-hosted.split-services.development` 命令面冻结为统一入口：
     - `install`
@@ -23,7 +23,7 @@
 - `142`
   - `init-config-local` 与快启命令矩阵已把配置初始化、运行时入口和运维入口固定到统一的控制面/配置治理话语体系
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - 多环境 profile/template 仍未完成真实收敛
 - Docker / compose smoke 的跨 profile 重复执行仍待后续 `CP10-3`
 - repair / restore / inspect 脚本虽然已进入命令矩阵，但完整标准运维演练仍待 `CP10-4`

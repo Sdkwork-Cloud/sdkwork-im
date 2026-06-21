@@ -7,7 +7,7 @@
 - `docs/架构/140-可观测性与SLO治理设计-2026-04-06.md`
 - `docs/架构/141-数据生命周期与归档成本治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave C / Step 09 / CP09-3` 已完成第六段真实落地：
     - `projectionPlane.rebuildDurationMs` 已通过真实代码、测试和公开 ops 读面落地
@@ -30,7 +30,7 @@
     - `replay throughput`
   - 因此本文第 `5.5 Projection Plane` 的核心指标集合，现在已具备 code-backed evidence
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - `140`
   - 更完整的 SLO / alert threshold / error taxonomy / external telemetry sink 仍未落地
   - 但这些已不再阻塞 `CP09-3` 的“基本收口”判定

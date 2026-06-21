@@ -22,4 +22,4 @@
 ## 放行标准
 
 - 四个叶子 README 全部显式表达 `versionDecisionSourcePath = null`
-- fresh `fmt --check` 与 `chat_cli_contract_test` 转绿
+- fresh `fmt --check` 与 `chat_cli_contract_test` 保持通过

@@ -5,7 +5,7 @@
 - `docs/架构/137-部署拓扑与容量规划设计-2026-04-06.md`
 - `docs/架构/142-控制面与配置治理设计-2026-04-06.md`
 
-## 本轮已兑现能力
+## 本轮已兑现能力力力力力
 - `09`
   - `Wave D / Step 10 / CP10-4` 已把 runtime ops 从“存在脚本”推进到“遵守统一 profile 语义的 operator contract”
 - `137`
@@ -15,7 +15,7 @@
   - runtime operator config 已新增显式 profile selector 及 config 解析顺序
   - 这使运行目录选择不再是脚本内部隐式常量，而是受 deploy-time/operator config 约束的能力
 
-## 本轮未兑现能力
+## 本轮未兑现能力力力力力
 - `Step 10` 整步审计尚未写回
 - `Step 11` 的压测、故障演练、灾备验证尚未开始
 - `self-hosted.split-services.development` 的独立拓扑仍未进入本轮范围
