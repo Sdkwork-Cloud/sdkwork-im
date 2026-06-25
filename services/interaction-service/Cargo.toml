@@ -1,0 +1,10 @@
+[package]
+name = "interaction-service"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+axum.workspace = true
+im-app-context = { path = "../../crates/im-app-context" }
+sdkwork_im_service_readiness = { workspace = true }
