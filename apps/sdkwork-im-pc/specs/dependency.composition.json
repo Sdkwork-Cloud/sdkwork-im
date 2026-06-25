@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.dependency.composition",
+  "applicationCode": "im",
+  "clientArchitecture": "pc",
+  "surfaces": [
+    {
+      "surface": "app",
+      "corePackage": "@sdkwork/im-pc-core",
+      "sdkClients": [
+        {
+          "id": "appbaseApp",
+          "workspace": "sdkwork-iam-app-sdk",
+          "surface": "app-api",
+          "credentialMode": "authenticated-app-api",
+          "nativePackage": "@sdkwork/iam-app-sdk",
+          "role": "dependency",
+          "sdkDependencyRef": "sdkwork-iam-app-sdk",
+          "exportFrom": "@sdkwork/im-pc-core/sdk"
+        },
+        {
+          "id": "imApp",
+          "workspace": "sdkwork-im-app-sdk",
+          "surface": "app-api",
+          "credentialMode": "authenticated-app-api",
+          "nativePackage": "@sdkwork/im-sdk",
+          "role": "application-owned",
+          "exportFrom": "@sdkwork/im-pc-core/sdk"
+        },
+        {
+          "id": "driveApp",
+          "workspace": "sdkwork-drive-app-sdk",
+          "surface": "app-api",
+          "credentialMode": "authenticated-app-api",
+          "nativePackage": "@sdkwork/drive-app-sdk",
+          "role": "dependency",
+          "sdkDependencyRef": "sdkwork-drive-app-sdk",
+          "exportFrom": "@sdkwork/im-pc-core/sdk"
+        },
+        {
+          "id": "knowledgebaseApp",
+          "workspace": "sdkwork-knowledgebase-app-sdk",
+          "surface": "app-api",
+          "credentialMode": "authenticated-app-api",
+          "nativePackage": "@sdkwork/knowledgebase-app-sdk",
+          "role": "dependency",
+          "sdkDependencyRef": "sdkwork-knowledgebase-app-sdk",
+          "exportFrom": "@sdkwork/im-pc-core/sdk"
+        },
+        {
+          "id": "notaryApp",
+          "workspace": "sdkwork-notary-app-sdk",
+          "surface": "app-api",
+          "credentialMode": "authenticated-app-api",
+          "nativePackage": "@sdkwork/notary-app-sdk",
+          "role": "dependency",
+          "sdkDependencyRef": "sdkwork-notary-app-sdk",
+          "exportFrom": "@sdkwork/im-pc-core/sdk"
+        },
+        {
+          "id": "rtcApp",
+          "workspace": "sdkwork-rtc-app-sdk",
+          "surface": "app-api",
+          "credentialMode": "authenticated-app-api",
+          "nativePackage": "@sdkwork/rtc-sdk",
+          "role": "dependency",
+          "sdkDependencyRef": "sdkwork-rtc-app-sdk",
+          "exportFrom": "@sdkwork/im-pc-core/sdk"
+        }
+      ],
+      "reusableModules": [
+        "@sdkwork/drive-pc-drive",
+        "@sdkwork/knowledgebase-pc-knowledge"
+      ],
+      "hostAdapters": [],
+      "dependencyApiExports": [],
+      "dependencyApiSurfaces": []
+    },
+    {
+      "surface": "backend-admin",
+      "corePackage": "@sdkwork/im-admin-core",
+      "sdkClients": [
+        {
+          "id": "appbaseBackend",
+          "workspace": "sdkwork-iam-backend-sdk",
+          "surface": "backend-api",
+          "credentialMode": "authenticated-backend-admin",
+          "nativePackage": "@sdkwork/iam-backend-sdk",
+          "role": "dependency",
+          "sdkDependencyRef": "sdkwork-iam-backend-sdk",
+          "exportFrom": "@sdkwork/im-admin-core/sdk"
+        },
+        {
+          "id": "imBackend",
+          "workspace": "sdkwork-im-backend-sdk",
+          "surface": "backend-api",
+          "credentialMode": "authenticated-backend-admin",
+          "nativePackage": "@sdkwork-internal/im-backend-api-generated",
+          "role": "application-owned",
+          "exportFrom": "@sdkwork/im-admin-core/sdk"
+        }
+      ],
+      "reusableModules": [],
+      "hostAdapters": [],
+      "dependencyApiExports": [],
+      "dependencyApiSurfaces": []
+    },
+    {
+      "surface": "console",
+      "corePackage": "@sdkwork/im-console-core",
+      "sdkClients": [
+        {
+          "id": "appbaseApp",
+          "workspace": "sdkwork-iam-app-sdk",
+          "surface": "app-api",
+          "credentialMode": "authenticated-app-api",
+          "nativePackage": "@sdkwork/iam-app-sdk",
+          "role": "dependency",
+          "sdkDependencyRef": "sdkwork-iam-app-sdk",
+          "exportFrom": "@sdkwork/im-pc-core/sdk"
+        },
+        {
+          "id": "imApp",
+          "workspace": "sdkwork-im-app-sdk",
+          "surface": "app-api",
+          "credentialMode": "authenticated-app-api",
+          "nativePackage": "@sdkwork/im-sdk",
+          "role": "application-owned",
+          "exportFrom": "@sdkwork/im-pc-core/sdk"
+        }
+      ],
+      "reusableModules": [],
+      "hostAdapters": [],
+      "dependencyApiExports": [],
+      "dependencyApiSurfaces": []
+    }
+  ],
+  "buildToolEntries": {
+    "pnpm": {
+      "workspacePackages": [
+        "@sdkwork/im-pc-core",
+        "@sdkwork/im-admin-core",
+        "@sdkwork/im-console-core",
+        "@sdkwork/im-admin-dashboard",
+        "@sdkwork/im-admin-infra",
+        "@sdkwork/im-admin-infrastructure",
+        "@sdkwork/im-admin-operations",
+        "@sdkwork/im-admin-ops",
+        "@sdkwork/im-admin-tenants",
+        "@sdkwork/im-console-communications",
+        "@sdkwork/im-console-dashboard",
+        "@sdkwork/im-console-integrations",
+        "@sdkwork/im-console-product",
+        "@sdkwork/im-console-roles",
+        "@sdkwork/im-console-security",
+        "@sdkwork/im-console-settings",
+        "@sdkwork/im-console-shop",
+        "@sdkwork/im-console-users",
+        "@sdkwork/im-pc-approvals",
+        "@sdkwork/im-pc-attendance",
+        "@sdkwork/im-pc-calendar",
+        "@sdkwork/im-pc-chat",
+        "@sdkwork/im-pc-commons",
+        "@sdkwork/im-pc-community",
+        "@sdkwork/im-pc-course",
+        "@sdkwork/im-pc-desktop",
+        "@sdkwork/im-pc-devices",
+        "@sdkwork/im-pc-enterprise",
+        "@sdkwork/im-pc-image-gen",
+        "@sdkwork/im-pc-mail",
+        "@sdkwork/im-pc-music-gen",
+        "@sdkwork/im-pc-orders",
+        "@sdkwork/im-pc-reports",
+        "@sdkwork/im-pc-shell",
+        "@sdkwork/im-pc-shop",
+        "@sdkwork/im-pc-types",
+        "@sdkwork/im-pc-video-gen",
+        "@sdkwork/im-pc-voice",
+        "@sdkwork/im-pc-voice-gen",
+        "@sdkwork/im-pc-workspace",
+        "@sdkwork/im-pc-writing"
+      ]
+    }
+  }
+}

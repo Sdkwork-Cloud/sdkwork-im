@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.dependency.composition",
+  "applicationCode": "chat",
+  "clientArchitecture": "flutter-mobile",
+  "surfaces": [
+    {
+      "surface": "app",
+      "corePackage": "sdkwork_im_flutter_mobile_core",
+      "sdkClients": ["im_sdk_generated", "im_sdk_composed"],
+      "reusableModules": ["sdkwork_im_flutter_mobile_chat"],
+      "hostAdapters": [],
+      "dependencyApiExports": [],
+      "dependencyApiSurfaces": []
+    }
+  ],
+  "buildToolEntries": {
+    "flutter": {
+      "workspacePackages": [
+        "sdkwork_im_flutter_mobile_core",
+        "sdkwork_im_flutter_mobile_commons",
+        "sdkwork_im_flutter_mobile_shell",
+        "sdkwork_im_flutter_mobile_chat"
+      ]
+    }
+  }
+}
