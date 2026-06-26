@@ -16,6 +16,7 @@ use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use serde::{Deserialize, Serialize};
 use sdkwork_utils_rust::sha256_hash;
 use tokio::sync::Semaphore;
@@ -204,13 +205,6 @@ impl TenantAuditRecords {
             has_more,
         }
     }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct HealthResponse {
-    status: &'static str,
-    service: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -613,14 +607,22 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    apply_public_http_guardrails(build_default_app())
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router(Arc::new(AuditRuntime::default()))),
+        im_service_router_config(),
+    )
 }
 
 pub fn build_app(runtime: Arc<AuditRuntime>) -> Router {
+    mount_im_infra_routes(
+        build_business_router(runtime),
+        im_service_router_config(),
+    )
+}
+
+fn build_business_router(runtime: Arc<AuditRuntime>) -> Router {
     let state = AppState { runtime };
     Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
         .merge(build_domain_api_router(state))
@@ -633,7 +635,7 @@ async fn enforce_in_flight_gate(
 ) -> Response {
     if matches!(
         request.uri().path(),
-        "/healthz" | "/readyz" | "/openapi.json" | "/docs"
+        "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json" | "/docs"
     ) {
         return next.run(request).await;
     }
@@ -654,29 +656,6 @@ async fn enforce_in_flight_gate(
     response
 }
 
-async fn healthz() -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "ok",
-        service: "audit-service",
-    })
-}
-
-async fn readyz() -> impl IntoResponse {
-    let status = sdkwork_im_service_readiness::im_service_readiness_status_label();
-    let code = if status == "ok" {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-    (
-        code,
-        Json(HealthResponse {
-            status,
-            service: "audit-service",
-        }),
-    )
-}
-
 async fn openapi_json() -> Result<Json<serde_json::Value>, AuditError> {
     Ok(Json(build_audit_service_openapi_document().map_err(
         |message| AuditError::internal("openapi_export_failed", message),
@@ -690,7 +669,7 @@ async fn docs() -> Html<String> {
 fn build_audit_service_openapi_document() -> Result<serde_json::Value, String> {
     let routes = extract_routes_from_function(
         include_str!("lib.rs"),
-        "build_app",
+        "build_business_router",
         &[],
         &["/openapi.json", "/docs"],
     )?;

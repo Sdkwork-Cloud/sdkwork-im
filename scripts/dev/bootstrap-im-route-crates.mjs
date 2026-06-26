@@ -30,7 +30,7 @@ const SERVICE_DEPS = {
 };
 
 function capabilityFromPackage(packageName) {
-  const m = packageName.match(/^sdkwork-router-im-(.+)$/);
+  const m = packageName.match(/^sdkwork-routes-im-(.+)$/);
   return m ? m[1].replace(/-/g, '_') : packageName;
 }
 
@@ -157,7 +157,7 @@ function libRs(entry) {
     '',
   ];
 
-  if (entry.packageName === 'sdkwork-router-im-social-open-api') {
+  if (entry.packageName === 'sdkwork-routes-im-social-open-api') {
     lines.push(
       'use std::sync::Arc;',
       '',
@@ -181,7 +181,7 @@ function libRs(entry) {
       '    web_bootstrap::wrap_router(router)',
       '}',
     );
-  } else if (entry.packageName === 'sdkwork-router-im-social-backend-api') {
+  } else if (entry.packageName === 'sdkwork-routes-im-social-backend-api') {
     lines.push(
       'use std::sync::Arc;',
       '',
@@ -192,7 +192,7 @@ function libRs(entry) {
       '    web_bootstrap::wrap_router(routes::build_control_router(social_runtime))',
       '}',
     );
-  } else if (entry.packageName === 'sdkwork-router-im-chat-open-api') {
+  } else if (entry.packageName === 'sdkwork-routes-im-chat-open-api') {
     lines.push(
       'use axum::Router;',
       'use conversation_runtime::http::{',

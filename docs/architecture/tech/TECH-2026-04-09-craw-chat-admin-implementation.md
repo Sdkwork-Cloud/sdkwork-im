@@ -5,7 +5,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `apps/control-plane` as a standalone IM operator workspace that fully mirrors the `sdkwork-router-admin` architecture standard while replacing router business modules with professional IM admin modules.
+**Goal:** Build `apps/control-plane` as a standalone IM operator workspace that fully mirrors the `sdkwork-routes-admin` architecture standard while replacing router business modules with professional IM admin modules.
 
 **Architecture:** Start by codifying the target contract with failing architecture tests, then copy the reference workspace skeleton, rename the package graph, and recompose the shell, auth, route manifest, and module surfaces around the IM domain. Keep the root app thin and force all business access through `sdkwork-control-plane-admin-api` and the admin SDK boundary.
 
@@ -113,7 +113,7 @@ git commit -m "test: define sdkwork im admin workspace contract"
 - Create or modify: `apps/control-plane/src-tauri/**`
 - Create or modify: `apps/control-plane/packages/**`
 
-- [ ] **Step 1: Copy the `sdkwork-router-admin` workspace into `apps/control-plane`**
+- [ ] **Step 1: Copy the `sdkwork-routes-admin` workspace into `apps/control-plane`**
 
 Preserve directory topology:
 
@@ -124,7 +124,7 @@ Preserve directory topology:
 
 - [ ] **Step 2: Rename package names, imports, route constants, and workspace identifiers**
 
-Replace `sdkwork-router-admin` with `sdkwork-control-plane` across:
+Replace `sdkwork-routes-admin` with `sdkwork-control-plane` across:
 
 - `package.json`
 - `tsconfig.json`

@@ -78,6 +78,7 @@ assert.match(chatRealtime, /messages\.onConversation/u);
 assert.match(chatRealtime, /subscribeInboxLiveRefresh/u);
 assert.match(chatRealtime, /events\.onScope/u);
 assert.match(chatRealtime, /sharedConnection/u);
+assert.match(chatRealtime, /state\.status === "open"[\s\S]*syncLiveSubscriptions/u);
 assert.match(chatRealtime, /teardownConnectionIfIdle/u);
 assert.match(chatRealtime, /disposeChatLiveConnection/u);
 

@@ -4,7 +4,6 @@ import type {
   ContactView,
   CreateContactTagRequest,
   FriendRequest as ImFriendRequest,
-  ImLiveConnection,
   ImSdkClient,
   SocialUserSearchResult,
   UpdateContactTagRequest,
@@ -13,7 +12,12 @@ import {
   getImSdkClientWithSession,
 } from '@sdkwork/im-pc-core/sdk/imSdkClient';
 import {
+  subscribePcRealtimeScope,
+} from '@sdkwork/im-pc-core/sdk/pcRealtimeConnectionManager';
+import {
   applyAppSdkSessionTokens,
+  isAppSdkSessionAuthenticated,
+  SDKWORK_IM_SESSION_CHANGED_EVENT,
   readAppSdkSessionTokens,
 } from '@sdkwork/im-pc-core/sdk/session';
 import type { User } from '@sdkwork/im-pc-types';
@@ -131,6 +135,16 @@ function toRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function isAuthenticationFailure(error: unknown): boolean {
+  const record = toRecord(error);
+  const code = pickString(record.code);
+  const message = pickString(record.message, record.error, record.reason);
+  const status = pickNumber(record.status, record.statusCode, record.httpStatus, record.http_status);
+  return status === 401
+    || Boolean(code && /(?:auth|session|token|unauthori(?:s|z)ed)/iu.test(code))
+    || Boolean(message && /(?:auth|session|token).*(?:failed|expired|invalid|required)|unauthori(?:s|z)ed/iu.test(message));
+}
+
 function createAvatar(_seed: string): string {
   return createDefaultAvatar('user');
 }
@@ -182,16 +196,29 @@ class SdkworkContactService implements ContactService {
   private pendingFriendRequestCountRefresh?: Promise<number>;
   private pendingFriendRequestRefreshTimer?: ReturnType<typeof setInterval>;
   private pendingFriendRequestRefreshListener?: () => void;
-  private pendingFriendRequestRealtimeConnection?: ImLiveConnection;
+  private pendingFriendRequestRealtimeUnsub?: () => void;
   private pendingFriendRequestRealtimeUserId?: string;
-  private pendingFriendRequestRealtimeStarting?: Promise<void>;
-  private pendingFriendRequestRealtimeUnsubscribe?: () => void;
+  private readonly handleAuthSessionChanged = (): void => {
+    this.contactByUserId.clear();
+    this.preferenceByUserId.clear();
+    this.requestIdByUiId.clear();
+    this.requestUiIdByBackendId.clear();
+    this.userCache.clear();
+    this.userIdByChatId.clear();
+    this.pendingFriendRequestCount = undefined;
+    this.pendingFriendRequestCountRefresh = undefined;
+    this.stopPendingFriendRequestRefreshLoop();
+  };
 
   constructor(
     private readonly getClient: () => ImSdkClient = getImSdkClientWithSession,
     _getAppClient?: () => unknown,
     private readonly getOrganizationDirectoryService: () => OrganizationDirectoryService = () => organizationDirectoryService,
-  ) {}
+  ) {
+    if (typeof window !== 'undefined') {
+      window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, this.handleAuthSessionChanged);
+    }
+  }
 
   private client(): ImSdkClient {
     return this.getClient();
@@ -199,6 +226,14 @@ class SdkworkContactService implements ContactService {
 
   private organizationDirectory(): OrganizationDirectoryService {
     return this.getOrganizationDirectoryService();
+  }
+
+  private hasAuthenticatedSession(): boolean {
+    return isAppSdkSessionAuthenticated(readAppSdkSessionTokens());
+  }
+
+  private handleAuthenticationFailure(): void {
+    this.stopPendingFriendRequestRefreshLoop();
   }
 
   private async listAllContacts(): Promise<ContactView[]> {
@@ -242,12 +277,25 @@ class SdkworkContactService implements ContactService {
   }
 
   private async refreshPendingFriendRequestCount(): Promise<number> {
+    if (!this.hasAuthenticatedSession()) {
+      this.pendingFriendRequestCount = 0;
+      return 0;
+    }
     if (this.pendingFriendRequestCountRefresh) {
       return this.pendingFriendRequestCountRefresh;
     }
 
     this.pendingFriendRequestCountRefresh = (async () => {
-      const incoming = await this.listAllFriendRequests('incoming', 'pending');
+      let incoming: ImFriendRequest[];
+      try {
+        incoming = await this.listAllFriendRequests('incoming', 'pending');
+      } catch (error) {
+        if (isAuthenticationFailure(error)) {
+          this.handleAuthenticationFailure();
+          return 0;
+        }
+        throw error;
+      }
       const count = incoming.length;
       const previousCount = this.pendingFriendRequestCount;
       this.pendingFriendRequestCount = count;
@@ -308,53 +356,41 @@ class SdkworkContactService implements ContactService {
     }
   }
 
-  private async startPendingFriendRequestRealtime(): Promise<void> {
-    if (this.pendingFriendRequestRealtimeStarting) {
-      return this.pendingFriendRequestRealtimeStarting;
+  private startPendingFriendRequestRealtime(): void {
+    if (!this.hasAuthenticatedSession()) {
+      this.stopPendingFriendRequestRealtime();
+      return;
     }
     const currentUserId = this.getCurrentUser().id;
     if (!currentUserId) {
       return;
     }
-    if (this.pendingFriendRequestRealtimeConnection && this.pendingFriendRequestRealtimeUserId === currentUserId) {
+    if (this.pendingFriendRequestRealtimeUnsub && this.pendingFriendRequestRealtimeUserId === currentUserId) {
       return;
     }
 
-    this.pendingFriendRequestRealtimeStarting = (async () => {
-      this.stopPendingFriendRequestRealtime();
-      const connection = await this.client().connect({
-        subscriptions: {
-          scopes: [
-            {
-              scopeType: 'user',
-              scopeId: currentUserId,
-              eventTypes: FRIEND_REQUEST_REALTIME_EVENT_TYPES,
-            },
-          ],
-        },
-      });
-      this.pendingFriendRequestRealtimeConnection = connection;
-      this.pendingFriendRequestRealtimeUserId = currentUserId;
-      this.pendingFriendRequestRealtimeUnsubscribe = connection.events.onScope('user', currentUserId, (_event, context) => {
-        if (!context.eventType?.startsWith('friend_request.')) {
+    this.stopPendingFriendRequestRealtime();
+    this.pendingFriendRequestRealtimeUserId = currentUserId;
+    this.pendingFriendRequestRealtimeUnsub = subscribePcRealtimeScope(
+      {
+        scopeType: 'user',
+        scopeId: currentUserId,
+        eventTypes: FRIEND_REQUEST_REALTIME_EVENT_TYPES,
+      },
+      (_context) => {
+        if (!_context.eventType?.startsWith('friend_request.')) {
           return;
         }
-        void context.ack().catch(() => undefined);
+        void _context.ack().catch(() => undefined);
         void this.refreshPendingFriendRequestCount().catch(() => undefined);
         this.dispatchFriendRequestChange();
-      });
-    })().finally(() => {
-      this.pendingFriendRequestRealtimeStarting = undefined;
-    });
-
-    return this.pendingFriendRequestRealtimeStarting;
+      },
+    );
   }
 
   private stopPendingFriendRequestRealtime(): void {
-    this.pendingFriendRequestRealtimeUnsubscribe?.();
-    this.pendingFriendRequestRealtimeUnsubscribe = undefined;
-    this.pendingFriendRequestRealtimeConnection?.disconnect(1000, 'friend request subscription stopped');
-    this.pendingFriendRequestRealtimeConnection = undefined;
+    this.pendingFriendRequestRealtimeUnsub?.();
+    this.pendingFriendRequestRealtimeUnsub = undefined;
     this.pendingFriendRequestRealtimeUserId = undefined;
   }
 
@@ -528,9 +564,13 @@ class SdkworkContactService implements ContactService {
     if (this.pendingFriendRequestCount !== undefined) {
       handler(this.pendingFriendRequestCount);
     }
-    void this.refreshPendingFriendRequestCount().catch(() => undefined);
-    void this.startPendingFriendRequestRealtime().catch(() => undefined);
-    this.startPendingFriendRequestRefreshLoop();
+    if (this.hasAuthenticatedSession()) {
+      void this.refreshPendingFriendRequestCount().catch(() => undefined);
+      void this.startPendingFriendRequestRealtime();
+      this.startPendingFriendRequestRefreshLoop();
+    } else {
+      handler(0);
+    }
 
     return () => {
       this.pendingFriendRequestCountHandlers.delete(handler);

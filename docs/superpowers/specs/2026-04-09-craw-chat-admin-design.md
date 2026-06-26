@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build `apps/control-plane` as the professional IM control-plane workspace for Sdkwork IM by fully reproducing the architecture standard of `apps/sdkwork-api-router/apps/sdkwork-router-admin`, including:
+Build `apps/control-plane` as the professional IM control-plane workspace for Sdkwork IM by fully reproducing the architecture standard of `apps/sdkwork-api-router/apps/sdkwork-routes-admin`, including:
 
 - a standalone React and Tauri workspace
 - a thin root app with package-first composition
@@ -22,7 +22,7 @@ The result must feel like a real operator-grade IM management console rather tha
 
 ## Reference Standard
 
-`apps/sdkwork-api-router/apps/sdkwork-router-admin` is the architectural source of truth.
+`apps/sdkwork-api-router/apps/sdkwork-routes-admin` is the architectural source of truth.
 
 `apps/control-plane` must match its standards in these areas:
 
@@ -235,7 +235,7 @@ Implementation should proceed in this order:
 
 ## Acceptance Criteria
 
-- `apps/control-plane` matches the structural architecture of `sdkwork-router-admin`
+- `apps/control-plane` matches the structural architecture of `sdkwork-routes-admin`
 - login exists and is routed outside the authenticated shell
 - all primary IM admin modules are present and navigable
 - route manifest and package boundaries are package-first

@@ -560,6 +560,7 @@ assert.match(coreIndex, /export \* from '\.\/sdk\/appAuthService'/u);
 assert.match(coreIndex, /export \* from '\.\/sdk\/imSdkClient'/u);
 assert.match(coreIndex, /export \* from '\.\/sdk\/session'/u);
 
+const sdkBaseUrlsSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/sdkBaseUrls.ts');
 const appSdkClientSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/appSdkClient.ts');
 const agentAppSdkClientSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/agentAppSdkClient.ts');
 const sessionSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/session.ts');
@@ -572,8 +573,9 @@ assert.match(appSdkClientSource, /createClient/u);
 assert.match(appSdkClientSource, /createAppSdkClientConfig/u);
 assert.match(appSdkClientSource, /getAppSdkClientWithSession/u);
 assert.match(appSdkClientSource, /SdkworkImAppClient/u, 'app SDK wrapper must expose product-scoped SdkworkImAppClient naming');
-assert.match(appSdkClientSource, /window\.location\.origin/u, 'app SDK wrapper must support release same-origin domain binding');
-assert.match(appSdkClientSource, /if\s*\(\s*!import\.meta\.env\.DEV\s*\)/u, 'app SDK wrapper must keep localhost defaults in a Vite-prunable dev-only branch');
+assert.match(appSdkClientSource, /resolveApplicationOrPlatformHttpBaseUrlOrThrow/u, 'app SDK wrapper must resolve base URLs through the shared topology resolver');
+assert.match(sdkBaseUrlsSource, /window\.location\.origin/u, 'shared topology resolver must support release same-origin domain binding');
+assert.match(sdkBaseUrlsSource, /if\s*\(\s*!import\.meta\.env\.DEV\s*\)/u, 'shared topology resolver must keep localhost defaults in a Vite-prunable dev-only branch');
 assert.match(
   sessionSource,
   /export function resolveAppSdkUserId/u,
@@ -913,6 +915,9 @@ assert.match(pcImSdkClientSource, /new ImSdkClient/u);
 assert.match(pcImSdkClientSource, /getImSdkClientWithSession/u);
 assert.match(pcImSdkClientSource, /tokenProvider:\s*tokenManager/u, 'IM wrapper must use the same dynamic token manager as IAM login');
 assert.match(pcImSdkClientSource, /accessToken:\s*resolveAppSdkAccessToken/u, 'IM wrapper must pass accessToken from IAM login session');
+assert.match(pcImSdkClientSource, /from ['"].\/sdkBaseUrls['"]/u, 'IM wrapper must resolve API base URLs through the shared topology resolver');
+assert.match(pcImSdkClientSource, /resolveImApiBaseUrlOrThrow/u, 'IM wrapper must resolve IM API base URL through topology APPLICATION_PUBLIC env');
+assert.match(pcImSdkClientSource, /resolveImWebSocketBaseUrlOrThrow/u, 'IM wrapper must resolve IM websocket base URL through topology APPLICATION_PUBLIC env');
 assert.doesNotMatch(
   pcImSdkClientSource,
   /headerProvider:\s*\(\)\s*=>\s*buildImSdkContextHeaders|buildImSdkContextHeaders/u,
@@ -928,25 +933,11 @@ assert.doesNotMatch(
   /buildSdkworkChatAppContextHeaders/u,
   'IM wrapper must not use an AppContext header builder',
 );
-assert.match(
-  pcImSdkClientSource,
-  /DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL/u,
-  'IM wrapper local dev fallback HTTP base URL must use topology APPLICATION_PUBLIC default',
-);
-assert.match(
-  pcImSdkClientSource,
-  /DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL/u,
-  'IM wrapper local dev fallback websocket base URL must use topology APPLICATION_PUBLIC default',
-);
-assert.match(pcImSdkClientSource, /window\.location\.origin/u, 'IM wrapper must support release same-origin HTTP domain binding');
-assert.match(pcImSdkClientSource, /protocol\s*===\s*['"]https:['"]/u, 'IM wrapper must derive wss websocket URLs from https release origins');
-assert.match(pcImSdkClientSource, /if\s*\(\s*!import\.meta\.env\.DEV\s*\)/u, 'IM wrapper must keep localhost defaults in Vite-prunable dev-only branches');
 assert.doesNotMatch(
   pcImSdkClientSource,
-  /const\s+LOCAL_IM_(?:API|WEBSOCKET)_BASE_URL\s*=\s*['"].*127\.0\.0\.1:18079['"]/u,
-  'IM wrapper must not keep localhost fallbacks as production-retained top-level constants',
+  /VITE_SDKWORK_IAM_APP_API_BASE_URL/u,
+  'IM wrapper must not fall back to the appbase App API URL directly',
 );
-assert.doesNotMatch(pcImSdkClientSource, /VITE_SDKWORK_IM_APP_API_BASE_URL/u, 'IM wrapper must not fall back to the appbase App API URL');
 assert.doesNotMatch(pcImSdkClientSource, /\bfetch\s*\(/u, 'IM wrapper must not use raw fetch');
 
 const chatServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/ChatService.ts');

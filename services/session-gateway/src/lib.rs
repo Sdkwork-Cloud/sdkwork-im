@@ -32,6 +32,7 @@ mod realtime;
 mod websocket;
 mod websocket_route;
 mod websocket_upgrade;
+mod websocket_auth_init;
 mod http_limits;
 mod http_guardrails;
 mod service_readiness;
@@ -86,7 +87,6 @@ pub use websocket::{
     SESSION_DISCONNECT_CLOSE_CODE, SESSION_DISCONNECT_CLOSE_REASON, serve_realtime_websocket,
 };
 pub use http_guardrails::apply_public_http_guardrails;
-use http_limits::SESSION_GATEWAY_MAX_DEVICE_ID_BYTES;
 use service_readiness::{healthz, readyz, ServiceReadiness};
 
 #[derive(Clone)]
@@ -140,7 +140,20 @@ pub fn default_app_state() -> AppState {
     AppState::default()
 }
 
-pub fn build_domain_api_router(state: AppState) -> Router {
+/// Realtime websocket upgrade route mounted outside the SDKWork HTTP interceptor pipeline.
+///
+/// Browser clients authenticate through the first `auth.init` frame after upgrade; wrapping this
+/// route with `WebFrameworkLayer` breaks Axum websocket upgrade state and returns HTTP 426.
+pub fn build_realtime_websocket_router(state: AppState) -> Router {
+    Router::new()
+        .route(
+            "/im/v3/api/realtime/ws",
+            get(websocket_upgrade::realtime_websocket),
+        )
+        .with_state(state)
+}
+
+pub fn build_domain_http_api_router(state: AppState) -> Router {
     Router::new()
         .route("/readyz", get(readyz))
         .route(
@@ -156,10 +169,6 @@ pub fn build_domain_api_router(state: AppState) -> Router {
             post(realtime_http_routes::sync_realtime_subscriptions),
         )
         .route(
-            "/im/v3/api/realtime/ws",
-            get(websocket_upgrade::realtime_websocket),
-        )
-        .route(
             "/im/v3/api/realtime/events/ack",
             post(realtime_http_routes::ack_realtime_events),
         )
@@ -167,12 +176,32 @@ pub fn build_domain_api_router(state: AppState) -> Router {
         .with_state(state)
 }
 
+pub fn build_domain_api_router(state: AppState) -> Router {
+    build_realtime_websocket_router(state.clone()).merge(build_domain_http_api_router(state))
+}
+
+fn build_infra_and_http_router(state: AppState) -> Router {
+    Router::new()
+        .route("/healthz", get(healthz))
+        .route("/openapi.json", get(openapi_export::openapi_json))
+        .route("/docs", get(openapi_export::docs))
+        .merge(build_domain_http_api_router(state))
+}
+
+pub fn build_public_http_app(state: AppState) -> Router {
+    apply_public_http_guardrails(build_infra_and_http_router(state))
+}
+
+pub fn compose_public_app_router(state: AppState) -> Router {
+    build_realtime_websocket_router(state.clone()).merge(build_public_http_app(state))
+}
+
 pub fn build_public_app() -> Router {
-    apply_public_http_guardrails(build_app())
+    compose_public_app_router(AppState::default())
 }
 
 pub fn build_public_app_with_state(state: AppState) -> Router {
-    apply_public_http_guardrails(build_app_with_state(state))
+    compose_public_app_router(state)
 }
 
 pub fn build_public_app_with_realtime_plane(
@@ -192,11 +221,7 @@ pub fn build_public_app_with_realtime_bootstrap(bootstrap: &RealtimePlaneBootstr
 }
 
 fn build_app_with_state(state: AppState) -> Router {
-    Router::new()
-        .route("/healthz", get(healthz))
-        .route("/openapi.json", get(openapi_export::openapi_json))
-        .route("/docs", get(openapi_export::docs))
-        .merge(build_domain_api_router(state))
+    compose_public_app_router(state)
 }
 
 impl Default for AppState {
@@ -403,31 +428,8 @@ pub(crate) fn resolve_requested_device_id(
     auth: &AppContext,
     requested_device_id: Option<String>,
 ) -> Result<String, ApiError> {
-    match (requested_device_id, auth.device_id.clone()) {
-        (Some(requested), Some(bound)) => {
-            validate_device_id(requested.as_str())?;
-            validate_device_id(bound.as_str())?;
-            if requested != bound {
-                return Err(ApiError::bad_request(
-                    "device_id_mismatch",
-                    format!("device id does not match auth context: {requested}"),
-                ));
-            }
-            Ok(requested)
-        }
-        (Some(requested), None) => {
-            validate_device_id(requested.as_str())?;
-            Ok(requested)
-        }
-        (None, Some(bound)) => {
-            validate_device_id(bound.as_str())?;
-            Ok(bound)
-        }
-        (None, None) => Err(ApiError::bad_request(
-            "device_id_missing",
-            "device id must be provided by auth context or request body",
-        )),
-    }
+    sdkwork_im_websocket_auth_gate::resolve_websocket_device_binding(auth, requested_device_id)
+        .map_err(|error| ApiError::bad_request(error.code, error.message))
 }
 
 pub(crate) async fn resolve_request_app_context(
@@ -442,18 +444,6 @@ pub(crate) async fn resolve_request_app_context(
             .await
             .map_err(ApiError::from),
     }
-}
-
-fn validate_device_id(device_id: &str) -> Result<(), ApiError> {
-    let actual_bytes = device_id.len();
-    if actual_bytes > SESSION_GATEWAY_MAX_DEVICE_ID_BYTES {
-        return Err(ApiError::payload_too_large(
-            "deviceId",
-            SESSION_GATEWAY_MAX_DEVICE_ID_BYTES,
-            actual_bytes,
-        ));
-    }
-    Ok(())
 }
 
 #[cfg(test)]

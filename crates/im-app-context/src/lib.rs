@@ -887,10 +887,42 @@ fn parse_truthy_env_flag(raw: Option<String>) -> bool {
     })
 }
 
-fn has_any_dual_token_header(headers: &HeaderMap) -> bool {
+/// Returns true when the upgrade request already carries dual-token credentials in headers.
+///
+/// Browser clients cannot set these headers; native/mobile/Node runtimes use this path and
+/// skip the post-upgrade `auth.init` frame.
+pub fn has_websocket_upgrade_auth_headers(headers: &HeaderMap) -> bool {
     headers.contains_key(header::AUTHORIZATION)
         || headers.contains_key("access-token")
         || headers.contains_key("Access-Token")
+}
+
+/// Extracts `deviceId` from a websocket path-and-query string (`/path?deviceId=...`).
+pub fn websocket_query_device_id_from_path_and_query(path_and_query: &str) -> Option<String> {
+    let (_path, query) = path_and_query.split_once('?')?;
+    query.split('&').find_map(|pair| {
+        let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
+        if key.trim().eq_ignore_ascii_case("deviceId") {
+            Some(value.trim().to_owned()).filter(|value| !value.is_empty())
+        } else {
+            None
+        }
+    })
+}
+
+/// Prefers the `auth.init` frame `deviceId`, then falls back to the upgrade query value.
+pub fn coalesce_websocket_device_id(
+    frame_device_id: Option<String>,
+    query_device_id: Option<String>,
+) -> Option<String> {
+    frame_device_id
+        .or(query_device_id)
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+}
+
+fn has_any_dual_token_header(headers: &HeaderMap) -> bool {
+    has_websocket_upgrade_auth_headers(headers)
 }
 
 impl TokenClaims {

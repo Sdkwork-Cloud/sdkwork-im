@@ -47,6 +47,7 @@ rustls = "0.23.40"
 rustls-pemfile = "2.2.0"
 sdkwork-im-ccp-binding-quic = { version = "0.1.0", path = "../../crates/sdkwork-im-ccp-binding-quic" }
 sdkwork_im_realtime_api_paths.workspace = true
+sdkwork_im_websocket_auth_gate.workspace = true
 
 [dev-dependencies]
 http-body-util.workspace = true
@@ -56,6 +57,6 @@ sdkwork_utils_rust.workspace = true
 sdkwork_web_core.workspace = true
 tokio-tungstenite = "0.28.0"
 tower.workspace = true
-sdkwork-router-im-realtime-open-api = { path = "../../crates/sdkwork-router-im-realtime-open-api" }
+sdkwork-routes-im-realtime-open-api = { path = "../../crates/sdkwork-routes-im-realtime-open-api" }
 rcgen = "0.14.8"
 

@@ -12,20 +12,21 @@ members = [
     "crates/sdkwork-im-database-pool",
     "crates/sdkwork-im-web-bootstrap",
     "crates/sdkwork-im-iam-application-bootstrap",
+    "crates/sdkwork-im-gateway-assembly",
     "crates/sdkwork-im-service-readiness",
-    "crates/sdkwork-router-im-social-open-api",
-    "crates/sdkwork-router-im-social-backend-api",
-    "crates/sdkwork-router-im-space-open-api",
-    "crates/sdkwork-router-im-chat-open-api",
-    "crates/sdkwork-router-im-realtime-open-api",
-    "crates/sdkwork-router-im-media-app-api",
-    "crates/sdkwork-router-im-automation-app-api",
-    "crates/sdkwork-router-im-notification-app-api",
-    "crates/sdkwork-router-im-stream-app-api",
-    "crates/sdkwork-router-im-audit-backend-api",
-    "crates/sdkwork-router-im-ops-backend-api",
-    "crates/sdkwork-router-im-governance-backend-api",
-    "crates/sdkwork-router-im-projection-open-api",
+    "crates/sdkwork-routes-im-social-open-api",
+    "crates/sdkwork-routes-im-social-backend-api",
+    "crates/sdkwork-routes-im-space-open-api",
+    "crates/sdkwork-routes-im-chat-open-api",
+    "crates/sdkwork-routes-im-realtime-open-api",
+    "crates/sdkwork-routes-im-media-app-api",
+    "crates/sdkwork-routes-im-automation-app-api",
+    "crates/sdkwork-routes-im-notification-app-api",
+    "crates/sdkwork-routes-im-stream-app-api",
+    "crates/sdkwork-routes-im-audit-backend-api",
+    "crates/sdkwork-routes-im-ops-backend-api",
+    "crates/sdkwork-routes-im-governance-backend-api",
+    "crates/sdkwork-routes-im-projection-open-api",
     "crates/sdkwork-im-contract-admin",
     "crates/sdkwork-im-contract-agent",
     "crates/sdkwork-im-contract-control",
@@ -38,6 +39,7 @@ members = [
     "crates/sdkwork-im-cloud-gateway-observability",
     "crates/sdkwork-im-openapi",
     "crates/sdkwork-im-realtime-api-paths",
+    "crates/sdkwork-im-websocket-auth-gate",
     "crates/sdkwork-im-rpc-service-rust",
     "crates/im-storage-contracts",
     "crates/im-storage-runtime",
@@ -153,6 +155,7 @@ sdkwork_im_database_pool = { path = "crates/sdkwork-im-database-pool", package =
 sdkwork_im_web_bootstrap = { path = "crates/sdkwork-im-web-bootstrap", package = "sdkwork-im-web-bootstrap" }
 sdkwork_im_service_readiness = { path = "crates/sdkwork-im-service-readiness", package = "sdkwork-im-service-readiness" }
 sdkwork_im_realtime_api_paths = { path = "crates/sdkwork-im-realtime-api-paths", package = "sdkwork-im-realtime-api-paths" }
+sdkwork_im_websocket_auth_gate = { path = "crates/sdkwork-im-websocket-auth-gate", package = "sdkwork-im-websocket-auth-gate" }
 sdkwork_utils_rust = { path = "../sdkwork-utils/packages/sdkwork-utils-rust", package = "sdkwork-utils-rust" }
 # sdkwork-discovery is deferred until hosted gRPC RPC service processes ship (ADR-20260619).
 sdkwork_iam_web_adapter = { path = "../sdkwork-iam/crates/sdkwork-iam-web-adapter", package = "sdkwork-iam-web-adapter" }

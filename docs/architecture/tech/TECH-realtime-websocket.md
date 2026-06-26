@@ -1,72 +1,97 @@
-> Migrated from `docs/sites/api-reference/operations/im/session-and-realtime/realtime-websocket.md` on 2026-06-24.
 > Owner: SDKWork maintainers
 
-<p class="api-page-intro">
-  Exact request and response contract for <strong>Realtime Presence</strong> in the <strong>IM Standard API</strong>.
-</p>
+## `GET /im/v3/api/realtime/ws`
 
-<div class="api-link-list">
-  <a href="/api-reference/im/session-and-realtime"><code>Realtime Presence</code> Return to the group page for workflow context and related operations</a>
-  <a href="/api-reference/im-api"><code>IM Standard API</code> Return to the domain overview</a>
-  <a href="/api-reference/auth-and-errors"><code>Auth</code> SDKWork dual-token, AppContext projection, and error-envelope rules</a>
-</div>
-
-<section class="api-op api-op-single">
-
-<div class="api-op-header">
-  <span class="endpoint-tag endpoint-get">GET</span>
-  <code>/im/v3/api/realtime/ws</code>
-  <span class="api-op-id">operationId: realtimeWebsocket</span>
-</div>
-
-Upgrades the connection to WebSocket. This page documents the HTTP handshake surface only; it does
-not expand the full realtime frame protocol.
-
-
-<div class="api-meta-grid">
-  <div class="api-meta-card"><strong>Security</strong><span>SDKWork dual token + AppContext</span></div>
-  <div class="api-meta-card"><strong>SDK</strong><span>`@sdkwork/im-sdk` / `sdk.connect(...)`</span></div>
-  <div class="api-meta-card"><strong>Permission</strong><span>Authenticated principal; active client route is prepared before upgrade.</span></div>
-  <div class="api-meta-card"><strong>Success</strong><span>`101 Switching Protocols`</span></div>
-</div>
+Upgrades the connection to WebSocket. This page documents the HTTP handshake surface only; frame-level
+authentication and CCP protocol details live in `docs/superpowers/specs/2026-06-25-websocket-login-verification-standard-design.md`.
 
 ### Security
 
-- SDKWork dual token validated at the appbase boundary, then AppContext projection headers
-- Client route ownership and client route binding are validated before upgrade
-- Browser runtimes that cannot send upgrade headers should prefer a gateway-issued short-lived
-  realtime ticket or pre-signed `wss://` URL instead of a long-lived query credential
+- **HTTP upgrade is anonymous** for browser clients. Dual-token validation happens in the first `auth.init` JSON text
+  frame after `101 Switching Protocols`.
+- Node/Tauri/Flutter native runtimes may supply `Authorization` and `Access-Token` headers during upgrade and skip `auth.init`.
+- Server routing uses `has_websocket_upgrade_auth_headers` from `im-app-context` (checks `Authorization`, `access-token`, and `Access-Token`).
+- Tokens must **not** appear in URL query parameters.
+- Shared gate: `crates/sdkwork-im-websocket-auth-gate` (used by cloud gateway + session-gateway compat path).
+- Upgrade header detection: `im-app-context::has_websocket_upgrade_auth_headers`.
 
 ### Headers
 
 | Header | Required | Description |
 | --- | --- | --- |
-| `Sec-WebSocket-Protocol` | No | When set to `ccp/ws/1`, the runtime enters the `CcpJson` subprotocol mode. Otherwise it falls back to the legacy JSON frame mode. |
+| `Sec-WebSocket-Protocol` | Recommended | Negotiate `sdkwork-im.ccp.ws.v1` for the current CCP JSON wire mode. |
+| `Authorization` | Native only | `Bearer <authToken>` when the runtime can send upgrade headers (Node/Tauri/Flutter `IOWebSocketChannel`). |
+| `Access-Token` | Native only | Access token when the runtime can send upgrade headers. |
+
+### Handshake flow (browser)
+
+1. `GET /im/v3/api/realtime/ws?deviceId=<id>` returns `101 Switching Protocols`.
+2. Client sends `auth.init` with `authToken`, `accessToken`, and `deviceId`.
+3. Gateway or embedded session-gateway validates through IAM and returns `auth.ok`.
+4. Client completes CCP `hello` / `hello_ack` / `auth_bind` / `auth_ok` and enters `ready`.
+5. Client sends `subscriptions.sync` (`kind: cmd`) only after `ready`. Sending business frames during the CCP handshake returns `CCP_CONTROL_REQUIRED` and closes the connection.
+
+### Handshake flow (native / mobile / Node factory)
+
+1. `GET /im/v3/api/realtime/ws?deviceId=<id>` with dual-token upgrade headers returns `101`.
+2. Server validates IAM from headers, resolves `deviceId` from query when absent in token claims, and skips `auth.init`.
+3. Client sends CCP `hello` immediately after the socket is open (no `auth.ok` frame).
+4. Client sends `subscriptions.sync` only after CCP `auth_ok` (`ready` phase).
+
+See the full runtime matrix in `docs/superpowers/specs/2026-06-25-websocket-login-verification-standard-design.md` §12.1.
 
 ### Response `101`
 
 | Output | Type | Description |
 | --- | --- | --- |
-| `Upgrade` | `header` | Returned as `websocket` when the handshake succeeds. |
-| `Connection` | `header` | Returned as `Upgrade` for the switching-protocols handshake. |
-| `Sec-WebSocket-Accept` | `header` | Standard RFC 6455 handshake proof derived from the client key. |
-| `Sec-WebSocket-Protocol` | `header \| null` | Echoed when the server accepts a negotiated subprotocol such as `ccp/ws/1`. |
-
-### Response Notes
-
-- Status code is `101 Switching Protocols`.
-- After the handshake, the connection leaves the request-response lifecycle and enters realtime transport mode.
-- For TypeScript consumers, the standard SDK entrypoint for that transport is `sdk.connect(...)`.
-- When browser auth requires a query credential, prefer gateway token exchange plus short-lived
-  credentials and pass the final browser-safe URL through `sdk.connect({ url })`.
+| `Upgrade` | header | `websocket` |
+| `Connection` | header | `Upgrade` |
+| `Sec-WebSocket-Accept` | header | RFC 6455 proof |
+| `Sec-WebSocket-Protocol` | header \| null | Echoed when `sdkwork-im.ccp.ws.v1` is negotiated |
 
 ### Error Responses
 
-| HTTP | `code` | Description |
+| HTTP | `code` / body | Description |
 | --- | --- | --- |
-| `401` | `app_context_missing`, `app_context_invalid` | AppContext projection is missing or invalid. |
-| `409` | `client_route_scope_conflict` | The client route key is already bound to another principal. |
-| `409` | `disconnect_fence_conflict` | Routing or session state blocks the upgrade. |
+| `426` | `no upgrade state was present` | Websocket route was incorrectly wrapped by HTTP middleware or dispatched through `oneshot`. This is a server wiring defect, not an auth failure. |
+| `401` | `websocket_auth_failed` (frame) | Invalid or expired dual-token session after `auth.init`. |
+| `409` | `client_route_scope_conflict` | Client route key already bound to another principal. |
+| `503` | `websocket_overloaded` | Connection semaphore saturated. |
 
-</section>
+### SDK
 
+- TypeScript: `@sdkwork/im-sdk` → `ImSdkClient.connect()` / `createImLiveConnection()`
+- Flutter: `createImLiveConnection()` in `im_sdk_composed`
+
+### PC client connection model
+
+`sdkwork-im-pc` keeps **one shared WebSocket per authenticated browser session** through
+`@sdkwork/im-pc-core/sdk/pcRealtimeConnectionManager`:
+
+- Chat inbox, conversation messages, friend-request scopes, and incoming-call watch all multiplex on the same
+  `ImLiveConnection`.
+- In-flight `connect()` attempts are deduplicated with `sharedConnectionPromise`.
+- `recoverPcLiveConnection()` only restarts when status is not `open` or `connecting`.
+- Reconnect uses exponential backoff with jitter and a circuit breaker after repeated fatal failures.
+- Wire subscription sync runs on lifecycle `open` only (not when `connect()` resolves).
+- `CallService` passes the shared connection to `calls.watchIncoming({ connection })` and registers leased
+  conversation ids so `subscriptions.syncConversations` stays aligned.
+
+Do not call `ImSdkClient.connect()` directly from PC feature services; subscribe through the manager instead.
+
+### H5 client connection model
+
+`sdkwork-im-h5` uses one shared browser WebSocket through
+`packages/sdkwork-im-h5-chat/src/services/chatRealtimeService.ts`:
+
+- Inbox refresh and conversation live messages multiplex on the same `ImLiveConnection`.
+- Subscription snapshots sync on lifecycle `open` and when handlers change while the connection is already open.
+- Do not call `ImSdkClient.connect()` from page components; use `subscribeConversationLiveMessages` /
+  `subscribeInboxLiveRefresh`.
+
+### Routing implementation
+
+- `session_gateway::build_realtime_websocket_router` serves the upgrade route without `WebFrameworkLayer`.
+- `sdkwork-routes-im-realtime-open-api` wraps only HTTP realtime/presence routes with IAM interceptors.
+- Unified gateways merge the websocket router before the wrapped business router and exclude `REALTIME_WS` from embedded
+  oneshot dispatch.

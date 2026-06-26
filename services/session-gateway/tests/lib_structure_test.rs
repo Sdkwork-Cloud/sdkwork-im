@@ -499,7 +499,7 @@ fn test_session_gateway_websocket_upgrade_module_stays_pure_axum_adapter() {
         "pub(crate) struct RealtimeWebsocketRouteContext",
         "pub(crate) async fn prepare_realtime_websocket_route(",
         "resolve_request_app_context(",
-        "resolve_requested_device_id(&auth, None)?",
+        "resolve_requested_device_id(&auth, query_device_id)?",
         "state.prepare_active_client_route(",
     ] {
         assert!(

@@ -1,12 +1,15 @@
-# SDKWork Appbase IAM Integration Standard
+# SDKWork Appbase IAM Integration Standard (Deprecated)
 
-- Version: 1.0
-- Scope: app-side login, registration, sessions, verification codes, OAuth device authorization QR login, appbase IAM UI integration, generated app SDK integration, Sdkwork IM gateway/local runtime parity
-- Related: `IAM_SPEC.md`, `SDK_SPEC.md`, `APP_PC_REACT_UI_SPEC.md`, `CONFIG_SPEC.md`, `SECURITY_SPEC.md`, `TEST_SPEC.md`, `DEPLOYMENT_SPEC.md`
+This file is a compatibility shim kept inside `sdkwork-im` so existing local references do not break.
 
-This standard defines how applications integrate `sdkwork-appbase` IAM login and registration. It is based on the current Sdkwork IM PC integration and is intended as the reusable reference for other SDKWork apps.
+**Canonical standard**: `../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md`
 
-The integration goal is simple: product UI reuses appbase IAM UI, product runtime adapts appbase IAM contracts to the generated app SDK, and all HTTP traffic uses the standard `/app/v3/api` IAM routes through the gateway or configured appbase upstream. Applications must not create parallel login/register forms, raw HTTP auth clients, local SDK forks, or app-specific IAM route names.
+Rationale:
+
+- IAM login/session integration is owned by `sdkwork-iam` packages and the shared SDKWork standards repository.
+- Product repositories must not maintain divergent IAM integration standards locally.
+
+This repository-specific document now only hosts **Sdkwork IM reference pointers** and **verification entrypoints** for the canonical standard.
 
 ## 1. Canonical Architecture
 
@@ -454,6 +457,22 @@ Reference implementation:
 
 - `apps/sdkwork-im-pc/vite.config.ts`
 - `apps/sdkwork-im-pc/scripts/auth-appbase-ui-contract.test.mjs`
+
+## 11.1 Capability Package Composition And Dedupe
+
+Appbase IAM UI integration may compose multiple capability packages (for example appbase foundation packages, shell packages, and product packages). Capability registries are allowed to treat duplicate capability package names as fatal, because duplicate registration can mask mismatched versions and inconsistent capability manifests.
+
+Rules:
+
+- `createSdkworkAuthAppbaseIntegration` inputs that accept additional package lists (for example `extraPackageNames`) **MUST be idempotent**: passing a package name that is already included by default catalogs **MUST NOT** crash the app.
+- Product apps **MUST NOT** add shell-level capability packages (for example `@sdkwork/shell-pc-react`) to `extraPackageNames`. Shell capabilities are owned by the shell/runtime and may already be included by upstream appbase or foundation presets.
+- Product apps **MAY** add product packages (for example `@sdkwork/im-pc-react`) to `extraPackageNames` when they provide product capability manifests. Product packages should not re-export or alias shell capability packages.
+- If the upstream integration factory does not de-dupe package names, product integration code **MUST** guard startup by catching the duplicate-capability error and retrying without the optional extra packages. This is a compatibility bridge, not the long-term preferred behavior.
+
+Rationale:
+
+- Duplicate capability packages are often introduced by a split-brain catalog (shell already included by a preset, and re-included by an extra list).
+- Treating duplicates as fatal surfaces inconsistent dependency graphs early, but factories must still tolerate idempotent inputs to avoid breaking downstream apps during catalog refactors.
 
 ## 12. Verification Requirements
 

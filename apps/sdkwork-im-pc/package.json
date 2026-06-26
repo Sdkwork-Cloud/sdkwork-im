@@ -23,6 +23,8 @@
     "test:aiot-devices-sdk-integration": "node scripts/sdkwork-chat-pc-aiot-devices-contract.test.mjs",
     "test:qr-scan-standard": "tsx scripts/qr-scan-standard-contract.test.ts",
     "test:communication-settings-sdk-boundary": "node scripts/communication-settings-sdk-boundary-contract.test.mjs",
+    "test:pc-realtime-connection": "tsx scripts/pc-realtime-connection-contract.test.ts",
+    "test:chat-auth-realtime-guard": "tsx scripts/chat-auth-realtime-guard-contract.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

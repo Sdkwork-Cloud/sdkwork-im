@@ -4,6 +4,7 @@ use im_adapters_postgres_journal::{
 };
 use im_app_context::resolve_web_environment_from_process_env;
 use im_platform_contracts::{ConversationAggregateStore, MessageStore, OutboxStore, RetentionScopeStore};
+use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_im_contract_core::ContractError;
 use sdkwork_im_contract_message::{CommitEnvelope, CommitJournal, CommitPosition};
 use sdkwork_web_core::WebEnvironment;
@@ -38,6 +39,29 @@ impl CommitJournal for ConversationCommitJournal {
 }
 
 pub fn resolve_conversation_commit_journal_from_env() -> Result<ConversationCommitJournal, String> {
+    if let Ok(config) = DatabaseConfig::from_env("IM") {
+        if config.engine == DatabaseEngine::Postgres {
+            let journal = PostgresJournalConfig::from_database_config(&config)
+                .connect()
+                .map_err(|error| format!("postgres commit journal bootstrap failed: {error:?}"))?;
+            info!("conversation-runtime using postgres commit journal");
+            return Ok(ConversationCommitJournal::Postgres(journal));
+        }
+
+        let environment = resolve_web_environment_from_process_env();
+        if matches!(environment, WebEnvironment::Dev | WebEnvironment::Test) {
+            info!(
+                "conversation-runtime using in-memory commit journal for non-postgres IM database in development"
+            );
+            return Ok(ConversationCommitJournal::Memory(InMemoryJournal::default()));
+        }
+
+        return Err(
+            "postgres commit journal is required in production when IM database engine is not postgres"
+                .into(),
+        );
+    }
+
     if let Some(database_url) = resolve_im_database_url_from_env() {
         let journal = PostgresJournalConfig::new(database_url)
             .connect()

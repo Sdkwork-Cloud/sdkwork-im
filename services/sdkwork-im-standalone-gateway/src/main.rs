@@ -1,4 +1,5 @@
 mod config;
+mod embedded_application_routes;
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
@@ -15,7 +16,7 @@ use sdkwork_im_cloud_gateway_observability::{
 };
 use tower_http::cors::{Any, CorsLayer};
 use web_gateway::{
-    bootstrap_embedded_session_gateway_runtime, build_app_with_registry_product_runtime_and_embedded_services,
+    bootstrap_embedded_session_gateway_runtime, build_app_with_registry_product_runtime_and_embedded_services_from_env,
     build_gateway_registry,
 };
 
@@ -28,6 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let config_path = resolve_config_path(&args)?;
     let file_config = load_gateway_config(Path::new(&config_path))?;
     let gateway_config = resolve_gateway_config(file_config)?;
+    apply_gateway_process_environment(&gateway_config);
 
     let bind_addr: SocketAddr = gateway_config
         .bind
@@ -45,15 +47,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     sdkwork_iam_database_host::bootstrap_iam_database_from_env()
         .await
         .map_err(|error| format!("failed to bootstrap IAM database lifecycle: {error}"))?;
+    sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env()
+        .await;
     sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env(
         gateway_config.environment.as_str(),
     )
     .await
     .map_err(|error| format!("failed to ensure IM IAM tenant application: {error}"))?;
 
-    let iam_router = sdkwork_router_iam_app_api::build_sdkwork_iam_app_api_router()
+    let iam_router = sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router()
         .await
         .map_err(|error| format!("failed to build embedded IAM router: {error}"))?;
+
+    let embedded_application =
+        embedded_application_routes::bootstrap_embedded_application_routes().await;
 
     let web_config = WebGatewayConfig::from_env();
     let registry = build_gateway_registry()?;
@@ -61,6 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut embedded_runtime =
         bootstrap_embedded_session_gateway_runtime(&web_config).await?;
     let session_router = embedded_runtime.session_router.take();
+    let embedded_realtime_app_state = embedded_runtime.embedded_realtime_app_state.take();
 
     println!(
         "{}",
@@ -71,15 +79,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         ))
     );
 
-    let im_router = build_app_with_registry_product_runtime_and_embedded_services(
+    let im_router = build_app_with_registry_product_runtime_and_embedded_services_from_env(
         web_config,
         registry,
         Some(product_runtime_router),
         session_router,
-    );
+        embedded_realtime_app_state,
+    )
+    .await;
 
+    // Assembly routes must win over cloud-gateway registry proxies on overlapping paths.
+    let application_router = embedded_application.router.merge(im_router);
     let app = iam_router
-        .merge(im_router)
+        .merge(application_router)
         .layer(build_cors_layer(&gateway_config));
 
     println!("Assembling gateway router completed; binding {bind_addr}");
@@ -108,6 +120,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         })
         .await?;
     Ok(())
+}
+
+fn apply_gateway_process_environment(config: &ResolvedGatewayConfig) {
+    if std::env::var("SDKWORK_IM_ENVIRONMENT")
+        .ok()
+        .map(|value| value.trim().is_empty())
+        .unwrap_or(true)
+    {
+        unsafe {
+            std::env::set_var("SDKWORK_IM_ENVIRONMENT", config.environment.as_str());
+        }
+    }
+    if std::env::var("SDKWORK_ENV")
+        .ok()
+        .map(|value| value.trim().is_empty())
+        .unwrap_or(true)
+    {
+        let normalized_environment = config.environment.trim().to_ascii_lowercase();
+        let sdkwork_env = match normalized_environment.as_str() {
+            "dev" | "development" => "development",
+            "test" | "testing" => "test",
+            "prod" | "production" => "production",
+            _ => normalized_environment.as_str(),
+        };
+        unsafe {
+            std::env::set_var("SDKWORK_ENV", sdkwork_env);
+        }
+    }
 }
 
 fn apply_collapsed_standalone_urls(base_url: &str, bind_addr: &SocketAddr) {
@@ -192,5 +232,241 @@ async fn shutdown_signal() {
     tokio::select! {
         () = ctrl_c => {},
         () = terminate => {},
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_cors_layer;
+    use super::ResolvedGatewayConfig;
+    use web_gateway::build_app_with_registry_product_runtime_and_embedded_services_from_env;
+    use axum::{
+        Router,
+        extract::ws::{Message, WebSocket, WebSocketUpgrade},
+        response::IntoResponse,
+        routing::get,
+    };
+    use futures_util::{SinkExt, StreamExt};
+    use tokio::net::TcpListener;
+    use tokio_tungstenite::{
+        connect_async,
+        tungstenite::{Message as TungsteniteMessage, client::ClientRequestBuilder},
+    };
+
+    async fn websocket_echo(ws: WebSocketUpgrade) -> impl IntoResponse {
+        ws.protocols(["sdkwork-im.ccp.ws.v1"])
+            .on_upgrade(handle_echo_socket)
+    }
+
+    async fn handle_echo_socket(mut socket: WebSocket) {
+        while let Some(message) = socket.next().await {
+            let Ok(message) = message else {
+                break;
+            };
+            match message {
+                Message::Text(text) => {
+                    if socket.send(Message::Text(text)).await.is_err() {
+                        break;
+                    }
+                }
+                Message::Close(frame) => {
+                    let _ = socket.send(Message::Close(frame)).await;
+                    break;
+                }
+                Message::Binary(bytes) => {
+                    if socket.send(Message::Binary(bytes)).await.is_err() {
+                        break;
+                    }
+                }
+                Message::Ping(payload) => {
+                    if socket.send(Message::Pong(payload)).await.is_err() {
+                        break;
+                    }
+                }
+                Message::Pong(_) => {}
+            }
+        }
+    }
+
+    fn test_gateway_config() -> ResolvedGatewayConfig {
+        ResolvedGatewayConfig {
+            service_name: "sdkwork-im-standalone-gateway".to_owned(),
+            environment: "development".to_owned(),
+            bind: "127.0.0.1:0".to_owned(),
+            allow_any_origin: true,
+            allowed_origins: Vec::new(),
+        }
+    }
+
+    async fn spawn_server(app: Router) -> (String, tokio::task::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("listener should bind");
+        let address = listener
+            .local_addr()
+            .expect("listener should expose local address");
+        let handle = tokio::spawn(async move {
+            axum::serve(listener, app).await.expect("server should run");
+        });
+        (format!("127.0.0.1:{}", address.port()), handle)
+    }
+
+    #[tokio::test]
+    async fn standalone_merge_and_cors_preserve_websocket_upgrade_state() {
+        let im_router =
+            Router::new().route("/im/v3/api/realtime/ws", get(websocket_echo));
+        let iam_router = Router::new().route(
+            "/app/v3/api/auth/ping",
+            get(|| async { "ok" }),
+        );
+        let app = iam_router
+            .merge(im_router)
+            .layer(build_cors_layer(&test_gateway_config()));
+        let (address, handle) = spawn_server(app).await;
+
+        let request = ClientRequestBuilder::new(
+            format!("ws://{address}/im/v3/api/realtime/ws")
+                .parse()
+                .unwrap(),
+        )
+        .with_sub_protocol("sdkwork-im.ccp.ws.v1");
+
+        let (mut socket, response) = connect_async(request)
+            .await
+            .expect("standalone websocket handshake should succeed");
+        assert_eq!(response.status(), 101);
+
+        socket
+            .send(TungsteniteMessage::Text("hello standalone".into()))
+            .await
+            .expect("client frame should send");
+        let echoed = socket
+            .next()
+            .await
+            .expect("echo frame should arrive")
+            .expect("echo frame should decode");
+        assert_eq!(echoed, TungsteniteMessage::Text("hello standalone".into()));
+
+        let _ = socket.close(None).await;
+        handle.abort();
+    }
+
+    #[tokio::test]
+    async fn standalone_real_iam_router_merge_preserves_websocket_upgrade_state() {
+        unsafe {
+            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+            std::env::set_var("SDKWORK_ENV", "test");
+        }
+        let im_router =
+            Router::new().route("/im/v3/api/realtime/ws", get(websocket_echo));
+        let iam_router = sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router()
+            .await
+            .expect("iam router should build");
+        let app = iam_router
+            .merge(im_router)
+            .layer(build_cors_layer(&test_gateway_config()));
+        let (address, handle) = spawn_server(app).await;
+
+        let request = ClientRequestBuilder::new(
+            format!("ws://{address}/im/v3/api/realtime/ws")
+                .parse()
+                .unwrap(),
+        )
+        .with_sub_protocol("sdkwork-im.ccp.ws.v1");
+
+        let connect_result = connect_async(request).await;
+        handle.abort();
+        connect_result.expect("real iam router merge should keep websocket handshake working");
+    }
+
+    #[tokio::test]
+    async fn standalone_real_gateway_and_iam_assembly_preserves_websocket_upgrade_state() {
+        unsafe {
+            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+            std::env::set_var("SDKWORK_ENV", "test");
+        }
+        let iam_router = sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router()
+            .await
+            .expect("iam router should build");
+        let im_router = build_app_with_registry_product_runtime_and_embedded_services_from_env(
+            web_gateway_config(),
+            web_gateway::build_gateway_registry().expect("gateway registry should build"),
+            Some(Router::new()),
+            None,
+            None,
+        )
+        .await;
+        let app = iam_router
+            .merge(im_router)
+            .layer(build_cors_layer(&test_gateway_config()));
+        let (address, handle) = spawn_server(app).await;
+
+        let request = ClientRequestBuilder::new(
+            format!("ws://{address}/im/v3/api/realtime/ws?deviceId=test")
+                .parse()
+                .unwrap(),
+        )
+        .with_sub_protocol("sdkwork-im.ccp.ws.v1");
+
+        let connect_result = connect_async(request).await;
+        handle.abort();
+        connect_result.expect("full standalone assembly should keep websocket handshake working");
+    }
+
+    #[tokio::test]
+    async fn standalone_embedded_realtime_plane_preserves_websocket_upgrade_state() {
+        unsafe {
+            std::env::set_var("SDKWORK_IM_ENVIRONMENT", "test");
+            std::env::set_var("SDKWORK_ENV", "test");
+        }
+        let bootstrap = session_gateway::RealtimePlaneBootstrap {
+            assembly: session_gateway::RealtimePlaneAssembly::default(),
+            node_id: "node_embedded_ws".to_owned(),
+            cluster_bus: None,
+            iam_auth_pool: None,
+        };
+        let embedded_router =
+            sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap(
+                &bootstrap,
+            );
+        let embedded_app_state =
+            session_gateway::AppState::from_realtime_bootstrap(&bootstrap);
+        let iam_router = sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router()
+            .await
+            .expect("iam router should build");
+        let im_router = build_app_with_registry_product_runtime_and_embedded_services_from_env(
+            web_gateway_config(),
+            web_gateway::build_gateway_registry().expect("gateway registry should build"),
+            Some(Router::new()),
+            Some(embedded_router),
+            Some(embedded_app_state),
+        )
+        .await;
+        let app = iam_router
+            .merge(im_router)
+            .layer(build_cors_layer(&test_gateway_config()));
+        let (address, handle) = spawn_server(app).await;
+
+        let request = ClientRequestBuilder::new(
+            format!("ws://{address}/im/v3/api/realtime/ws?deviceId=test")
+                .parse()
+                .unwrap(),
+        )
+        .with_sub_protocol("sdkwork-im.ccp.ws.v1");
+
+        let connect_result = connect_async(request).await;
+        handle.abort();
+        let (_, response) = connect_result
+            .expect("embedded realtime plane must preserve websocket upgrade in unified gateway");
+        assert_eq!(response.status(), 101);
+    }
+
+    fn web_gateway_config() -> sdkwork_im_cloud_gateway_config::WebGatewayConfig {
+        sdkwork_im_cloud_gateway_config::WebGatewayConfig {
+            bind_addr: "127.0.0.1:0".to_owned(),
+            runtime_mode: sdkwork_im_cloud_gateway_config::GatewayRuntimeMode::Unified,
+            strict_startup: true,
+            upstreams: Vec::new(),
+        }
     }
 }

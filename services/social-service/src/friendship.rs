@@ -429,8 +429,8 @@ pub(crate) struct FriendRequestInventoryCursor {
 
 #[derive(Debug)]
 pub(crate) struct FriendRequestInventoryPage {
-    items: Vec<FriendRequest>,
-    next_cursor: Option<String>,
+    pub(crate) items: Vec<FriendRequest>,
+    pub(crate) next_cursor: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -652,7 +652,7 @@ fn encode_signed_cursor_payload(
     Ok(format!("{signing_input}.{signature_segment}"))
 }
 
-fn parse_friend_request_inventory_cursor(
+pub(crate) fn parse_friend_request_inventory_cursor(
     cursor: &str,
 ) -> Result<FriendRequestInventoryCursor, SocialServiceError> {
     let payload = decode_signed_friend_request_cursor_payload(cursor)?;
@@ -931,6 +931,7 @@ impl SocialRuntime {
         if let Some(user_block) = active_friendship_scoped_user_block(
             &next_state,
             tenant_id,
+            auth.organization_id.as_str(),
             friend_request.requester_user_id.as_str(),
             friend_request.target_user_id.as_str(),
         ) {
@@ -947,6 +948,7 @@ impl SocialRuntime {
         if let Some(existing_friendship) = active_friendship_record_for_pair(
             &next_state,
             tenant_id,
+            auth.organization_id.as_str(),
             requested_pair.user_low_id.as_str(),
             requested_pair.user_high_id.as_str(),
         ) {
@@ -967,12 +969,14 @@ impl SocialRuntime {
         let pair_has_materialized_friendship = friendship_pair_has_materialized_record(
             &next_state,
             tenant_id,
+            auth.organization_id.as_str(),
             requested_pair.user_low_id.as_str(),
             requested_pair.user_high_id.as_str(),
         );
         if let Some(existing) = open_friend_request_record_for_pair(
             &next_state,
             tenant_id,
+            auth.organization_id.as_str(),
             requested_pair.user_low_id.as_str(),
             requested_pair.user_high_id.as_str(),
             pair_has_materialized_friendship,
@@ -1026,6 +1030,7 @@ impl SocialRuntime {
     pub(crate) fn list_friend_requests(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         user_id: &str,
         direction: FriendRequestInventoryDirectionQuery,
         status: FriendRequestInventoryStatusQuery,
@@ -1036,7 +1041,7 @@ impl SocialRuntime {
             .state
             .read()
             .unwrap_or_else(Self::recover_poisoned_social_runtime_lock);
-        let mut items = friend_request_records_for_user(&state, tenant_id, user_id)
+        let mut items = friend_request_records_for_user(&state, tenant_id, organization_id, user_id)
             .into_iter()
             .filter(|record| {
                 friend_request_matches_inventory_direction(
@@ -1191,6 +1196,7 @@ impl SocialRuntime {
         if let Some(user_block) = active_friendship_scoped_user_block(
             &state,
             tenant_id,
+            auth.organization_id.as_str(),
             stored.friend_request.requester_user_id.as_str(),
             stored.friend_request.target_user_id.as_str(),
         ) {
@@ -1236,12 +1242,14 @@ impl SocialRuntime {
         let existing_friendship = active_friendship_record_for_pair(
             &next_state,
             tenant_id,
+            auth.organization_id.as_str(),
             &user_pair.user_low_id,
             &user_pair.user_high_id,
         );
         let existing_direct_chat = active_direct_chat_record_for_pair(
             &next_state,
             tenant_id,
+            auth.organization_id.as_str(),
             actor_pair.left_actor_id.as_str(),
             actor_pair.right_actor_id.as_str(),
         );
@@ -1840,6 +1848,7 @@ impl SocialRuntime {
         if let Some(user_block) = active_friendship_scoped_user_block(
             &next_state,
             tenant_id,
+            auth.organization_id.as_str(),
             friendship.user_low_id.as_str(),
             friendship.user_high_id.as_str(),
         ) {
@@ -1855,6 +1864,7 @@ impl SocialRuntime {
         if let Some(existing_friendship) = active_friendship_record_for_pair(
             &next_state,
             tenant_id,
+            auth.organization_id.as_str(),
             pair.user_low_id.as_str(),
             pair.user_high_id.as_str(),
         ) {
@@ -2031,6 +2041,7 @@ impl SocialRuntime {
         archive_active_direct_chats_for_pair(
             &mut next_state,
             tenant_id,
+            auth.organization_id.as_str(),
             friendship.user_low_id.as_str(),
             friendship.user_high_id.as_str(),
             friendship.updated_at.as_str(),
@@ -2084,6 +2095,7 @@ pub(crate) async fn list_friend_requests(
         .refresh_state_from_authority_for_write()?;
     let page = state.social_runtime.list_friend_requests(
         tenant_id,
+        auth.organization_id.as_str(),
         query.user_id.as_str(),
         query.direction,
         query.status,

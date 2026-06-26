@@ -15,7 +15,7 @@ const rtcSdkRoot = path.join(
 );
 const rtcSdkFamilyRoot = path.join(workspaceRoot, 'sdkwork-rtc', 'sdks', 'sdkwork-rtc-sdk');
 const rtcSignalingImportPattern =
-  /sdkwork_(?:rtc_core|communication_rtc_service)::\{[^}]*\b(?:RtcSession|RtcSessionState|RtcSignalEvent|RtcSignalSender|RtcStateRecord|RtcStateStore)\b|sdkwork_(?:rtc_core|communication_rtc_service)::(?:RtcSession|RtcSessionState|RtcSignalEvent|RtcSignalSender|RtcStateRecord|RtcStateStore)|sdkwork_rtc_state_store/u;
+  /sdkwork_(?:rtc_core|communication_rtc_service)::\{[^}]*\b(?:RtcSession|RtcSessionState|RtcSignalEvent|RtcSignalSender|RtcStateRecord|RtcStateStore)\b|sdkwork_(?:rtc_core|communication_rtc_service)::(?:RtcSession|RtcSessionState|RtcSignalEvent|RtcSignalSender|RtcStateRecord|RtcStateStore)|sdkwork_ai_prod_state_store/u;
 
 function readFile(absolutePath) {
   return fs.readFileSync(absolutePath, 'utf8');

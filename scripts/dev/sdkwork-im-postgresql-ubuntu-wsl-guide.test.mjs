@@ -53,7 +53,7 @@ for (const required of [
   'SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev',
   'SDKWORK_IM_REDIS_HOST=127.0.0.1',
   'SDKWORK_IM_REDIS_PORT=6379',
-  'SDKWORK_IM_DATABASE_ADMIN_PASSWORD',
+  'SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD',
   'pnpm db:postgres:plan',
   'pnpm db:postgres:init',
   'pnpm db:postgres:migrate',

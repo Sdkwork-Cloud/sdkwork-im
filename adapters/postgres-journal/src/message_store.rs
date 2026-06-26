@@ -7,7 +7,9 @@ use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
 use r2d2_postgres::postgres::NoTls;
 
-use crate::{now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{
+    now_rfc3339, postgres_jsonb_payload, postgres_pool_client, postgres_unavailable, run_postgres_io,
+};
 
 pub type PostgresJournalConnectionManager = PostgresConnectionManager<NoTls>;
 pub type PostgresJournalPool = Pool<PostgresJournalConnectionManager>;
@@ -111,6 +113,7 @@ impl MessageStore for PostgresMessageStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "insert_message")?;
             let message_seq_i64 = message.message_seq as i64;
+            let payload_json = postgres_jsonb_payload(message.payload_json.as_str())?;
             let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
                 &message.tenant_id,
                 &message.organization_id,
@@ -122,7 +125,7 @@ impl MessageStore for PostgresMessageStore {
                 &message.sender_device_id,
                 &message.client_msg_id,
                 &message.message_type,
-                &message.payload_json,
+                &payload_json,
                 &message.payload_hash,
                 &message.created_at,
                 &message.updated_at,

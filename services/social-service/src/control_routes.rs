@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::routing::{get, post};
 use axum::Router;
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 
 use crate::friendship::{self, AppState};
 use crate::{block, direct_chat, external, shared_channel, SocialRuntime};
@@ -85,8 +86,8 @@ pub fn build_control_domain_api_router(state: AppState) -> Router {
 }
 
 pub fn build_control_public_router(social_runtime: Arc<SocialRuntime>) -> Router {
-    Router::new()
-        .route("/healthz", get(|| async { "ok" }))
-        .route("/readyz", get(crate::http::readyz_probe))
-        .merge(build_control_domain_api_router(AppState { social_runtime }))
+    mount_im_infra_routes(
+        build_control_domain_api_router(AppState { social_runtime }),
+        im_service_router_config(),
+    )
 }

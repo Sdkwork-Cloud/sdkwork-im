@@ -97,18 +97,6 @@ impl RetentionPurgeSchedulerConfig {
 /// Spawns the retention purge scheduler when env configuration is present and enabled.
 pub fn spawn_retention_purge_scheduler_from_env() -> Option<RetentionPurgeSchedulerHandle> {
     let config = RetentionPurgeSchedulerConfig::from_env()?;
-    let database_url = config.database_url.clone();
-    let pool = PostgresJournalConfig::new(database_url)
-        .connect_pool()
-        .map_err(|error| {
-            warn!(
-                target: "sdkwork.im",
-                event = "im.retention_purge.scheduler_start_failed",
-                error = %format!("{error:?}"),
-                "retention purge scheduler disabled because database pool could not be created"
-            );
-        })
-        .ok()?;
     let metrics = RetentionPurgeMetrics::global();
     info!(
         target: "sdkwork.im",
@@ -118,7 +106,45 @@ pub fn spawn_retention_purge_scheduler_from_env() -> Option<RetentionPurgeSchedu
         max_batches_per_tick = config.max_batches_per_tick,
         "retention purge scheduler started"
     );
-    Some(spawn_retention_purge_scheduler(config, pool, metrics))
+    Some(spawn_retention_purge_scheduler_with_pool_bootstrap(config, metrics))
+}
+
+fn spawn_retention_purge_scheduler_with_pool_bootstrap(
+    config: RetentionPurgeSchedulerConfig,
+    metrics: Arc<RetentionPurgeMetrics>,
+) -> RetentionPurgeSchedulerHandle {
+    let stop = Arc::new(AtomicBool::new(false));
+    let stop_for_thread = stop.clone();
+    let thread = match std::thread::Builder::new()
+        .name("im-retention-purge".into())
+        .spawn(move || {
+            let pool = match PostgresJournalConfig::new(config.database_url.clone()).connect_pool() {
+                Ok(pool) => pool,
+                Err(error) => {
+                    warn!(
+                        target: "sdkwork.im",
+                        event = "im.retention_purge.scheduler_start_failed",
+                        error = %format!("{error:?}"),
+                        "retention purge scheduler disabled because database pool could not be created"
+                    );
+                    return;
+                }
+            };
+            retention_purge_scheduler_loop(config, pool, metrics, stop_for_thread);
+        })
+    {
+        Ok(handle) => Some(handle),
+        Err(error) => {
+            error!(
+                target: "sdkwork.im",
+                event = "im.retention_purge.scheduler_spawn_failed",
+                error = %error,
+                "retention purge scheduler thread spawn failed; scheduler disabled for this process"
+            );
+            None
+        }
+    };
+    RetentionPurgeSchedulerHandle { stop, thread }
 }
 
 pub fn spawn_retention_purge_scheduler(

@@ -37,10 +37,13 @@ async fn run() -> Result<(), String> {
         );
     let postgres_state = social_service::try_postgres_app_state_from_database_url_env();
     let mut app =
-        sdkwork_router_im_social_backend_api::build_control_public_app(social_runtime.clone());
+        sdkwork_routes_im_social_backend_api::build_control_public_app(social_runtime.clone());
+    app = app.merge(sdkwork_routes_im_social_open_api::build_runtime_public_app(
+        social_runtime.clone(),
+    ));
     app = app.merge(social_service::http::build_app(social_runtime));
     if let Some(state) = postgres_state {
-        app = app.merge(sdkwork_router_im_social_open_api::build_supplemental_public_app(state));
+        app = app.merge(sdkwork_routes_im_social_open_api::build_supplemental_public_app(state));
     }
 
     tracing::info!(

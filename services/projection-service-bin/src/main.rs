@@ -25,7 +25,7 @@ async fn run() -> Result<(), String> {
         .map_err(|error| format!("projection-service failed to bind local listener: {error}"))?;
 
     let runtime = Arc::new(projection_service::build_projection_runtime_from_env()?);
-    let app = sdkwork_router_im_projection_open_api::build_public_app_with_runtime(runtime.clone()).await;
+    let app = sdkwork_routes_im_projection_open_api::build_public_app_with_runtime(runtime.clone()).await;
 
     tracing::info!(
         "projection-service starting on {}",

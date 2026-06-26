@@ -18,6 +18,7 @@ type InboxRefreshHandler = () => void;
 
 let sharedConnection: ImLiveConnection | null = null;
 let sharedConnectionPromise: Promise<ImLiveConnection> | null = null;
+let sharedConnectionIsOpen = false;
 const conversationHandlers = new Map<string, Set<ConversationMessageHandler>>();
 const conversationUnsubs = new Map<string, ImSubscription>();
 const inboxHandlers = new Map<string, Set<InboxRefreshHandler>>();
@@ -42,9 +43,14 @@ async function ensureLiveConnection(): Promise<ImLiveConnection> {
       .then((connection) => {
         sharedConnection = connection;
         connection.lifecycle.onStateChange((state) => {
+          sharedConnectionIsOpen = state.status === "open";
+          if (sharedConnectionIsOpen) {
+            syncLiveSubscriptions(connection);
+          }
           if (state.status === "closed" || state.status === "error") {
             sharedConnection = null;
             sharedConnectionPromise = null;
+            sharedConnectionIsOpen = false;
           }
         });
         return connection;
@@ -74,6 +80,9 @@ function buildScopeSubscriptions(): ImRealtimeScopeSubscription[] {
 }
 
 function syncLiveSubscriptions(connection: ImLiveConnection): void {
+  if (!sharedConnectionIsOpen) {
+    return;
+  }
   connection.subscriptions.syncConversations(Array.from(conversationHandlers.keys()));
   connection.subscriptions.syncScopes(buildScopeSubscriptions());
 }
@@ -85,6 +94,7 @@ function teardownConnectionIfIdle(): void {
   sharedConnection?.disconnect(1000, "no live subscriptions");
   sharedConnection = null;
   sharedConnectionPromise = null;
+  sharedConnectionIsOpen = false;
 }
 
 export function disposeChatLiveConnection(): void {
@@ -101,6 +111,7 @@ export function disposeChatLiveConnection(): void {
   sharedConnection?.disconnect(1000, "session ended");
   sharedConnection = null;
   sharedConnectionPromise = null;
+  sharedConnectionIsOpen = false;
 }
 
 export function resolveInboxRealtimeUserId(): string | null {

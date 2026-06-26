@@ -108,7 +108,7 @@ fn scheduler_enabled_from_env() -> bool {
 fn read_u64_env(name: &str, default: u64, min: u64, max: u64) -> u64 {
     std::env::var(name)
         .ok()
-        .and_then(|value| value.trim().parse().ok())
+        .and_then(|value| value.trim().parse::<u64>().ok())
         .map(|value| value.clamp(min, max))
         .unwrap_or(default)
 }

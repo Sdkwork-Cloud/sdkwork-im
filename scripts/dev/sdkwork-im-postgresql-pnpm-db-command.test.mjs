@@ -226,35 +226,50 @@ assert.deepEqual(
   'init mode must provision role/database before target schema/grants',
 );
 assert.ok(
-  initPlan.steps.every((step) => step.command === 'psql'),
-  'database init must use psql so the same pnpm command works on Ubuntu, WSL, and Windows with PostgreSQL tools installed',
+  initPlan.steps.every((step) => step.kind === 'node-init'),
+  'default database init must use node/pg so Windows dev does not require psql on PATH',
+);
+
+const psqlInitPlan = createPostgresDbPlan({
+  config: {
+    ...parsedSplitConfig,
+    psql: {
+      command: 'psql',
+    },
+  },
+  mode: 'init',
+  repoRoot,
+});
+assert.ok(
+  psqlInitPlan.steps.every((step) => step.kind === 'shell' && step.command === 'psql'),
+  'explicit psql command config must keep shell-based init steps',
 );
 assert.ok(
-  initPlan.steps.every((step) => step.env.PGPASSWORD && !step.args.join(' ').includes(step.env.PGPASSWORD)),
+  psqlInitPlan.steps.every((step) => step.env.PGPASSWORD && !step.args.join(' ').includes(step.env.PGPASSWORD)),
   'database init must pass passwords through PGPASSWORD instead of command-line arguments',
 );
 assert.match(
-  initPlan.steps[0].input,
+  psqlInitPlan.steps[0].input,
   /CREATE ROLE.*LOGIN PASSWORD|ALTER ROLE.*WITH LOGIN PASSWORD/su,
   'database init must create or update the app login role',
 );
 assert.match(
-  initPlan.steps[0].input,
+  psqlInitPlan.steps[0].input,
   /CREATE DATABASE/su,
   'database init must create the target database when it does not exist',
 );
 assert.match(
-  initPlan.steps[1].input,
+  psqlInitPlan.steps[1].input,
   /CREATE SCHEMA IF NOT EXISTS.*AUTHORIZATION/su,
   'database init must create the configured schema with app ownership',
 );
 assert.match(
-  initPlan.steps[1].input,
+  psqlInitPlan.steps[1].input,
   /ALTER DEFAULT PRIVILEGES/su,
   'database init must configure default privileges for future tables, sequences, and functions',
 );
 assert.doesNotMatch(
-  JSON.stringify(initPlan),
+  JSON.stringify(psqlInitPlan),
   /chat pass|admin pass/u,
   'audited database plans must not leak raw passwords when serialized',
 );
@@ -270,7 +285,7 @@ assert.throws(
     mode: 'init',
     repoRoot,
   }),
-  /SDKWORK_IM_DATABASE_ADMIN_PASSWORD|SDKWORK_IM_DATABASE_ADMIN_URL/u,
+  /SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD|SDKWORK_CLAW_DATABASE_ADMIN_URL/u,
   'database init must fail before invoking psql when the admin password is missing',
 );
 
@@ -302,7 +317,7 @@ const wslInitPlan = createPostgresDbPlan({
   repoRoot,
 });
 assert.ok(
-  wslInitPlan.steps.every((step) => step.command === 'wsl.exe'),
+  wslInitPlan.steps.every((step) => step.kind === 'shell' && step.command === 'wsl.exe'),
   'WSL developers initialize PostgreSQL through wsl.exe-wrapped psql steps',
 );
 assert.ok(
@@ -344,10 +359,10 @@ for (const required of [
   'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
   'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
   'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-  'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
-  'SDKWORK_IM_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
-  'SDKWORK_IM_DATABASE_ADMIN_DATABASE=postgres',
-  'SDKWORK_IM_DATABASE_ADMIN_SSL_MODE=disable',
+  'SDKWORK_CLAW_DATABASE_ADMIN_USERNAME=postgres',
+  'SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
+  'SDKWORK_CLAW_DATABASE_ADMIN_DATABASE=postgres',
+  'SDKWORK_CLAW_DATABASE_ADMIN_SSL_MODE=disable',
 ]) {
   assert.ok(envExample.includes(required), `.env.postgres.example must document ${required}`);
 }
@@ -357,7 +372,7 @@ for (const doc of [configIndex, ubuntuWslGuide, devGuide]) {
     'pnpm db:postgres:plan',
     'pnpm db:postgres:init',
     'pnpm db:postgres:migrate',
-    'SDKWORK_IM_DATABASE_ADMIN_PASSWORD',
+    'SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD',
     'SDKWORK_CLAW_DATABASE_SCHEMA',
   ]) {
     assert.ok(doc.includes(required), `PostgreSQL docs must include ${required}`);

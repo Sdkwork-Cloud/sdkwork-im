@@ -18,6 +18,7 @@ im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
 im-adapters-postgres-journal.workspace = true
+sdkwork_database_config.workspace = true
 im-time = { path = "../../crates/im-time" }
 serde.workspace = true
 serde_json.workspace = true
@@ -26,6 +27,7 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 sdkwork_im_service_readiness = { workspace = true }
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 sdkwork_web_core.workspace = true
 sdkwork-im-rpc-service-rust = { path = "../../crates/sdkwork-im-rpc-service-rust" }
 sdkwork-im-rpc-sdk-rust = { path = "../../sdks/sdkwork-im-rpc-sdk/sdkwork-im-rpc-sdk-rust" }
@@ -34,6 +36,6 @@ prost = "0.14"
 [dev-dependencies]
 http-body-util.workspace = true
 tower.workspace = true
-sdkwork-router-im-chat-open-api = { path = "../../crates/sdkwork-router-im-chat-open-api" }
+sdkwork-routes-im-chat-open-api = { path = "../../crates/sdkwork-routes-im-chat-open-api" }
 tonic = { version = "0.14", features = ["transport"] }
 tokio-stream = { version = "0.1", features = ["net"] }

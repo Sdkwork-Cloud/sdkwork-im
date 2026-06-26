@@ -671,6 +671,7 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
         row_columns(sql_spec(specs, "LOAD_REALTIME_CHECKPOINT_SQL")),
         vec![
             "tenant_id",
+            "organization_id",
             "principal_kind",
             "principal_id",
             "device_id",
@@ -687,6 +688,7 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
         row_columns(sql_spec(specs, "LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL")),
         vec![
             "tenant_id",
+            "organization_id",
             "principal_kind",
             "principal_id",
             "device_id",
@@ -707,6 +709,7 @@ fn test_postgres_realtime_sql_specs_define_bindings_rows_and_complete_store_meth
         row_columns(sql_spec(specs, "LOAD_REALTIME_SUBSCRIPTION_SQL")),
         vec![
             "tenant_id",
+            "organization_id",
             "principal_kind",
             "principal_id",
             "device_id",

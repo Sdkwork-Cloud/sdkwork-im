@@ -23,6 +23,8 @@ use tokio_tungstenite::{
 };
 
 const SDKWORK_INTERNAL_HEADER_PROBE: &str = "x-sdkwork-tenant-id";
+const GATEWAY_WEBSOCKET_ALLOW_QUERY_TOKENS_ENV: &str =
+    "SDKWORK_IM_GATEWAY_ALLOW_WEBSOCKET_QUERY_TOKENS";
 
 fn ensure_gateway_dev_web_environment() {
     static INIT: std::sync::Once = std::sync::Once::new();
@@ -274,7 +276,7 @@ async fn gateway_accepts_browser_realtime_websocket_auth_init_before_upstream_co
     let (gateway_address, gateway_handle) = spawn_server(gateway_app).await;
 
     let request = ClientRequestBuilder::new(
-        format!("ws://{gateway_address}/im/v3/api/realtime/ws?deviceId=device-frame")
+        format!("ws://{gateway_address}/im/v3/api/realtime/ws?deviceId=device_real")
             .parse()
             .unwrap(),
     );
@@ -289,7 +291,7 @@ async fn gateway_accepts_browser_realtime_websocket_auth_init_before_upstream_co
                 "requestId": "auth-1",
                 "authToken": gateway_test_auth_token(),
                 "accessToken": gateway_test_access_token_header(),
-                "deviceId": "device-frame"
+                "deviceId": "device_real"
             })
             .to_string()
             .into(),
@@ -359,7 +361,7 @@ async fn gateway_accepts_realtime_websocket_ping_before_auth_init() {
     let (gateway_address, gateway_handle) = spawn_server(gateway_app).await;
 
     let request = ClientRequestBuilder::new(
-        format!("ws://{gateway_address}/im/v3/api/realtime/ws?deviceId=device-frame")
+        format!("ws://{gateway_address}/im/v3/api/realtime/ws?deviceId=device_real")
             .parse()
             .unwrap(),
     );
@@ -378,7 +380,7 @@ async fn gateway_accepts_realtime_websocket_ping_before_auth_init() {
                 "requestId": "auth-after-ping",
                 "authToken": gateway_test_auth_token(),
                 "accessToken": gateway_test_access_token_header(),
-                "deviceId": "device-frame"
+                "deviceId": "device_real"
             })
             .to_string()
             .into(),
@@ -431,7 +433,7 @@ async fn gateway_strips_sensitive_realtime_websocket_query_before_upstream_conne
 
     let request = ClientRequestBuilder::new(
         format!(
-            "ws://{gateway_address}/im/v3/api/realtime/ws?deviceId=device-frame&conversationId=conversation-leak&authToken=query-auth-token&accessToken=query-access-token&token=query-token&authorization=query-authorization&refreshToken=query-refresh-token"
+            "ws://{gateway_address}/im/v3/api/realtime/ws?deviceId=device_real&conversationId=conversation-leak&authToken=query-auth-token&accessToken=query-access-token&token=query-token&authorization=query-authorization&refreshToken=query-refresh-token"
         )
         .parse()
         .unwrap(),
@@ -447,7 +449,7 @@ async fn gateway_strips_sensitive_realtime_websocket_query_before_upstream_conne
                 "requestId": "auth-sensitive-query",
                 "authToken": gateway_test_auth_token(),
                 "accessToken": gateway_test_access_token_header(),
-                "deviceId": "device-frame"
+                "deviceId": "device_real"
             })
             .to_string()
             .into(),
@@ -475,7 +477,7 @@ async fn gateway_strips_sensitive_realtime_websocket_query_before_upstream_conne
     let query = query["query"]
         .as_str()
         .expect("query frame should expose upstream query");
-    assert_eq!(query, "deviceId=device-frame");
+    assert_eq!(query, "deviceId=device_real");
     assert!(!query.contains("conversationId"));
     assert!(!query.contains("authToken"));
     assert!(!query.contains("accessToken"));
@@ -780,6 +782,11 @@ impl Drop for ScopedEnvVar {
 async fn gateway_proxies_registry_owned_websocket_routes_beyond_realtime_path() {
     let upstream_app = Router::new().route("/ws/custom/echo", get(websocket_echo));
     let (upstream_address, upstream_handle) = spawn_server(upstream_app).await;
+    let appbase_app = Router::new().route(
+        "/app/v3/api/auth/sessions/current",
+        get(appbase_current_session),
+    );
+    let (appbase_address, appbase_handle) = spawn_server(appbase_app).await;
 
     let registry = build_registry(vec![RouteDescriptor {
         service_id: "session-gateway".to_owned(),
@@ -794,10 +801,16 @@ async fn gateway_proxies_registry_owned_websocket_routes_beyond_realtime_path() 
     .expect("custom websocket route registry should build");
 
     let gateway_app = web_gateway::build_app_with_registry(
-        test_gateway_config(vec![service_upstream(
-            "session-gateway",
-            format!("http://{upstream_address}").as_str(),
-        )]),
+        test_gateway_config(vec![
+            service_upstream(
+                "session-gateway",
+                format!("http://{upstream_address}").as_str(),
+            ),
+            service_upstream(
+                "sdkwork-iam-app-api",
+                format!("http://{appbase_address}").as_str(),
+            ),
+        ]),
         registry,
     );
     let (gateway_address, gateway_handle) = spawn_server(gateway_app).await;
@@ -821,6 +834,34 @@ async fn gateway_proxies_registry_owned_websocket_routes_beyond_realtime_path() 
     );
 
     socket
+        .send(TungsteniteMessage::Text(
+            json!({
+                "type": "auth.init",
+                "requestId": "auth-custom-1",
+                "authToken": gateway_test_auth_token(),
+                "accessToken": gateway_test_access_token_header(),
+                "deviceId": "device_real"
+            })
+            .to_string()
+            .into(),
+        ))
+        .await
+        .expect("auth.init frame should send");
+
+    let auth_ok = socket
+        .next()
+        .await
+        .expect("auth.ok frame should arrive")
+        .expect("auth.ok frame should decode");
+    let TungsteniteMessage::Text(text) = auth_ok else {
+        panic!("expected auth.ok text frame, got {auth_ok:?}");
+    };
+    let auth_ok: serde_json::Value =
+        serde_json::from_str(text.as_str()).expect("auth.ok frame should be json");
+    assert_eq!(auth_ok["type"], "auth.ok", "first frame: {auth_ok}");
+    assert_eq!(auth_ok["requestId"], "auth-custom-1");
+
+    socket
         .send(TungsteniteMessage::Text("hello custom route".into()))
         .await
         .expect("client text frame should send");
@@ -837,4 +878,84 @@ async fn gateway_proxies_registry_owned_websocket_routes_beyond_realtime_path() 
     let _ = socket.close(None).await;
     gateway_handle.abort();
     upstream_handle.abort();
+    appbase_handle.abort();
+}
+
+#[tokio::test]
+async fn gateway_accepts_registry_owned_websocket_query_tokens_when_enabled_and_strips_sensitive_query()
+{
+    let _allow_query_tokens = ScopedEnvVar::set(GATEWAY_WEBSOCKET_ALLOW_QUERY_TOKENS_ENV, "true");
+    let appbase_app = Router::new().route(
+        "/app/v3/api/auth/sessions/current",
+        get(appbase_current_session),
+    );
+    let (appbase_address, appbase_handle) = spawn_server(appbase_app).await;
+    let upstream_app = Router::new().route("/ws/custom/echo", get(websocket_query_echo));
+    let (upstream_address, upstream_handle) = spawn_server(upstream_app).await;
+
+    let registry = build_registry(vec![RouteDescriptor {
+        service_id: "session-gateway".to_owned(),
+        methods: vec![HttpMethod::Get],
+        path_pattern: "/ws/custom/{*path}".to_owned(),
+        visibility: RouteVisibility::Public,
+        sdk_targets: vec![SdkTarget::SdkworkImSdk],
+        operation_group: "realtime".to_owned(),
+        protocol: RouteProtocol::Websocket,
+        websocket_subprotocols: vec![LINK_WEBSOCKET_SUBPROTOCOL.to_owned()],
+    }])
+    .expect("custom websocket route registry should build");
+
+    let gateway_app = web_gateway::build_app_with_registry(
+        test_gateway_config(vec![
+            service_upstream(
+                "session-gateway",
+                format!("http://{upstream_address}").as_str(),
+            ),
+            service_upstream(
+                "sdkwork-iam-app-api",
+                format!("http://{appbase_address}").as_str(),
+            ),
+        ]),
+        registry,
+    );
+    let (gateway_address, gateway_handle) = spawn_server(gateway_app).await;
+
+    let request = ClientRequestBuilder::new(
+        format!(
+            "ws://{gateway_address}/ws/custom/echo?foo=bar&authToken={}&accessToken={}&deviceId=device-frame",
+            gateway_test_auth_token(),
+            gateway_test_access_token_header()
+        )
+        .parse()
+        .unwrap(),
+    )
+    .with_sub_protocol(LINK_WEBSOCKET_SUBPROTOCOL);
+
+    let (mut socket, _) = connect_async(request)
+        .await
+        .expect("gateway websocket connection should succeed for custom route via query tokens");
+
+    let query_frame = socket
+        .next()
+        .await
+        .expect("upstream query frame should arrive")
+        .expect("upstream query frame should decode");
+    let TungsteniteMessage::Text(text) = query_frame else {
+        panic!("expected query text frame, got {query_frame:?}");
+    };
+    let query: serde_json::Value =
+        serde_json::from_str(text.as_str()).expect("query frame should be json");
+    let query = query["query"]
+        .as_str()
+        .expect("query frame should expose upstream query");
+
+    assert!(query.contains("foo=bar"));
+    assert!(query.contains("deviceId=device-frame"));
+    assert!(!query.contains("authToken"));
+    assert!(!query.contains("accessToken"));
+
+    let _ = socket.close(None).await;
+    gateway_handle.abort();
+    upstream_handle.abort();
+    appbase_handle.abort();
 }

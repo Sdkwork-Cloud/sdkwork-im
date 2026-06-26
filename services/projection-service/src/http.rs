@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use axum::extract::{DefaultBodyLimit, Extension, Path, Query, State};
 use axum::http::{HeaderMap, Request, StatusCode, header::CONTENT_TYPE};
@@ -11,6 +11,7 @@ use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
@@ -32,13 +33,6 @@ struct TimelineQuery {
 struct ListQuery {
     limit: Option<usize>,
     cursor: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct HealthResponse {
-    status: &'static str,
-    service: &'static str,
 }
 
 type TimelineResponse = TimelineWindowView;
@@ -128,25 +122,54 @@ impl IntoResponse for ProjectionApiError {
     }
 }
 
+static DEFAULT_PROJECTION_RUNTIME: OnceLock<Arc<ProjectionRuntime>> = OnceLock::new();
+
 pub fn default_projection_service() -> Arc<TimelineProjectionService> {
     default_projection_runtime().service()
 }
 
 pub fn default_projection_runtime() -> Arc<ProjectionRuntime> {
-    Arc::new(
-        crate::build_projection_runtime_from_env().unwrap_or_else(|error| {
-            tracing::warn!(
-                "projection-service bootstrap failed ({error}); \
-                 falling back to in-memory projection runtime for local development"
-            );
-            ProjectionRuntime::in_memory()
-        }),
-    )
+    DEFAULT_PROJECTION_RUNTIME
+        .get_or_init(|| {
+            Arc::new(
+                crate::build_projection_runtime_from_env().unwrap_or_else(|error| {
+                    tracing::warn!(
+                        "projection-service bootstrap failed ({error}); \
+                         falling back to in-memory projection runtime for local development"
+                    );
+                    ProjectionRuntime::in_memory()
+                }),
+            )
+        })
+        .clone()
 }
 
 pub fn build_default_app() -> Router {
     let runtime = default_projection_runtime();
     build_app(runtime.service())
+}
+
+pub fn build_supplemental_domain_api_router(service: Arc<TimelineProjectionService>) -> Router {
+    Router::new()
+        .route("/im/v3/api/chat/contacts", get(get_contacts))
+        .route("/im/v3/api/chat/inbox", get(get_inbox))
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}",
+            get(get_conversation_summary),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/member_directory",
+            get(get_member_directory),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/pins",
+            get(get_pinned_messages),
+        )
+        .route(
+            "/im/v3/api/chat/conversations/{conversation_id}/messages/{message_id}/interaction_summary",
+            get(get_message_interaction_summary),
+        )
+        .with_state(service)
 }
 
 pub fn build_domain_api_router(service: Arc<TimelineProjectionService>) -> Router {
@@ -193,17 +216,30 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    apply_public_http_guardrails(build_default_app())
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router(
+            default_projection_runtime().service(),
+        )),
+        im_service_router_config(),
+    )
 }
 
 pub fn build_public_app_with_service(service: Arc<TimelineProjectionService>) -> Router {
-    apply_public_http_guardrails(build_app(service))
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router(service)),
+        im_service_router_config(),
+    )
 }
 
 pub fn build_app(service: Arc<TimelineProjectionService>) -> Router {
+    mount_im_infra_routes(
+        build_business_router(service),
+        im_service_router_config(),
+    )
+}
+
+fn build_business_router(service: Arc<TimelineProjectionService>) -> Router {
     Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
         .merge(build_domain_api_router(service))
@@ -216,7 +252,7 @@ async fn enforce_in_flight_gate(
 ) -> Response {
     if matches!(
         request.uri().path(),
-        "/healthz" | "/readyz" | "/openapi.json" | "/docs"
+        "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json" | "/docs"
     ) {
         return next.run(request).await;
     }
@@ -237,29 +273,6 @@ async fn enforce_in_flight_gate(
     response
 }
 
-async fn healthz() -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "ok",
-        service: "projection-service",
-    })
-}
-
-async fn readyz() -> impl IntoResponse {
-    let status = sdkwork_im_service_readiness::im_service_readiness_status_label();
-    let code = if status == "ok" {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-    (
-        code,
-        Json(HealthResponse {
-            status,
-            service: "projection-service",
-        }),
-    )
-}
-
 async fn openapi_json() -> Result<Json<serde_json::Value>, ProjectionApiError> {
     Ok(Json(build_projection_service_openapi_document().map_err(
         |message| ProjectionApiError::internal("openapi_export_failed", message),
@@ -274,7 +287,7 @@ fn build_projection_service_openapi_document() -> Result<serde_json::Value, Stri
     let http_source = include_str!("http.rs");
     let mut routes = extract_routes_from_function(
         http_source,
-        "build_app",
+        "build_business_router",
         &[],
         &["/openapi.json", "/docs"],
     )?;

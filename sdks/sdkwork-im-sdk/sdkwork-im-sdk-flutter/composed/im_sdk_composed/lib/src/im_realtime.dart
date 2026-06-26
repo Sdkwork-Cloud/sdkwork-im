@@ -140,21 +140,22 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
   var subscriptionSyncCounter = 0;
 
   var currentState = const ImLiveConnectionState(status: 'connecting');
-  var connectionPhase = 'gateway_auth';
-  ImCcpAuthBindContext? pendingBindContext;
-  Timer? authTimeout;
-  Timer? connectionTimeout;
-  Timer? heartbeatTimer;
-  var heartbeatCounter = 0;
-  var suppressNextClosedState = false;
-  var authInitSent = false;
-
   final uri = _buildWebSocketUri(params.websocketBaseUrl, params.options.deviceId);
   final headers = _buildWebSocketHeaders(
     accessToken: params.accessToken,
     authToken: params.authToken,
     headers: params.headers,
   );
+  final frameAuthRequired = !_hasUpgradeAuthHeaders(headers);
+  var connectionPhase = frameAuthRequired ? 'gateway_auth' : 'ccp_hello_ack';
+  ImCcpAuthBindContext? pendingBindContext;
+  var resumeNegotiated = false;
+  Timer? authTimeout;
+  Timer? connectionTimeout;
+  Timer? heartbeatTimer;
+  var heartbeatCounter = 0;
+  var suppressNextClosedState = false;
+  var authInitSent = false;
 
   final channel = IOWebSocketChannel.connect(
     uri,
@@ -275,6 +276,21 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
     flushSubscriptionSync();
   }
 
+  void beginSessionResumeIfNeeded() {
+    final sessionId = pendingBindContext?.sessionId;
+    if (!resumeNegotiated || sessionId == null || sessionId.isEmpty) {
+      pendingBindContext = null;
+      emitOpenAndSyncSubscriptions();
+      return;
+    }
+    connectionPhase = 'ccp_session_resume';
+    channel.sink.add(encodeCcpSessionResumeFrame(sessionId));
+    scheduleAuthTimeout(() => failCcpHandshake(
+      'websocket_ccp_handshake_timeout',
+      'websocket CCP handshake was not completed before timeout',
+    ));
+  }
+
   void sendAuthInit() {
     if (authInitSent) {
       return;
@@ -298,7 +314,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
   }
 
   void handleInbound(String raw) {
-    if (connectionPhase == 'gateway_auth' && !authInitSent) {
+    if (frameAuthRequired && connectionPhase == 'gateway_auth' && !authInitSent) {
       sendAuthInit();
     }
 
@@ -317,6 +333,7 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
     }
     if (connectionPhase == 'ccp_hello_ack') {
       if (isCcpHelloAckEnvelope(raw)) {
+        resumeNegotiated = ccpHelloAckNegotiatesSessionResume(raw);
         final bindContext = pendingBindContext;
         if (bindContext == null) {
           failCcpHandshake(
@@ -337,6 +354,17 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
     }
     if (connectionPhase == 'ccp_auth_ok') {
       if (isCcpAuthOkEnvelope(raw)) {
+        beginSessionResumeIfNeeded();
+        return;
+      }
+      final error = _parseControlError(raw);
+      if (error != null) {
+        failCcpHandshake(error['code'] as String, error['message'] as String);
+      }
+      return;
+    }
+    if (connectionPhase == 'ccp_session_resume') {
+      if (isCcpSessionResumedEnvelope(raw)) {
         pendingBindContext = null;
         emitOpenAndSyncSubscriptions();
         return;
@@ -427,7 +455,11 @@ ImLiveConnection createImLiveConnection(ImCreateLiveConnectionParams params) {
     },
   );
 
-  Timer(const Duration(milliseconds: 100), sendAuthInit);
+  if (frameAuthRequired) {
+    Timer(const Duration(milliseconds: 100), sendAuthInit);
+  } else {
+    Timer(const Duration(milliseconds: 100), () => beginCcpHandshake());
+  }
 
   return ImLiveConnection._(
     disconnect: ([int code = 1000, String reason = 'client disconnect']) {
@@ -548,6 +580,20 @@ Map<String, String> _buildWebSocketHeaders({
     resolved['Access-Token'] = accessToken;
   }
   return resolved;
+}
+
+bool _hasUpgradeAuthHeaders(Map<String, String> headers) {
+  for (final entry in headers.entries) {
+    final key = entry.key.toLowerCase();
+    final value = entry.value.trim();
+    if (value.isEmpty) {
+      continue;
+    }
+    if (key == 'authorization' || key == 'access-token') {
+      return true;
+    }
+  }
+  return false;
 }
 
 Map<String, dynamic>? _parseControlFrame(String raw) {

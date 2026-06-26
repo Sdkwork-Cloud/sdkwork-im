@@ -15,10 +15,6 @@ export const IAM_APPLICATION_BOOTSTRAP_ENV = {
   SDKWORK_IAM_APP_ROOT: IAM_REPO_ROOT,
 };
 
-/** Dev-only KEK for encrypting iam_tenant_signing_key.secret_ref (not the tenant JWT key). */
-export const DEFAULT_DEV_IAM_TENANT_SIGNING_MASTER_SECRET =
-  'sdkwork-im-dev-tenant-signing-master-secret-v1';
-
 const APP_TOPOLOGY_ENTRY_RELATIVE = path.join('tools', 'topology', 'lib', 'index.mjs');
 
 function resolveAppTopologyEntryPath() {
@@ -109,33 +105,6 @@ export const resolveCloudGatewayConfigPath = runtime.resolveCloudGatewayConfigPa
 
 export function findGatewayPackageTarget(targetId) {
   return runtime.findPackageTarget?.(targetId);
-}
-
-function isNonProductionIamRuntime(env) {
-  const gatewayEnvironment = normalizeText(env.SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT);
-  const imEnvironment = normalizeText(env.SDKWORK_IM_ENVIRONMENT);
-  const nodeEnv = normalizeText(env.NODE_ENV);
-  const explicitEnvironments = [gatewayEnvironment, imEnvironment, nodeEnv].filter(Boolean);
-
-  if (explicitEnvironments.some((value) => value === 'production')) {
-    return false;
-  }
-  if (explicitEnvironments.some((value) => value === 'development' || value === 'test')) {
-    return true;
-  }
-  return explicitEnvironments.length === 0;
-}
-
-export function resolveIamSigningMasterSecretDevEnv(env = process.env, options = {}) {
-  if (normalizeText(env.SDKWORK_IAM_TENANT_SIGNING_MASTER_SECRET)) {
-    return {};
-  }
-  if (!isNonProductionIamRuntime(env) && !options.allowProductionDefault) {
-    return {};
-  }
-  return {
-    SDKWORK_IAM_TENANT_SIGNING_MASTER_SECRET: DEFAULT_DEV_IAM_TENANT_SIGNING_MASTER_SECRET,
-  };
 }
 
 export function listGatewayPackageTargets(profile) {

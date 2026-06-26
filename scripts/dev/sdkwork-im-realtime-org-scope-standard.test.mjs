@@ -95,6 +95,16 @@ assert.match(
   /on conflict \(tenant_id, organization_id, principal_kind, principal_id, device_id\)/,
   'postgres route binding upsert must use migration 010 conflict key',
 );
+assert.match(
+  read('adapters/postgres-realtime/src/route_store.rs'),
+  /route_bound_at_timestamp/,
+  'postgres route binding must bind bound_at as chrono timestamps',
+);
+assert.match(
+  read('adapters/postgres-realtime/src/route_store.rs'),
+  /session_id\.as_deref\(\)/,
+  'postgres route binding must bind nullable session_id as Option<&str>',
+);
 assert.doesNotMatch(
   read('adapters/local-memory/src/lib.rs').split('impl PresenceStateStore')[1]?.split('impl MemoryTimelineProjectionStore')[0] ?? '',
   /"default"/,

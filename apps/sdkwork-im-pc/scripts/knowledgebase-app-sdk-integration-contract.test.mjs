@@ -284,9 +284,21 @@ assert.match(
 );
 
 assert.match(
+  knowledgebasePcIntegrationSource,
+  /subscribeHostLanguage/u,
+  'IM core must bridge host language changes into sdkwork-knowledgebase-pc runtime.',
+);
+
+assert.match(
   knowledgeViewSource,
   /createHostManagedKnowledgebaseRuntime/u,
   'Knowledgebase embed package must use host-managed runtime without standalone auth.',
+);
+
+assert.match(
+  knowledgeViewSource,
+  /syncKnowledgebaseHostLanguage/u,
+  'Knowledgebase embed package must sync host-managed language on mount.',
 );
 
 assert.match(

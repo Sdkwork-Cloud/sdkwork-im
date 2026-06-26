@@ -9,6 +9,10 @@ import {
   readAppSdkSessionTokens,
   type SdkworkChatSession,
 } from '@sdkwork/im-pc-core/sdk/session';
+import {
+  acquirePcLiveConnectionLease,
+  ensurePcLiveConnection,
+} from '@sdkwork/im-pc-core/sdk/pcRealtimeConnectionManager';
 import { resolveSdkworkChatPcClientId } from './ClientIdentityService';
 import {
   resolveRtcMediaPublishKinds,
@@ -207,6 +211,7 @@ class SdkworkImCallService implements CallService {
   private readonly readSession: () => SdkworkChatSession | null;
   private readonly rtcMediaService: SdkworkRtcMediaService;
   private activeMediaRtcSessionId?: string;
+  private incomingConnectionLease?: () => void;
   private incomingSubscription?: () => void;
   private participantCredential?: ImCallParticipantCredential;
   private snapshot: SdkworkCallSnapshot = createIdleSnapshot();
@@ -340,6 +345,8 @@ class SdkworkImCallService implements CallService {
     if (normalizedConversationIds.length === 0) {
       this.incomingSubscription?.();
       this.incomingSubscription = undefined;
+      this.incomingConnectionLease?.();
+      this.incomingConnectionLease = undefined;
       this.applySnapshot(createIdleSnapshot());
       return this.getSnapshot();
     }
@@ -347,6 +354,11 @@ class SdkworkImCallService implements CallService {
     try {
       const session = this.readSession();
       const imClient = this.getClient(session);
+      this.incomingConnectionLease?.();
+      this.incomingConnectionLease = acquirePcLiveConnectionLease('calls-incoming-watch', {
+        conversationIds: normalizedConversationIds,
+      });
+      const connection = await ensurePcLiveConnection();
       this.incomingSubscription?.();
       this.incomingSubscription = imClient.calls.subscribe((callSession) => {
         if (!normalizedConversationIds.includes(callSession.conversationId ?? '')) {
@@ -388,6 +400,7 @@ class SdkworkImCallService implements CallService {
         });
       });
       const incoming = await imClient.calls.watchIncoming({
+        connection,
         conversationIds: normalizedConversationIds,
         deviceId: resolveSdkworkChatPcClientId(),
       });
@@ -408,6 +421,8 @@ class SdkworkImCallService implements CallService {
         });
       }
     } catch (error) {
+      this.incomingConnectionLease?.();
+      this.incomingConnectionLease = undefined;
       this.applySnapshot({
         ...this.snapshot,
         state: 'errored',

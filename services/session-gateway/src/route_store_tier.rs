@@ -103,8 +103,20 @@ impl RouteStore for RedisPostgresTieredRouteStore {
 
     fn bind(&self, request: RouteBindingRequest) -> Result<RouteBinding, RouteRuntimeError> {
         let binding = self.redis.bind(request)?;
-        self.mirror_persist_with_retry(&binding);
-        Ok(binding)
+        match self.postgres.persist(&binding) {
+            Ok(()) => Ok(binding),
+            Err(error) => {
+                let _ = self.redis.release(
+                    binding.tenant_id.as_str(),
+                    binding.organization_id.as_str(),
+                    binding.principal_id.as_str(),
+                    binding.principal_kind.as_str(),
+                    binding.device_id.as_str(),
+                    binding.owner_node_id.as_str(),
+                );
+                Err(error)
+            }
+        }
     }
 
     fn mark_node_draining(&self, node_id: &str) -> Result<RouteNodeLifecycle, RouteRuntimeError> {

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use im_platform_contracts::ContractError;
 use r2d2_postgres::postgres::Row;
 use sdkwork_im_runtime_route::{
@@ -24,7 +25,7 @@ insert into im_route_bindings (
     created_at,
     updated_at
 ) values (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz, now(), now()
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now()
 )
 on conflict (tenant_id, organization_id, principal_kind, principal_id, device_id) do update set
     owner_node_id = excluded.owner_node_id,
@@ -146,6 +147,29 @@ impl PostgresRoutePersistence {
     }
 }
 
+fn route_bound_at_timestamp(value: &str) -> Result<DateTime<Utc>, ContractError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(Utc::now());
+    }
+    DateTime::parse_from_rfc3339(trimmed)
+        .map(|timestamp| timestamp.with_timezone(&Utc))
+        .map_err(|error| {
+            ContractError::Unavailable(format!(
+                "route binding bound_at must be RFC3339: {error}"
+            ))
+        })
+}
+
+fn route_epoch_i64(route_epoch: u64) -> Result<i64, ContractError> {
+    i64::try_from(route_epoch).map_err(|_| {
+        ContractError::Unavailable(format!(
+            "route binding route_epoch={route_epoch} exceeds PostgreSQL bigint maximum {}",
+            i64::MAX
+        ))
+    })
+}
+
 fn persist_binding(
     pool: &PostgresRealtimePool,
     binding: &RouteBinding,
@@ -153,23 +177,22 @@ fn persist_binding(
     let mut conn = pool
         .get()
         .map_err(|error| route_pool_unavailable(binding.owner_node_id.as_str(), error))?;
-    let bound_at = if binding.bound_at.is_empty() {
-        chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
-    } else {
-        binding.bound_at.clone()
-    };
+    let organization_id = normalize_route_organization_id(binding.organization_id.as_str());
+    let route_epoch = route_epoch_i64(binding.route_epoch)?;
+    let bound_at = route_bound_at_timestamp(binding.bound_at.as_str())?;
+    let session_id = binding.session_id.as_deref();
     conn.execute(
         UPSERT_ROUTE_BINDING_SQL,
         &[
             &binding.tenant_id,
-            &normalize_route_organization_id(binding.organization_id.as_str()),
+            &organization_id,
             &binding.principal_kind,
             &binding.principal_id,
             &binding.device_id,
             &binding.owner_node_id,
-            &binding.session_id,
+            &session_id,
             &binding.connection_kind,
-            &(binding.route_epoch as i64),
+            &route_epoch,
             &bound_at,
         ],
     )
@@ -184,11 +207,12 @@ fn remove_binding(
     let mut conn = pool
         .get()
         .map_err(|error| route_pool_unavailable(binding.owner_node_id.as_str(), error))?;
+    let organization_id = normalize_route_organization_id(binding.organization_id.as_str());
     conn.execute(
         DELETE_ROUTE_BINDING_SQL,
         &[
             &binding.tenant_id,
-            &normalize_route_organization_id(binding.organization_id.as_str()),
+            &organization_id,
             &binding.principal_kind,
             &binding.principal_id,
             &binding.device_id,
@@ -210,12 +234,13 @@ fn load_binding(
     let mut conn = pool
         .get()
         .map_err(|error| route_pool_unavailable("_hydrate", error))?;
+    let normalized_organization_id = normalize_route_organization_id(organization_id);
     let row = conn
         .query_opt(
             LOAD_ROUTE_BINDING_SQL,
             &[
                 &tenant_id,
-                &normalize_route_organization_id(organization_id),
+                &normalized_organization_id,
                 &principal_kind,
                 &principal_id,
                 &device_id,
@@ -422,7 +447,11 @@ impl RouteStore for PostgresBackedRouteStore {
 
 #[cfg(test)]
 mod tests {
-    use super::{DELETE_ROUTE_BINDING_SQL, LOAD_ROUTE_BINDING_SQL, UPSERT_ROUTE_BINDING_SQL};
+    use super::{
+        route_bound_at_timestamp, route_epoch_i64, DELETE_ROUTE_BINDING_SQL,
+        LOAD_ROUTE_BINDING_SQL, UPSERT_ROUTE_BINDING_SQL,
+    };
+    use sdkwork_im_runtime_route::RouteBinding;
 
     #[test]
     fn test_route_binding_sql_contracts_use_organization_scoped_primary_key() {
@@ -430,5 +459,28 @@ mod tests {
         assert!(DELETE_ROUTE_BINDING_SQL.contains("organization_id"));
         assert!(LOAD_ROUTE_BINDING_SQL.contains("organization_id"));
         assert!(UPSERT_ROUTE_BINDING_SQL.contains("route_epoch <= excluded.route_epoch"));
+        assert!(!UPSERT_ROUTE_BINDING_SQL.contains("::timestamptz"));
+    }
+
+    #[test]
+    fn test_route_binding_postgres_parameters_use_stable_types() {
+        let binding = RouteBinding {
+            tenant_id: "t_demo".into(),
+            organization_id: "default".into(),
+            principal_id: "u_demo".into(),
+            principal_kind: "user".into(),
+            device_id: "d_demo".into(),
+            owner_node_id: "session_gateway_local_1".into(),
+            session_id: Some("s_demo".into()),
+            connection_kind: "websocket".into(),
+            bound_at: "2026-06-25T10:00:00.000Z".into(),
+            route_epoch: 1,
+        };
+        let route_epoch = route_epoch_i64(binding.route_epoch).expect("route epoch should fit i64");
+        let bound_at = route_bound_at_timestamp(binding.bound_at.as_str())
+            .expect("bound_at should parse as RFC3339");
+        assert_eq!(route_epoch, 1);
+        assert_eq!(bound_at.to_rfc3339(), "2026-06-25T10:00:00+00:00");
+        assert!(route_bound_at_timestamp("").is_ok());
     }
 }

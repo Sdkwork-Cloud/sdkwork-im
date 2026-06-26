@@ -58,7 +58,7 @@ for (const relativePath of mjsPathConsumers) {
 const rustPathConsumers = [
   'services/sdkwork-im-cloud-gateway/src/lib.rs',
   'crates/sdkwork-im-web-bootstrap/src/lib.rs',
-  'crates/sdkwork-router-im-realtime-open-api/src/paths.rs',
+  'crates/sdkwork-routes-im-realtime-open-api/src/paths.rs',
   'tools/chat-cli/src/realtime.rs',
 ];
 

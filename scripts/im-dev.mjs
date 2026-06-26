@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { runSdkworkChatPcDev } from './lib/im-pc-dev.mjs';
 import { ensureImSdkGeneratedTransportBuilt } from './dev/ensure-im-sdk-generated-built.mjs';
+import { resolvePostgresDevProfile } from './dev/sdkwork-im-postgres-dev-profile.mjs';
 import {
   DEFAULT_DEV_PROFILE_ID,
   IAM_APPLICATION_BOOTSTRAP_ENV,
@@ -15,7 +16,6 @@ import {
   mergeRuntimeEnv,
   REPO_ROOT,
   resolveDevProfileId,
-  resolveIamSigningMasterSecretDevEnv,
   resolveStandaloneGatewayConfigPath,
 } from './lib/im-topology.mjs';
 
@@ -92,22 +92,23 @@ async function main() {
   const profileId = resolveDevProfileId(settings.deploymentProfile, settings.serviceLayout)
     || DEFAULT_DEV_PROFILE_ID;
   const profileEnv = loadProfile(profileId);
-  const envFile = settings.database === 'postgres'
-    ? '.env.postgres'
-    : settings.database === 'sqlite'
-      ? '.env.sqlite'
-      : undefined;
-  const fileEnv = envFile ? loadEnvFile(envFile) : {};
+  const postgresProfile = settings.database !== 'sqlite'
+    ? resolvePostgresDevProfile({ env: process.env, repoRoot: REPO_ROOT })
+    : undefined;
+  const envFile = settings.database === 'sqlite' ? '.env.sqlite' : undefined;
+  const fileEnv = settings.database === 'sqlite'
+    ? loadEnvFile(envFile)
+    : postgresProfile?.fileEnv ?? {};
   const childEnv = mergeRuntimeEnv(process.env, profileEnv, fileEnv, {
     SDKWORK_IM_PROFILE_ID: profileId,
     SDKWORK_IM_DEPLOYMENT_PROFILE: settings.deploymentProfile,
     SDKWORK_IM_SERVICE_LAYOUT: settings.serviceLayout,
     SDKWORK_IM_STANDALONE_GATEWAY_CONFIG: resolveStandaloneGatewayConfigPath(
-      { ...process.env, ...profileEnv, ...fileEnv },
+      { ...process.env, ...profileEnv, ...fileEnv, ...(postgresProfile?.env ?? {}) },
       REPO_ROOT,
     ),
     ...IAM_APPLICATION_BOOTSTRAP_ENV,
-    ...resolveIamSigningMasterSecretDevEnv({ ...process.env, ...profileEnv, ...fileEnv }),
+    ...(postgresProfile?.env ?? {}),
   });
 
   console.log(

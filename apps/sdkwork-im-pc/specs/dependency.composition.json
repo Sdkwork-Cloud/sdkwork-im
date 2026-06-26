@@ -7,71 +7,8 @@
     {
       "surface": "app",
       "corePackage": "@sdkwork/im-pc-core",
-      "sdkClients": [
-        {
-          "id": "appbaseApp",
-          "workspace": "sdkwork-iam-app-sdk",
-          "surface": "app-api",
-          "credentialMode": "authenticated-app-api",
-          "nativePackage": "@sdkwork/iam-app-sdk",
-          "role": "dependency",
-          "sdkDependencyRef": "sdkwork-iam-app-sdk",
-          "exportFrom": "@sdkwork/im-pc-core/sdk"
-        },
-        {
-          "id": "imApp",
-          "workspace": "sdkwork-im-app-sdk",
-          "surface": "app-api",
-          "credentialMode": "authenticated-app-api",
-          "nativePackage": "@sdkwork/im-sdk",
-          "role": "application-owned",
-          "exportFrom": "@sdkwork/im-pc-core/sdk"
-        },
-        {
-          "id": "driveApp",
-          "workspace": "sdkwork-drive-app-sdk",
-          "surface": "app-api",
-          "credentialMode": "authenticated-app-api",
-          "nativePackage": "@sdkwork/drive-app-sdk",
-          "role": "dependency",
-          "sdkDependencyRef": "sdkwork-drive-app-sdk",
-          "exportFrom": "@sdkwork/im-pc-core/sdk"
-        },
-        {
-          "id": "knowledgebaseApp",
-          "workspace": "sdkwork-knowledgebase-app-sdk",
-          "surface": "app-api",
-          "credentialMode": "authenticated-app-api",
-          "nativePackage": "@sdkwork/knowledgebase-app-sdk",
-          "role": "dependency",
-          "sdkDependencyRef": "sdkwork-knowledgebase-app-sdk",
-          "exportFrom": "@sdkwork/im-pc-core/sdk"
-        },
-        {
-          "id": "notaryApp",
-          "workspace": "sdkwork-notary-app-sdk",
-          "surface": "app-api",
-          "credentialMode": "authenticated-app-api",
-          "nativePackage": "@sdkwork/notary-app-sdk",
-          "role": "dependency",
-          "sdkDependencyRef": "sdkwork-notary-app-sdk",
-          "exportFrom": "@sdkwork/im-pc-core/sdk"
-        },
-        {
-          "id": "rtcApp",
-          "workspace": "sdkwork-rtc-app-sdk",
-          "surface": "app-api",
-          "credentialMode": "authenticated-app-api",
-          "nativePackage": "@sdkwork/rtc-sdk",
-          "role": "dependency",
-          "sdkDependencyRef": "sdkwork-rtc-app-sdk",
-          "exportFrom": "@sdkwork/im-pc-core/sdk"
-        }
-      ],
-      "reusableModules": [
-        "@sdkwork/drive-pc-drive",
-        "@sdkwork/knowledgebase-pc-knowledge"
-      ],
+      "sdkClients": [],
+      "reusableModules": [],
       "hostAdapters": [],
       "dependencyApiExports": [],
       "dependencyApiSurfaces": []
@@ -79,27 +16,7 @@
     {
       "surface": "backend-admin",
       "corePackage": "@sdkwork/im-admin-core",
-      "sdkClients": [
-        {
-          "id": "appbaseBackend",
-          "workspace": "sdkwork-iam-backend-sdk",
-          "surface": "backend-api",
-          "credentialMode": "authenticated-backend-admin",
-          "nativePackage": "@sdkwork/iam-backend-sdk",
-          "role": "dependency",
-          "sdkDependencyRef": "sdkwork-iam-backend-sdk",
-          "exportFrom": "@sdkwork/im-admin-core/sdk"
-        },
-        {
-          "id": "imBackend",
-          "workspace": "sdkwork-im-backend-sdk",
-          "surface": "backend-api",
-          "credentialMode": "authenticated-backend-admin",
-          "nativePackage": "@sdkwork-internal/im-backend-api-generated",
-          "role": "application-owned",
-          "exportFrom": "@sdkwork/im-admin-core/sdk"
-        }
-      ],
+      "sdkClients": [],
       "reusableModules": [],
       "hostAdapters": [],
       "dependencyApiExports": [],
@@ -108,27 +25,7 @@
     {
       "surface": "console",
       "corePackage": "@sdkwork/im-console-core",
-      "sdkClients": [
-        {
-          "id": "appbaseApp",
-          "workspace": "sdkwork-iam-app-sdk",
-          "surface": "app-api",
-          "credentialMode": "authenticated-app-api",
-          "nativePackage": "@sdkwork/iam-app-sdk",
-          "role": "dependency",
-          "sdkDependencyRef": "sdkwork-iam-app-sdk",
-          "exportFrom": "@sdkwork/im-pc-core/sdk"
-        },
-        {
-          "id": "imApp",
-          "workspace": "sdkwork-im-app-sdk",
-          "surface": "app-api",
-          "credentialMode": "authenticated-app-api",
-          "nativePackage": "@sdkwork/im-sdk",
-          "role": "application-owned",
-          "exportFrom": "@sdkwork/im-pc-core/sdk"
-        }
-      ],
+      "sdkClients": [],
       "reusableModules": [],
       "hostAdapters": [],
       "dependencyApiExports": [],

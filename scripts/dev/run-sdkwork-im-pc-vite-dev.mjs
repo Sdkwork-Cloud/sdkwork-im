@@ -11,6 +11,7 @@ import {
   resolveAvailableSdkworkChatPcDevPort,
   resolveSdkworkChatPcDevServer,
 } from '../lib/im-pc-dev.mjs';
+import { resolveSdkworkImPcViteDevEnv } from '../lib/im-pc-vite-dev-env.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const viteRunnerPath = path.join(scriptDir, 'run-vite-cli.mjs');
@@ -29,6 +30,9 @@ const selectedPort = process.env[SDKWORK_IM_PC_DEV_PORT_ENV]
 process.env[SDKWORK_IM_PC_DEV_HOST_ENV] = process.env[SDKWORK_IM_PC_DEV_HOST_ENV]
   ?? configuredServer.host;
 process.env[SDKWORK_IM_PC_DEV_PORT_ENV] = String(selectedPort);
+
+const resolvedViteEnv = await resolveSdkworkImPcViteDevEnv(process.env);
+Object.assign(process.env, resolvedViteEnv);
 
 process.argv = [
   process.argv[0],

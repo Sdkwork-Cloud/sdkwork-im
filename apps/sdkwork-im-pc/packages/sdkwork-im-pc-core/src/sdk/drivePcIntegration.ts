@@ -1,6 +1,7 @@
 import type { SessionSnapshot } from 'sdkwork-drive-pc-core';
 import { configureDrivePcRuntime } from '@sdkwork/drive-pc-drive';
 import type { DrivePcSdkPorts } from '@sdkwork/drive-pc-drive';
+import { createImPcHostLanguageBridge } from '@sdkwork/im-pc-commons';
 
 import { getDriveAppSdkClient } from './driveAppSdkClient';
 import {
@@ -49,6 +50,7 @@ function mapImSessionToDriveSnapshot(session: SdkworkChatSession | null): Sessio
 }
 
 function createImDrivePcSdkPorts(): DrivePcSdkPorts {
+  const hostLanguageBridge = createImPcHostLanguageBridge();
   return {
     getDriveClient: getDriveAppSdkClient,
     readHostSession: () => mapImSessionToDriveSnapshot(readAppSdkSessionTokens()),
@@ -57,6 +59,8 @@ function createImDrivePcSdkPorts(): DrivePcSdkPorts {
       window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, handler);
       return () => window.removeEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, handler);
     },
+    resolveHostLanguage: hostLanguageBridge.resolveInitialLanguage,
+    subscribeHostLanguage: hostLanguageBridge.onLanguageChange,
   };
 }
 

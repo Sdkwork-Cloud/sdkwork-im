@@ -1,6 +1,6 @@
 # IM HTTP route manifests
 
-Route manifests for `sdkwork-router-*` crates and OpenAPI materialization.
+Route manifests for `sdkwork-routes-*` crates and OpenAPI materialization.
 
 Manifest rows must declare:
 
@@ -10,5 +10,5 @@ Manifest rows must declare:
 Materialization is performed by `sdks/materialize-im-v3-openapi-boundaries.mjs`, which also writes
 `x-sdkwork-request-context` and `x-sdkwork-api-surface` onto authority OpenAPI operations.
 
-Phase 2 work splits inline service routers into `sdkwork-router-im-*` crates and checks manifests in
+Phase 2 work splits inline service routers into `sdkwork-routes-im-*` crates and checks manifests in
 `pnpm test:web-framework-standard`.

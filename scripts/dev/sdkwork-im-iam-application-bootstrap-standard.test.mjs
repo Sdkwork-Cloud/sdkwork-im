@@ -24,6 +24,15 @@ const sharedManifestSource = read(
 const standaloneGatewayMain = read('services/sdkwork-im-standalone-gateway/src/main.rs');
 const standaloneGatewayCargo = read('services/sdkwork-im-standalone-gateway/Cargo.toml');
 const topologySource = read('scripts/lib/im-topology.mjs');
+const signingSecretsSource = read(
+  'crates/sdkwork-iam-web-adapter/src/signing_secrets.rs',
+  iamRepoRoot,
+);
+const bootstrapLibSource = read('crates/sdkwork-iam-bootstrap/src/lib.rs', iamRepoRoot);
+const tenantSigningKeySource = read(
+  'crates/sdkwork-iam-bootstrap/src/tenant_signing_key.rs',
+  iamRepoRoot,
+);
 const imPcDevSource = read('scripts/lib/im-pc-dev.mjs');
 const workspaceCargo = read('Cargo.toml');
 const iamAdapterSource = read(
@@ -99,15 +108,33 @@ assert.match(
 );
 
 assert.match(
-  topologySource,
-  /resolveIamSigningMasterSecretDevEnv/u,
-  'Dev topology must inject IAM tenant signing master secret for embedded IAM session issuance.',
+  bootstrapLibSource,
+  /ensure_postgres_tenant_signing_key/u,
+  'IAM bootstrap must provision tenant signing keys in PostgreSQL when default subjects are seeded.',
 );
 
 assert.match(
-  imPcDevSource,
+  signingSecretsSource,
+  /load_postgres_active_tenant_signing_key/u,
+  'IAM signing secrets must re-export database-backed tenant signing key loading.',
+);
+
+assert.match(
+  tenantSigningKeySource,
+  /tenant_primary_signing_kid/u,
+  'Tenant signing keys must use a stable per-tenant kid for concurrent-safe provisioning.',
+);
+
+assert.match(
+  tenantSigningKeySource,
+  /ON CONFLICT \(tenant_id, kid\) DO NOTHING/u,
+  'Tenant signing key provisioning must be insert-only and concurrency-safe.',
+);
+
+assert.doesNotMatch(
+  topologySource,
   /resolveIamSigningMasterSecretDevEnv/u,
-  'Standalone gateway dev process must inherit IAM tenant signing master secret env.',
+  'IM dev topology must not inject SDKWORK_IAM_TENANT_SIGNING_MASTER_SECRET env overrides.',
 );
 
 assert.match(

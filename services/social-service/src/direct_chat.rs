@@ -324,6 +324,7 @@ impl SocialRuntime {
         if let Some(existing_direct_chat) = active_direct_chat_record_for_pair(
             &next_state,
             tenant_id,
+            auth.organization_id.as_str(),
             pair.left_actor_id.as_str(),
             pair.right_actor_id.as_str(),
         ) {

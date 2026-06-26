@@ -52,6 +52,21 @@ async fn run() -> Result<(), String> {
         sdkwork_im_database_pool::bootstrap_im_database_from_env()
             .await
             .map_err(|error| format!("failed to bootstrap IM database lifecycle: {error}"))?;
+        sdkwork_iam_database_host::bootstrap_iam_database_from_env()
+            .await
+            .map_err(|error| format!("failed to bootstrap IAM database lifecycle: {error}"))?;
+        sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env()
+            .await;
+        let iam_environment = match im_app_context::resolve_web_environment_from_process_env() {
+            sdkwork_web_core::WebEnvironment::Dev => "development",
+            sdkwork_web_core::WebEnvironment::Test => "test",
+            sdkwork_web_core::WebEnvironment::Prod => "production",
+        };
+        sdkwork_im_iam_application_bootstrap::ensure_im_tenant_application_runtime_from_env(
+            iam_environment,
+        )
+        .await
+        .map_err(|error| format!("failed to ensure IM IAM tenant application: {error}"))?;
         let retention_scheduler =
             im_adapters_postgres_journal::spawn_retention_purge_scheduler_from_env();
         let embedded =
@@ -67,6 +82,7 @@ async fn run() -> Result<(), String> {
         }
     };
     let session_router = embedded_runtime.runtime.session_router.take();
+    let embedded_realtime_app_state = embedded_runtime.runtime.embedded_realtime_app_state.take();
     println!(
         "{}",
         format_startup_summary(&build_startup_summary_with_registry(
@@ -83,6 +99,7 @@ async fn run() -> Result<(), String> {
             registry,
             Some(product_runtime_router),
             session_router,
+            embedded_realtime_app_state,
         )
         .await,
     )

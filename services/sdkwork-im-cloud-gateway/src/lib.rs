@@ -11,7 +11,16 @@ use axum::{
     routing::get,
 };
 use futures_util::{SinkExt, StreamExt};
-use im_app_context::build_dual_token_headers_for_context;
+use im_app_context::{
+    build_dual_token_headers_for_context, coalesce_websocket_device_id,
+    websocket_query_device_id_from_path_and_query,
+};
+use sdkwork_im_websocket_auth_gate::{
+    close_websocket_with_auth_error, dual_token_headers_from_auth_init_frame,
+    normalize_websocket_auth_token, read_websocket_auth_init_frame,
+    resolve_websocket_device_binding, sanitized_realtime_websocket_path_and_query,
+    send_websocket_auth_ok, should_require_auth_init_frame,
+};
 use session_gateway::{RealtimeAuthContextResolver, resolve_iam_auth_pool_from_env};
 use reqwest::Client;
 use sdkwork_im_api_registry::{
@@ -19,14 +28,15 @@ use sdkwork_im_api_registry::{
     SdkTarget, ServiceSchemaIndexEntry, build_registry, sdk_contract_summaries,
 };
 use sdkwork_im_realtime_api_paths::REALTIME_WS;
-use sdkwork_im_cloud_gateway_config::WebGatewayConfig;
+use sdkwork_im_cloud_gateway_config::{
+    GatewayRuntimeMode, WebGatewayConfig, is_assembly_embedded_im_service,
+};
 use sdkwork_im_cloud_gateway_observability::{
     GatewayStartupSummary, build_startup_summary_with_registry, route_summaries,
     surface_group_summaries,
 };
 use sdkwork_im_openapi::{OpenApiServiceSpec, render_docs_html};
 use sdkwork_im_runtime_link::LINK_WEBSOCKET_SUBPROTOCOL;
-use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeSet;
 use std::time::Duration;
@@ -45,7 +55,6 @@ pub use embedded_session_gateway::{
 };
 
 const BROWSER_ORIGINS_ENV: &str = "SDKWORK_IM_BROWSER_ORIGINS";
-const IM_REALTIME_WEBSOCKET_PATH: &str = REALTIME_WS;
 const COMMERCE_APP_API_SEGMENTS: &[&str] = &[
     "accounts",
     "addresses",
@@ -77,11 +86,9 @@ const COURSE_APP_API_SEGMENTS: &[&str] = &[
     "course_reactions",
     "course_applications",
 ];
-const WEBSOCKET_AUTH_INIT_TIMEOUT_SECONDS: u64 = 10;
 const WEBSOCKET_UPSTREAM_CONNECT_TIMEOUT_SECONDS: u64 = 5;
 const GATEWAY_MAX_WEBSOCKET_MESSAGE_BYTES: usize = 512 * 1024;
 const GATEWAY_MAX_WEBSOCKET_FRAME_BYTES: usize = 256 * 1024;
-const WEBSOCKET_AUTH_INIT_MAX_BYTES: usize = 8 * 1024;
 const GATEWAY_MAX_REQUEST_BODY_BYTES_ENV: &str = "SDKWORK_IM_GATEWAY_MAX_REQUEST_BODY_BYTES";
 const GATEWAY_MAX_REQUEST_BODY_BYTES_DEFAULT: usize = 5 * 1024 * 1024;
 const GATEWAY_MAX_REQUEST_BODY_BYTES_MAX: usize = 20 * 1024 * 1024;
@@ -119,17 +126,6 @@ struct GatewayState {
     realtime_auth: RealtimeAuthContextResolver,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct WebsocketAuthInitFrame {
-    #[serde(rename = "type")]
-    frame_type: String,
-    request_id: Option<String>,
-    auth_token: Option<String>,
-    access_token: Option<String>,
-    device_id: Option<String>,
-}
-
 pub fn build_app(config: WebGatewayConfig) -> Router {
     build_app_with_registry(
         config,
@@ -151,6 +147,7 @@ pub fn build_app_with_registry_and_product_runtime(
         registry,
         product_runtime_router,
         None,
+        None,
     )
 }
 
@@ -159,12 +156,14 @@ pub fn build_app_with_registry_product_runtime_and_embedded_services(
     registry: RouteRegistry,
     product_runtime_router: Option<Router>,
     embedded_session_gateway: Option<Router>,
+    embedded_realtime_app_state: Option<session_gateway::AppState>,
 ) -> Router {
     finish_gateway_app_sync(
         config,
         registry,
         product_runtime_router,
         embedded_session_gateway,
+        embedded_realtime_app_state,
         RealtimeAuthContextResolver::default(),
     )
 }
@@ -175,6 +174,7 @@ pub async fn build_app_with_registry_product_runtime_and_embedded_services_from_
     registry: RouteRegistry,
     product_runtime_router: Option<Router>,
     embedded_session_gateway: Option<Router>,
+    embedded_realtime_app_state: Option<session_gateway::AppState>,
 ) -> Router {
     let iam_pool = resolve_iam_auth_pool_from_env().await;
     finish_gateway_app_from_env(
@@ -182,6 +182,7 @@ pub async fn build_app_with_registry_product_runtime_and_embedded_services_from_
         registry,
         product_runtime_router,
         embedded_session_gateway,
+        embedded_realtime_app_state,
         RealtimeAuthContextResolver::new(iam_pool),
     )
     .await
@@ -192,6 +193,7 @@ async fn finish_gateway_app_from_env(
     registry: RouteRegistry,
     product_runtime_router: Option<Router>,
     embedded_session_gateway: Option<Router>,
+    embedded_realtime_app_state: Option<session_gateway::AppState>,
     realtime_auth: RealtimeAuthContextResolver,
 ) -> Router {
     let business_router = Router::new()
@@ -218,9 +220,10 @@ async fn finish_gateway_app_from_env(
             realtime_auth,
         });
 
-    web_framework::wrap_gateway_router_from_env(business_router)
+    let wrapped_business = web_framework::wrap_gateway_router_from_env(business_router)
         .await
-        .layer(build_browser_cors_layer())
+        .layer(build_browser_cors_layer());
+    mount_embedded_realtime_websocket_router(embedded_realtime_app_state, wrapped_business)
 }
 
 fn finish_gateway_app_sync(
@@ -228,6 +231,7 @@ fn finish_gateway_app_sync(
     registry: RouteRegistry,
     product_runtime_router: Option<Router>,
     embedded_session_gateway: Option<Router>,
+    embedded_realtime_app_state: Option<session_gateway::AppState>,
     realtime_auth: RealtimeAuthContextResolver,
 ) -> Router {
     let business_router = Router::new()
@@ -254,7 +258,19 @@ fn finish_gateway_app_sync(
             realtime_auth,
         });
 
-    web_framework::wrap_gateway_router(business_router).layer(build_browser_cors_layer())
+    let wrapped_business =
+        web_framework::wrap_gateway_router(business_router).layer(build_browser_cors_layer());
+    mount_embedded_realtime_websocket_router(embedded_realtime_app_state, wrapped_business)
+}
+
+fn mount_embedded_realtime_websocket_router(
+    embedded_realtime_app_state: Option<session_gateway::AppState>,
+    business_router: Router,
+) -> Router {
+    let Some(app_state) = embedded_realtime_app_state else {
+        return business_router;
+    };
+    session_gateway::build_realtime_websocket_router(app_state).merge(business_router)
 }
 
 async fn openapi_json(State(state): State<GatewayState>) -> Result<Json<Value>, Response> {
@@ -318,17 +334,22 @@ async fn proxy_get_request(
     let route = state
         .registry
         .resolve(HttpMethod::Get, request.uri().path());
-    if let (Some(route), Ok(websocket_upgrade)) = (route, websocket_upgrade)
+    if let Some(route) = route
         && route.protocol == RouteProtocol::Websocket
     {
-        return proxy_websocket_request(
-            websocket_upgrade,
-            request,
-            &state,
-            route.service_id.as_str(),
-            route.websocket_subprotocols.as_slice(),
-        )
-        .await;
+        return match websocket_upgrade {
+            Ok(websocket_upgrade) => {
+                proxy_websocket_request(
+                    websocket_upgrade,
+                    request,
+                    &state,
+                    route.service_id.as_str(),
+                    route.websocket_subprotocols.as_slice(),
+                )
+                .await
+            }
+            Err(rejection) => rejection.into_response(),
+        };
     }
 
     if route.is_some() {
@@ -355,17 +376,14 @@ async fn proxy_websocket_request(
             format!("upstream target is not configured for {service_id}").as_str(),
         );
     };
-    if should_authenticate_realtime_websocket_with_init_frame(
-        service_id,
-        request.uri().path(),
-        request.headers(),
-    ) {
-        let path_and_query = sanitized_realtime_websocket_path_and_query(request.uri());
+    if should_authenticate_gateway_websocket_with_init_frame(request.headers(), request.uri()) {
+        let path_and_query = sanitized_gateway_websocket_path_and_query(request.uri());
         let original_headers = request.headers().clone();
         let state = state.clone();
         return bounded_websocket_upgrade(ws)
+            .protocols(websocket_subprotocols.to_vec())
             .on_upgrade(move |downstream_socket| {
-                proxy_realtime_websocket_after_auth_init(
+                proxy_websocket_after_auth_init(
                     downstream_socket,
                     state,
                     upstream_base_url,
@@ -375,13 +393,33 @@ async fn proxy_websocket_request(
             })
             .into_response();
     }
+
+    let sanitized_path_and_query = sanitized_gateway_websocket_path_and_query(request.uri());
+    if !should_require_auth_init_frame(
+        request.headers(),
+        websocket_auth_headers_from_query(request.uri()).is_some(),
+    ) && let Some(query_auth_headers) = websocket_auth_headers_from_query(request.uri())
+    {
+        let original_headers = request.headers().clone();
+        let state = state.clone();
+        return bounded_websocket_upgrade(ws)
+            .protocols(websocket_subprotocols.to_vec())
+            .on_upgrade(move |downstream_socket| {
+                proxy_websocket_after_query_token_auth(
+                    downstream_socket,
+                    state,
+                    upstream_base_url,
+                    sanitized_path_and_query,
+                    original_headers,
+                    query_auth_headers,
+                )
+            })
+            .into_response();
+    }
+
     let Ok(upstream_url) = upstream_websocket_url(
         upstream_base_url.as_str(),
-        request
-            .uri()
-            .path_and_query()
-            .map(|value| value.as_str())
-            .unwrap_or("/"),
+        &sanitized_path_and_query,
     ) else {
         return json_error_response(
             StatusCode::BAD_GATEWAY,
@@ -425,6 +463,83 @@ async fn proxy_websocket_request(
     }
 }
 
+async fn proxy_websocket_after_query_token_auth(
+    downstream_socket: WebSocket,
+    state: GatewayState,
+    upstream_base_url: String,
+    path_and_query: String,
+    original_headers: HeaderMap,
+    query_auth_headers: HeaderMap,
+) {
+    let auth_init_device_id = websocket_query_device_id_from_path_and_query(&path_and_query);
+    let upstream_auth_headers = match websocket_dual_token_headers_for_auth_init(
+        &state.realtime_auth,
+        &query_auth_headers,
+        auth_init_device_id.as_deref(),
+    )
+    .await
+    {
+        Ok(headers) => headers,
+        Err(_) => {
+            let mut socket = downstream_socket;
+            close_websocket_with_auth_error(
+                &mut socket,
+                None,
+                "websocket_auth_failed",
+                "websocket query token context validation failed",
+            )
+            .await;
+            return;
+        }
+    };
+
+    let Ok(upstream_url) = upstream_websocket_url(upstream_base_url.as_str(), &path_and_query)
+    else {
+        let mut socket = downstream_socket;
+        close_websocket_with_auth_error(
+            &mut socket,
+            None,
+            "websocket_upstream_unavailable",
+            "gateway websocket upstream URL is invalid",
+        )
+        .await;
+        return;
+    };
+    let mut upstream_request = match upstream_url.as_str().into_client_request() {
+        Ok(request) => request,
+        Err(_) => {
+            let mut socket = downstream_socket;
+            close_websocket_with_auth_error(
+                &mut socket,
+                None,
+                "websocket_upstream_unavailable",
+                "gateway failed to prepare websocket upstream request",
+            )
+            .await;
+            return;
+        }
+    };
+
+    copy_websocket_headers(&original_headers, upstream_request.headers_mut());
+    copy_dual_token_headers(&upstream_auth_headers, upstream_request.headers_mut());
+
+    match connect_upstream_websocket(upstream_request).await {
+        Ok(upstream_socket) => {
+            proxy_websocket_streams(downstream_socket, upstream_socket).await;
+        }
+        Err(error) => {
+            let mut socket = downstream_socket;
+            close_websocket_with_auth_error(
+                &mut socket,
+                None,
+                "websocket_upstream_unavailable",
+                format!("gateway websocket upstream request failed: {error}").as_str(),
+            )
+            .await;
+        }
+    }
+}
+
 async fn proxy_request(State(state): State<GatewayState>, request: Request) -> Response {
     let request = match dispatch_embedded_session_gateway_if_configured(&state, request).await {
         Ok(response) => return response,
@@ -450,6 +565,16 @@ async fn proxy_request(State(state): State<GatewayState>, request: Request) -> R
     };
     let service_id = route.service_id.clone();
     let Some(upstream_base_url) = state.config.upstream_base_url(service_id.as_str()) else {
+        if state.config.runtime_mode == GatewayRuntimeMode::Unified
+            && is_assembly_embedded_im_service(service_id.as_str())
+        {
+            let (parts, body) = request.into_parts();
+            return delegate_to_runtime_router(
+                runtime_router_for_path(&state, parts.uri.path()),
+                Request::from_parts(parts, body),
+            )
+            .await;
+        }
         return json_error_response(
             StatusCode::BAD_GATEWAY,
             format!("upstream target is not configured for {service_id}").as_str(),
@@ -524,7 +649,10 @@ async fn delegate_to_runtime_router(
 }
 
 fn should_dispatch_embedded_session_gateway(path: &str) -> bool {
-    path.starts_with("/im/v3/api/")
+    if path == REALTIME_WS {
+        return false;
+    }
+    path.starts_with("/im/v3/api/realtime") || path.starts_with("/im/v3/api/presence")
 }
 
 async fn dispatch_embedded_session_gateway_if_configured(
@@ -546,39 +674,97 @@ async fn dispatch_embedded_session_gateway_if_configured(
     }
 }
 
-fn should_authenticate_realtime_websocket_with_init_frame(
-    service_id: &str,
-    path: &str,
-    headers: &HeaderMap,
-) -> bool {
-    service_id == "session-gateway"
-        && path == IM_REALTIME_WEBSOCKET_PATH
-        && !headers.contains_key(header::AUTHORIZATION)
-        && !headers.contains_key("access-token")
-}
-
 fn bounded_websocket_upgrade(ws: WebSocketUpgrade) -> WebSocketUpgrade {
     ws.max_message_size(GATEWAY_MAX_WEBSOCKET_MESSAGE_BYTES)
         .max_frame_size(GATEWAY_MAX_WEBSOCKET_FRAME_BYTES)
 }
 
-fn sanitized_realtime_websocket_path_and_query(uri: &axum::http::Uri) -> String {
-    let path = uri.path();
+const GATEWAY_WEBSOCKET_ALLOW_QUERY_TOKENS_ENV: &str =
+    "SDKWORK_IM_GATEWAY_ALLOW_WEBSOCKET_QUERY_TOKENS";
+
+fn parse_truthy_env_flag(raw: Option<String>) -> bool {
+    raw.is_some_and(|value| {
+        matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
+}
+
+fn gateway_allows_websocket_query_tokens() -> bool {
+    let env = std::env::var(GATEWAY_WEBSOCKET_ALLOW_QUERY_TOKENS_ENV).ok();
+    parse_truthy_env_flag(env)
+}
+
+fn websocket_query_params(uri: &axum::http::Uri) -> Vec<(String, String)> {
     let Some(query) = uri.query() else {
-        return path.to_owned();
+        return Vec::new();
     };
-    let safe_query = query
+    query
         .split('&')
-        .filter(|pair| {
-            let pair = *pair;
-            let key = pair.split_once('=').map_or(pair, |(key, _)| key);
-            key.eq_ignore_ascii_case("deviceId")
+        .filter_map(|pair| {
+            let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
+            let key = key.trim();
+            if key.is_empty() {
+                return None;
+            }
+            Some((key.to_owned(), value.trim().to_owned()))
         })
-        .collect::<Vec<_>>();
-    if safe_query.is_empty() {
-        return path.to_owned();
+        .collect()
+}
+
+fn websocket_auth_headers_from_query(uri: &axum::http::Uri) -> Option<HeaderMap> {
+    if uri.path() == REALTIME_WS {
+        return None;
     }
-    format!("{path}?{}", safe_query.join("&"))
+    if !gateway_allows_websocket_query_tokens() {
+        return None;
+    }
+    let params = websocket_query_params(uri);
+    if params.is_empty() {
+        return None;
+    }
+    let access_token = params.iter().find_map(|(key, value)| {
+        if key.eq_ignore_ascii_case("accessToken")
+            || key.eq_ignore_ascii_case("access_token")
+            || key.eq_ignore_ascii_case("access-token")
+        {
+            Some(value.as_str())
+        } else {
+            None
+        }
+    })?;
+    let auth_token = params.iter().find_map(|(key, value)| {
+        if key.eq_ignore_ascii_case("authToken")
+            || key.eq_ignore_ascii_case("auth_token")
+            || key.eq_ignore_ascii_case("authorization")
+            || key.eq_ignore_ascii_case("token")
+        {
+            Some(value.as_str())
+        } else {
+            None
+        }
+    });
+    let auth_token = auth_token.unwrap_or(access_token);
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::AUTHORIZATION,
+        HeaderValue::from_str(normalize_websocket_auth_token(auth_token).as_str()).ok()?,
+    );
+    headers.insert("access-token", HeaderValue::from_str(access_token).ok()?);
+    Some(headers)
+}
+
+fn should_authenticate_gateway_websocket_with_init_frame(
+    headers: &HeaderMap,
+    uri: &axum::http::Uri,
+) -> bool {
+    should_require_auth_init_frame(headers, websocket_auth_headers_from_query(uri).is_some())
+}
+
+fn sanitized_gateway_websocket_path_and_query(uri: &axum::http::Uri) -> String {
+    sanitized_realtime_websocket_path_and_query(uri.path(), uri.query())
 }
 
 async fn connect_upstream_websocket(
@@ -596,7 +782,7 @@ async fn connect_upstream_websocket(
     }
 }
 
-async fn proxy_realtime_websocket_after_auth_init(
+async fn proxy_websocket_after_auth_init(
     mut downstream_socket: WebSocket,
     state: GatewayState,
     upstream_base_url: String,
@@ -608,49 +794,33 @@ async fn proxy_realtime_websocket_after_auth_init(
             &mut downstream_socket,
             None,
             "websocket_auth_required",
-            "auth.init frame is required before realtime websocket frames",
+            "auth.init frame is required before websocket frames",
         )
         .await;
         return;
     };
-    if auth_init.frame_type != "auth.init" {
-        close_websocket_with_auth_error(
-            &mut downstream_socket,
-            auth_init.request_id.as_deref(),
-            "websocket_auth_required",
-            "auth.init frame is required before realtime websocket frames",
-        )
-        .await;
-        return;
-    }
-
-    let Some(auth_header) = websocket_auth_init_authorization_header(&auth_init) else {
-        close_websocket_with_auth_error(
-            &mut downstream_socket,
-            auth_init.request_id.as_deref(),
-            "websocket_auth_required",
-            "auth.init authToken is required",
-        )
-        .await;
-        return;
+    let auth_headers = match dual_token_headers_from_auth_init_frame(&auth_init) {
+        Ok(headers) => headers,
+        Err(error) => {
+            close_websocket_with_auth_error(
+                &mut downstream_socket,
+                auth_init.request_id.as_deref(),
+                error.error_code(),
+                error.message(),
+            )
+            .await;
+            return;
+        }
     };
-    let Some(access_token) = websocket_auth_init_access_token_header(&auth_init) else {
-        close_websocket_with_auth_error(
-            &mut downstream_socket,
-            auth_init.request_id.as_deref(),
-            "websocket_auth_required",
-            "auth.init accessToken is required",
-        )
-        .await;
-        return;
-    };
-    let mut auth_headers = HeaderMap::new();
-    auth_headers.insert(header::AUTHORIZATION, auth_header);
-    auth_headers.insert("access-token", access_token);
+    let query_device_id = websocket_query_device_id_from_path_and_query(&path_and_query);
+    let effective_device_id = coalesce_websocket_device_id(
+        auth_init.device_id.clone(),
+        query_device_id,
+    );
     let upstream_auth_headers = match websocket_dual_token_headers_for_auth_init(
         &state.realtime_auth,
         &auth_headers,
-        auth_init.device_id.as_deref(),
+        effective_device_id.as_deref(),
     )
     .await
     {
@@ -666,12 +836,10 @@ async fn proxy_realtime_websocket_after_auth_init(
             return;
         }
     };
-    let auth_ok_context = match websocket_auth_ok_context(
-        &state.realtime_auth,
-        &upstream_auth_headers,
-        auth_init.device_id.as_deref(),
-    )
-    .await
+    let auth_context = match state
+        .realtime_auth
+        .resolve_from_headers(&upstream_auth_headers)
+        .await
     {
         Ok(context) => context,
         Err(_) => {
@@ -685,9 +853,21 @@ async fn proxy_realtime_websocket_after_auth_init(
             return;
         }
     };
+    let device_id = match resolve_websocket_device_binding(&auth_context, effective_device_id) {
+        Ok(device_id) => device_id,
+        Err(error) => {
+            close_websocket_with_auth_error(
+                &mut downstream_socket,
+                auth_init.request_id.as_deref(),
+                error.code,
+                error.message.as_str(),
+            )
+            .await;
+            return;
+        }
+    };
 
-    let path_and_query =
-        websocket_path_and_query_with_device(path_and_query, auth_init.device_id.as_deref());
+    let path_and_query = websocket_path_and_query_with_device(path_and_query, Some(device_id.as_str()));
     let Ok(upstream_url) = upstream_websocket_url(upstream_base_url.as_str(), &path_and_query)
     else {
         close_websocket_with_auth_error(
@@ -717,7 +897,13 @@ async fn proxy_realtime_websocket_after_auth_init(
 
     match connect_upstream_websocket(upstream_request).await {
         Ok(upstream_socket) => {
-            send_websocket_auth_ok(&mut downstream_socket, &auth_init, &auth_ok_context).await;
+            let _ = send_websocket_auth_ok(
+                &mut downstream_socket,
+                auth_init.request_id.as_deref(),
+                &auth_context,
+                device_id.as_str(),
+            )
+            .await;
             proxy_websocket_streams(downstream_socket, upstream_socket).await;
         }
         Err(error) => {
@@ -729,42 +915,6 @@ async fn proxy_realtime_websocket_after_auth_init(
                     .as_str(),
             )
             .await;
-        }
-    }
-}
-
-async fn read_websocket_auth_init_frame(socket: &mut WebSocket) -> Option<WebsocketAuthInitFrame> {
-    let deadline =
-        tokio::time::Instant::now() + Duration::from_secs(WEBSOCKET_AUTH_INIT_TIMEOUT_SECONDS);
-    loop {
-        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-        if remaining.is_zero() {
-            return None;
-        }
-        let next_message =
-            tokio::time::timeout(remaining, socket.next()).await.ok()??;
-        let Ok(message) = next_message else {
-            return None;
-        };
-        match message {
-            Message::Text(text) => {
-                if text.len() > WEBSOCKET_AUTH_INIT_MAX_BYTES {
-                    return None;
-                }
-                return serde_json::from_str::<WebsocketAuthInitFrame>(text.as_str()).ok();
-            }
-            Message::Binary(bytes) => {
-                let text = String::from_utf8(bytes.to_vec()).ok()?;
-                if text.len() > WEBSOCKET_AUTH_INIT_MAX_BYTES {
-                    return None;
-                }
-                return serde_json::from_str::<WebsocketAuthInitFrame>(text.as_str()).ok();
-            }
-            Message::Close(_) => return None,
-            Message::Ping(payload) => {
-                let _ = socket.send(Message::Pong(payload)).await;
-            }
-            Message::Pong(_) => {}
         }
     }
 }
@@ -801,60 +951,6 @@ fn build_gateway_upstream_client() -> Client {
         .timeout(Duration::from_secs(resolve_upstream_timeout_seconds()))
         .build()
         .expect("gateway upstream HTTP client should build")
-}
-
-fn websocket_auth_init_authorization_header(frame: &WebsocketAuthInitFrame) -> Option<HeaderValue> {
-    let token = frame.auth_token.as_deref()?.trim();
-    if token.is_empty() {
-        return None;
-    }
-    HeaderValue::from_str(normalize_websocket_auth_token(token).as_str()).ok()
-}
-
-fn websocket_auth_init_access_token_header(frame: &WebsocketAuthInitFrame) -> Option<HeaderValue> {
-    let token = frame.access_token.as_deref()?.trim();
-    if token.is_empty() {
-        return None;
-    }
-    HeaderValue::from_str(token).ok()
-}
-
-fn normalize_websocket_auth_token(token: &str) -> String {
-    if token
-        .get(..7)
-        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("Bearer "))
-    {
-        token.to_owned()
-    } else {
-        format!("Bearer {token}")
-    }
-}
-
-async fn websocket_auth_ok_context(
-    resolver: &RealtimeAuthContextResolver,
-    auth_headers: &HeaderMap,
-    auth_init_device_id: Option<&str>,
-) -> Result<Map<String, Value>, ()> {
-    let auth_context = resolver
-        .resolve_from_headers(auth_headers)
-        .await
-        .map_err(|_| ())?;
-    let mut context = Map::new();
-    context.insert("tenantId".to_owned(), Value::String(auth_context.tenant_id));
-    context.insert(
-        "principalId".to_owned(),
-        Value::String(auth_context.user_id),
-    );
-    if let Some(value) = auth_context.session_id {
-        context.insert("sessionId".to_owned(), Value::String(value));
-    }
-    if let Some(value) = auth_context
-        .device_id
-        .or_else(|| auth_init_device_id.map(str::to_owned))
-    {
-        context.insert("deviceId".to_owned(), Value::String(value));
-    }
-    Ok(context)
 }
 
 async fn websocket_dual_token_headers_for_auth_init(
@@ -901,58 +997,12 @@ fn copy_dual_token_headers(source_headers: &HeaderMap, target_headers: &mut head
     if let Some(value) = source_headers.get(header::AUTHORIZATION) {
         target_headers.insert(header::AUTHORIZATION, value.clone());
     }
-    if let Some(value) = source_headers.get("access-token") {
+    if let Some(value) = source_headers
+        .get("access-token")
+        .or_else(|| source_headers.get("Access-Token"))
+    {
         target_headers.insert("Access-Token", value.clone());
     }
-}
-
-async fn send_websocket_auth_ok(
-    socket: &mut WebSocket,
-    frame: &WebsocketAuthInitFrame,
-    context: &Map<String, Value>,
-) {
-    let mut payload = Map::new();
-    payload.insert("type".to_owned(), Value::String("auth.ok".to_owned()));
-    payload.insert(
-        "requestId".to_owned(),
-        frame
-            .request_id
-            .as_ref()
-            .map(|value| Value::String(value.clone()))
-            .unwrap_or(Value::Null),
-    );
-    for (name, value) in context {
-        payload.insert(name.clone(), value.clone());
-    }
-    let _ = socket
-        .send(Message::Text(Value::Object(payload).to_string().into()))
-        .await;
-}
-
-async fn close_websocket_with_auth_error(
-    socket: &mut WebSocket,
-    request_id: Option<&str>,
-    code: &str,
-    message: &str,
-) {
-    let _ = socket
-        .send(Message::Text(
-            json!({
-                "type": "error",
-                "requestId": request_id,
-                "code": code,
-                "message": message,
-            })
-            .to_string()
-            .into(),
-        ))
-        .await;
-    let _ = socket
-        .send(Message::Close(Some(CloseFrame {
-            code: axum::extract::ws::close_code::POLICY,
-            reason: Utf8Bytes::from(code.to_owned()),
-        })))
-        .await;
 }
 
 fn runtime_router_for_path(state: &GatewayState, path: &str) -> Option<Router> {

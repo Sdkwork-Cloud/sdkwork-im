@@ -3,16 +3,20 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { ensurePostgresDevDatabaseReady } from './dev/ensure-postgres-dev-database.mjs';
+import { resolvePostgresDevProfile } from './dev/sdkwork-im-postgres-dev-profile.mjs';
 import { resolveSdkworkImSharedDatabaseConfig } from './dev/sdkwork-im-shared-database.mjs';
 import {
   createManagedSdkworkApiGatewayProcess,
   createSdkworkChatBrowserOrigins,
+  createStandaloneGatewayProcess,
+  isStandaloneUnifiedProcess,
   isSdkworkApiGatewayManagedExternally,
   resolveSdkworkApiGatewayBaseUrl,
   resolveSdkworkApiGatewayBind,
   resolveSdkworkChatPcDevServer,
 } from './lib/im-pc-dev.mjs';
-import { IAM_APPLICATION_BOOTSTRAP_ENV, resolveIamDevEnv, resolveIamSigningMasterSecretDevEnv, resolveImProductSiteDirEnv } from './lib/im-topology.mjs';
+import { IAM_APPLICATION_BOOTSTRAP_ENV, resolveIamDevEnv, resolveImProductSiteDirEnv } from './lib/im-topology.mjs';
 import {
   createSdkworkImServerCargoEnv,
   resolveSdkworkImServerBindEnv,
@@ -32,20 +36,29 @@ function createBaseEnv() {
 }
 
 async function createRuntimeEnv(baseEnv) {
-  const cargoEnv = createSdkworkImServerCargoEnv({
+  const postgresProfile = resolvePostgresDevProfile({
     env: baseEnv,
+    repoRoot,
+  });
+  const cargoEnv = createSdkworkImServerCargoEnv({
+    env: {
+      ...baseEnv,
+      ...postgresProfile.env,
+    },
     repoRoot,
   });
   const bindEnv = await resolveSdkworkImServerBindEnv({
     env: cargoEnv.env,
   });
-  const iamDevEnv = resolveIamDevEnv(bindEnv.env, repoRoot);
-  const iamSigningDevEnv = resolveIamSigningMasterSecretDevEnv({ ...iamDevEnv, ...bindEnv.env });
+  const sharedDatabaseEnv = resolveSdkworkImSharedDatabaseConfig({
+    env: bindEnv.env,
+    repoRoot,
+  }).env;
+  const iamDevEnv = resolveIamDevEnv({ ...bindEnv.env, ...sharedDatabaseEnv }, repoRoot);
   const env = {
     ...bindEnv.env,
+    ...sharedDatabaseEnv,
     ...iamDevEnv,
-    ...iamSigningDevEnv,
-    ...resolveSdkworkImSharedDatabaseConfig({ env: bindEnv.env, repoRoot }).env,
     ...IAM_APPLICATION_BOOTSTRAP_ENV,
   };
   env.SDKWORK_IM_BROWSER_ORIGINS = env.SDKWORK_IM_BROWSER_ORIGINS ?? defaultBrowserOrigins;
@@ -252,6 +265,26 @@ if (managedSdkworkApiGatewayProcess) {
 }
 
 terminateStaleSdkworkImServerProcesses(runtimeEnv);
-await runCommand('cargo', ['run', '-p', 'sdkwork-im-cloud-gateway', '--bin', 'sdkwork-im-server'], {
+
+await ensurePostgresDevDatabaseReady({
   env: runtimeEnv,
+  repoRoot,
 });
+
+const standaloneGatewayProcess = isStandaloneUnifiedProcess(runtimeEnv)
+  ? createStandaloneGatewayProcess({
+    env: runtimeEnv,
+    repoRoot,
+  })
+  : undefined;
+
+if (standaloneGatewayProcess) {
+  process.stdout.write('[sdkwork-im-server] using sdkwork-im-standalone-gateway for standalone unified-process IAM ingress\n');
+  await runCommand(standaloneGatewayProcess.command, standaloneGatewayProcess.args, {
+    env: standaloneGatewayProcess.env,
+  });
+} else {
+  await runCommand('cargo', ['run', '-p', 'sdkwork-im-cloud-gateway', '--bin', 'sdkwork-im-server'], {
+    env: runtimeEnv,
+  });
+}

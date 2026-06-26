@@ -13,7 +13,7 @@ path = "src/main.rs"
 axum.workspace = true
 social-service = { path = "../social-service" }
 sdkwork_im_service_readiness = { workspace = true }
-sdkwork-router-im-social-backend-api = { path = "../../crates/sdkwork-router-im-social-backend-api" }
-sdkwork-router-im-social-open-api = { path = "../../crates/sdkwork-router-im-social-open-api" }
+sdkwork-routes-im-social-backend-api = { path = "../../crates/sdkwork-routes-im-social-backend-api" }
+sdkwork-routes-im-social-open-api = { path = "../../crates/sdkwork-routes-im-social-open-api" }
 tokio.workspace = true
 tracing.workspace = true

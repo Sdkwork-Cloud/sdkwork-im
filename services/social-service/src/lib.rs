@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 
 pub use control_routes::{build_control_domain_api_router, build_control_public_router};
 pub use http::build_app;
+pub use openapi::build_open_api_router;
 pub use postgres::{
     PostgresAppState, app_state_from_postgres_pool, try_postgres_app_state_from_database_url_env,
 };

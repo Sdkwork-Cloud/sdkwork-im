@@ -35,6 +35,7 @@ const standardChecks = [
   'test:component-spec-consistency',
   'test:apis-authority-standard',
   'check:agent-workflow-standard',
+  'check:unified-postgres-profile',
   'check:pnpm-script-standard',
   'check:dependency-management',
   'test:sdkwork-im-pc-i18n',

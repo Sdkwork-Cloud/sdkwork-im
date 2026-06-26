@@ -105,6 +105,12 @@ const partyDrawerSource = readNotaryPcText(
   'src',
   'PartyDrawer.tsx',
 );
+const notaryViewSource = readNotaryPcText(
+  'packages',
+  'sdkwork-notary-pc-notary',
+  'src',
+  'NotaryView.tsx',
+);
 const notaryPackageSources = fs
   .readdirSync(path.join(notaryPcRoot, 'packages', 'sdkwork-notary-pc-notary', 'src'), { recursive: true })
   .filter((entry) => typeof entry === 'string' && /\.(?:ts|tsx)$/u.test(entry))
@@ -340,6 +346,12 @@ assert.match(
 );
 
 assert.match(
+  notaryBootstrapSource,
+  /createImPcHostLanguageBridge/u,
+  'IM notary bootstrap must use the shared host language bridge.',
+);
+
+assert.match(
   notaryPcIntegrationSource,
   /rebootstrapNotaryPcRuntimeForIm/u,
   'IM core must re-bootstrap notary PC runtime after session changes.',
@@ -361,6 +373,18 @@ assert.match(
   shellLoadersSource,
   /import\('@sdkwork\/notary-pc-notary'\)/u,
   'IM shell must lazy-load the sdkwork-notary-pc-notary capability package.',
+);
+
+assert.match(
+  notaryViewSource,
+  /<I18nextProvider i18n=\{i18n\}>/u,
+  'Notary embed package must isolate its i18next instance from the IM host provider.',
+);
+
+assert.match(
+  notaryViewSource,
+  /syncNotaryI18nFromHost/u,
+  'Notary embed package must sync host-managed language on mount.',
 );
 
 assert.match(

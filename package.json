@@ -21,6 +21,8 @@
     "gateway:validate:standalone": "cargo check -p sdkwork-im-standalone-gateway",
     "gateway:package:cloud": "node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs bundle --root .",
     "gateway:validate:cloud": "node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs validate --root .",
+    "gateway:assembly:materialize": "node scripts/gateway/assembly-materialize.mjs",
+    "gateway:assembly:validate": "node scripts/gateway/assembly-validate.mjs",
     "topology:validate": "node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json",
     "start": "node scripts/release/run-sdkwork-im-source-server.mjs start",
     "build": "node scripts/release/build-sdkwork-im-production.mjs",
@@ -38,6 +40,7 @@
     "check:dependency-management": "node scripts/dependency-management-standard.test.mjs",
     "check:pnpm-script-standard": "node ../sdkwork-specs/tools/check-pnpm-script-standard.mjs --root . --product-prefix im,chat",
     "check:agent-workflow-standard": "node ../sdkwork-specs/tools/check-agent-workflow-standard.mjs --root .",
+    "check:unified-postgres-profile": "node ../sdkwork-specs/tools/check-unified-postgres-profile.mjs",
     "db:plan": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . plan",
     "db:init": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . init",
     "db:migrate": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . migrate",
@@ -60,6 +63,7 @@
     "test:component-spec-consistency": "node scripts/dev/sdkwork-im-component-spec-consistency.test.mjs",
     "test:apis-authority-standard": "node scripts/dev/sdkwork-im-apis-authority-standard.test.mjs",
     "test:rpc-contract": "node scripts/dev/sdkwork-im-rpc-contract.test.mjs",
+    "test:sdkwork-im-sdk-websocket-contract": "node scripts/dev/sdkwork-im-sdk-websocket-contract.test.ts",
     "test:runtime-standard": "node scripts/dev/sdkwork-im-runtime-standard.test.mjs",
     "test:retention-enforcement-standard": "node scripts/dev/sdkwork-im-retention-enforcement-standard.test.mjs",
     "test:observability-bootstrap-standard": "node scripts/dev/sdkwork-im-observability-bootstrap-standard.test.mjs",
@@ -70,6 +74,8 @@
     "test:workflow-commercial-gates": "node scripts/run-commercial-gates-governance-node-tests.mjs",
     "test:sdkwork-workspace-structure-standard": "node scripts/sdkwork-workspace-structure-standard.test.mjs",
     "test:web-framework-standard": "node scripts/dev/sdkwork-im-web-framework-standard.test.mjs",
+    "test:iam-auth-integration": "node scripts/dev/sdkwork-im-iam-auth-integration.test.mjs",
+    "test:single-http-ingress": "node ../sdkwork-specs/tools/check-single-http-ingress.mjs --root .",
     "test:web-backend-standard": "node scripts/dev/sdkwork-im-web-backend-standard.test.mjs",
     "test:database-framework-standard": "node scripts/dev/sdkwork-im-database-framework-standard.test.mjs",
     "test:rpc-framework-standard": "node ../sdkwork-specs/tools/check-rpc-framework-standard.mjs",
@@ -123,7 +129,7 @@
     "build:server:source": "node scripts/release/run-sdkwork-im-source-server.mjs build",
     "start:server:source": "node scripts/release/run-sdkwork-im-source-server.mjs start",
     "db:validate": "node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root .",
-    "db:materialize:contract": "node tools/materialize_im_database_contract.mjs",
+    "db:materialize:contract": "node ../sdkwork-specs/tools/materialize-database-contract-from-baseline.mjs --root . --baseline database/ddl/baseline/postgres/0001_im_legacy_baseline.sql --module-id im --owner im-platform --prefixes im_ --engines postgres",
     "db:seed": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . seed",
     "db:status": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . status",
     "db:drift": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . drift",
@@ -136,6 +142,9 @@
     "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/knowledgebase-app-sdk": "workspace:*",
     "@sdkwork/app-topology": "workspace:*"
+  },
+  "devDependencies": {
+    "pg": "^8.16.3"
   },
   "pnpm": {
     "overrides": {

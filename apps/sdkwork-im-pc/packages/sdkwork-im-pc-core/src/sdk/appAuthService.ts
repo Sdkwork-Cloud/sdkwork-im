@@ -33,16 +33,42 @@ interface RuntimeSessionPayload {
 
 type RuntimeSessionContext = NonNullable<SdkworkChatSession['context']>;
 
-const sdkworkChatAuthIntegration = createSdkworkAuthAppbaseIntegration({
-  app: {
-    id: 'sdkwork-im-pc',
-    title: 'Sdkwork IM PC',
-  },
-  basePath: '/auth',
-  extraPackageNames: [
-    '@sdkwork/im-pc-react',
-  ],
-});
+function isDuplicateCapabilityPackageError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.message.includes('Duplicate capability package');
+}
+
+function createSdkworkChatAuthIntegration() {
+  try {
+    return createSdkworkAuthAppbaseIntegration({
+      app: {
+        id: 'sdkwork-im-pc',
+        title: 'Sdkwork IM PC',
+      },
+      basePath: '/auth',
+      extraPackageNames: [
+        '@sdkwork/im-pc-react',
+      ],
+    });
+  } catch (error) {
+    if (isDuplicateCapabilityPackageError(error)) {
+      return createSdkworkAuthAppbaseIntegration({
+        app: {
+          id: 'sdkwork-im-pc',
+          title: 'Sdkwork IM PC',
+        },
+        basePath: '/auth',
+      });
+    }
+
+    throw error;
+  }
+}
+
+const sdkworkChatAuthIntegration = createSdkworkChatAuthIntegration();
 
 export const sdkworkChatAuthAppbaseManifest = sdkworkChatAuthIntegration.manifest;
 
@@ -118,6 +144,28 @@ function toSession(data: RuntimeSessionPayload): SdkworkChatSession {
   };
 }
 
+function isAuthSessionRejectedError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const candidate = error as {
+    status?: number;
+    statusCode?: number;
+    response?: { status?: number };
+    cause?: unknown;
+  };
+  const status = candidate.status
+    ?? candidate.statusCode
+    ?? candidate.response?.status;
+  if (status === 401 || status === 403) {
+    return true;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b401\b/u.test(message) || /\b403\b/u.test(message) || /unauthorized/iu.test(message);
+}
+
 export const appAuthService: AppAuthService = {
   async getCurrentSession() {
     const storedSession = readAppSdkSessionTokens();
@@ -129,10 +177,13 @@ export const appAuthService: AppAuthService = {
     try {
       const session = await getSdkworkChatIamRuntime().service.auth.sessions.current.retrieve();
       return applyAppSdkSessionTokens(toSession(session as unknown as RuntimeSessionPayload));
-    } catch {
-      clearSdkworkChatIamRuntimeSession();
-      resetSdkworkChatIamRuntime();
-      return null;
+    } catch (error) {
+      if (isAuthSessionRejectedError(error)) {
+        clearSdkworkChatIamRuntimeSession();
+        resetSdkworkChatIamRuntime();
+        return null;
+      }
+      return storedSession;
     }
   },
 

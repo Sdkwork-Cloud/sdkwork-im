@@ -22,4 +22,4 @@ sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 [dev-dependencies]
 http-body-util.workspace = true
 tower.workspace = true
-sdkwork-router-im-ops-backend-api = { path = "../../crates/sdkwork-router-im-ops-backend-api" }
+sdkwork-routes-im-ops-backend-api = { path = "../../crates/sdkwork-routes-im-ops-backend-api" }

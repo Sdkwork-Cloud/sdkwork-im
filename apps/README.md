@@ -1,37 +1,41 @@
-# Apps
+# apps/
 
-## Purpose
+Application: chat
+Status: active
+Owner: SDKWork maintainers
+Specs: APPLICATION_SPEC.md, SDKWORK_WORKSPACE_SPEC.md
 
-SDKWork application roots hosted by the Sdkwork IM repository. The current PC browser and desktop
-application lives at `apps/sdkwork-im-pc`.
+## Primary App Surface
 
-## Owner
+The repository root is the primary runnable app surface.
+The repository root `sdkwork.app.config.json` governs the primary application manifest.
 
-SDKWork Chat maintainers.
+## Directory Index
+
+| Directory | Surface role | Runnable | Purpose | Entry |
+| --- | --- | --- | --- | --- |
+| sdkwork-im-flutter-mobile | flutter-mobile | yes | SDKWork IM Mobile flutter-mobile application root. | [README](sdkwork-im-flutter-mobile/README.md) |
+| sdkwork-im-h5 | h5 | yes | SDKWork IM H5 h5 application root. | [README](sdkwork-im-h5/README.md) |
+| sdkwork-im-pc | pc | yes | Sdkwork IM PC pc application root. | [README](sdkwork-im-pc/README.md) |
 
 ## Allowed Content
 
-- Independent application roots with `sdkwork.app.config.json`, `AGENTS.md`, `.sdkwork/`, `specs/`,
-  packages, scripts, and app-local verification.
-- PC React renderer bootstrap, console/admin package families, and desktop host packages under the
-  owning application root.
+- Selected language/architecture application roots with `README.md`, `AGENTS.md`, `.sdkwork/`, and `specs/` when authored packages exist.
+- Architecture-local `packages/`, `config/`, `src/`, `lib/`, `App/`, or `entry/` directories required by the owning architecture standard.
 
 ## Forbidden Content
 
-- Repository-root Rust services, crates, or generated SDK output.
-- Runtime databases, logs, caches, secrets, or user-private files.
-- Cross-application business logic copied from other SDKWork products without an explicit contract.
+- Repository-root API contracts, generated SDK workspaces, Rust crates, or deployment descriptors moved under `apps/`.
+- Runtime secrets, user-private state, generated SDK transport output, or cross-application copied business logic.
 
 ## Related Specs
 
+- `../sdkwork-specs/APPLICATION_SPEC.md`
 - `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`
-- `../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md`
-- `../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md`
-- `../sdkwork-specs/TEST_SPEC.md`
+- `../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md`
 
 ## Verification
 
-Run `pnpm dev` from the repository root for the full PC + server stack. Run
-`pnpm run test:sdkwork-workspace-structure-standard` from the repository root after application
-layout changes. Run the owning application root checks from `apps/sdkwork-im-pc` when PC packages,
-manifests, or SDK wiring change.
+```bash
+node ../sdkwork-specs/tools/check-apps-directory-index.mjs --root .
+```

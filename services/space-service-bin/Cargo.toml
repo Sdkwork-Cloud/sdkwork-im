@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 axum.workspace = true
 space-service = { path = "../space-service" }
-sdkwork-router-im-space-open-api = { path = "../../crates/sdkwork-router-im-space-open-api" }
+sdkwork-routes-im-space-open-api = { path = "../../crates/sdkwork-routes-im-space-open-api" }
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
 sdkwork_im_service_readiness = { workspace = true }
 tokio.workspace = true

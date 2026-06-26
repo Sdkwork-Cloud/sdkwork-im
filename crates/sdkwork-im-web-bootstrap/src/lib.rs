@@ -7,9 +7,22 @@
 use std::sync::{Arc, OnceLock};
 
 use axum::Router;
+use sdkwork_web_bootstrap::{service_router, ServiceRouterConfig};
+
+/// Mount canonical infrastructure probes on an IM HTTP service router.
+pub fn mount_im_infra_routes(router: Router, config: ServiceRouterConfig) -> Router {
+    service_router(router, config)
+}
+
+/// Standard infra router config for split IM HTTP service processes.
+pub fn im_service_router_config() -> ServiceRouterConfig {
+    ServiceRouterConfig::default()
+        .with_readiness_check(sdkwork_im_service_readiness::im_env_readiness_check())
+        .with_metrics(im_service_http_metrics())
+}
 use im_app_context::{app_context_from_web_request, resolve_web_environment_from_process_env};
 use sdkwork_iam_web_adapter::{
-    iam_database_resolver_from_env, IamAuthorizationPolicy, IamDatabaseWebRequestContextResolver,
+    iam_web_request_context_resolver_from_env, IamAuthorizationPolicy, IamWebRequestContextResolver,
 };
 use sdkwork_im_realtime_api_paths::REALTIME_WS;
 use sdkwork_web_axum::{with_web_request_context, WebFrameworkLayer};
@@ -19,6 +32,9 @@ use sdkwork_web_core::{
     HttpMetricsRegistry, HttpRouteManifest, WebEnvironment, WebRequestContext,
     WebRequestContextProfile,
 };
+
+static SHARED_IAM_WEB_REQUEST_CONTEXT_RESOLVER: OnceLock<IamWebRequestContextResolver> =
+    OnceLock::new();
 
 #[derive(Clone, Default)]
 struct ImAppContextInjector;
@@ -74,18 +90,30 @@ fn im_service_security_policy(environment: &WebEnvironment) -> SecurityPolicy {
 
 /// Infra paths that stay anonymous across IM HTTP service processes.
 pub fn im_service_public_path_prefixes() -> Vec<String> {
-    vec![
-        "/health".to_owned(),
-        "/healthz".to_owned(),
-        "/readyz".to_owned(),
-        "/metrics".to_owned(),
+    let mut prefixes = sdkwork_web_bootstrap::infra_public_path_prefixes();
+    prefixes.extend([
         "/openapi.json".to_owned(),
         "/openapi/".to_owned(),
         "/docs".to_owned(),
         REALTIME_WS.to_owned(),
-    ]
+    ]);
+    prefixes
 }
 
+/// Cached IAM resolver for IM HTTP service processes (shared across route crates in one process).
+pub async fn shared_iam_web_request_context_resolver_from_env() -> IamWebRequestContextResolver {
+    if let Some(resolver) = SHARED_IAM_WEB_REQUEST_CONTEXT_RESOLVER.get() {
+        return resolver.clone();
+    }
+    let resolver = iam_web_request_context_resolver_from_env().await;
+    let _ = SHARED_IAM_WEB_REQUEST_CONTEXT_RESOLVER.set(resolver.clone());
+    resolver
+}
+
+/// Returns the cached IAM resolver when [`shared_iam_web_request_context_resolver_from_env`] has run.
+pub fn cached_iam_web_request_context_resolver() -> Option<IamWebRequestContextResolver> {
+    SHARED_IAM_WEB_REQUEST_CONTEXT_RESOLVER.get().cloned()
+}
 /// Profile for IM-owned open-api ingress (`/im/v3/api/*`) with default backend-api prefix.
 pub fn im_service_context_profile() -> WebRequestContextProfile {
     WebRequestContextProfile {
@@ -98,7 +126,7 @@ pub fn im_service_context_profile() -> WebRequestContextProfile {
 }
 
 fn wrap_im_open_api_service_router_inner(
-    resolver: IamDatabaseWebRequestContextResolver,
+    resolver: IamWebRequestContextResolver,
     route_manifest: HttpRouteManifest,
     router: Router,
 ) -> Router {
@@ -124,8 +152,10 @@ pub fn init_im_service_tracing_from_env() {
 
 /// Wrap an IM HTTP service router with the canonical SDKWork interceptor pipeline.
 pub fn wrap_im_open_api_service_router(router: Router) -> Router {
+    let resolver = cached_iam_web_request_context_resolver()
+        .unwrap_or_else(|| IamWebRequestContextResolver::new(None));
     wrap_im_open_api_service_router_with_resolver(
-        IamDatabaseWebRequestContextResolver::new(None),
+        resolver,
         HttpRouteManifest::new(&[]),
         router,
     )
@@ -138,7 +168,7 @@ pub fn wrap_im_service_router(router: Router) -> Router {
 
 /// Wrap with an explicit resolver and route manifest (public routes from manifest + infra prefixes).
 pub fn wrap_im_open_api_service_router_with_resolver(
-    resolver: IamDatabaseWebRequestContextResolver,
+    resolver: IamWebRequestContextResolver,
     route_manifest: HttpRouteManifest,
     router: Router,
 ) -> Router {
@@ -150,6 +180,6 @@ pub async fn wrap_im_open_api_service_router_from_env(
     route_manifest: HttpRouteManifest,
     router: Router,
 ) -> Router {
-    let resolver = iam_database_resolver_from_env().await;
+    let resolver = shared_iam_web_request_context_resolver_from_env().await;
     wrap_im_open_api_service_router_inner(resolver, route_manifest, router)
 }

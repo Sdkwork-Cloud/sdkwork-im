@@ -2284,13 +2284,20 @@ impl SocialRuntime {
     pub fn authoritative_active_direct_chat_for_pair(
         &self,
         tenant_id: &str,
+        organization_id: &str,
         user_low_id: &str,
         user_high_id: &str,
     ) -> Result<Option<DirectChat>, String> {
         let state = self.authoritative_state_for_query()?;
         Ok(
-            active_direct_chat_record_for_pair(&state, tenant_id, user_low_id, user_high_id)
-                .map(|record| record.direct_chat),
+            active_direct_chat_record_for_pair(
+                &state,
+                tenant_id,
+                organization_id,
+                user_low_id,
+                user_high_id,
+            )
+            .map(|record| record.direct_chat),
         )
     }
 

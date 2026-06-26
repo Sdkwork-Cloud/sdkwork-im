@@ -9,9 +9,10 @@ import { fileURLToPath } from 'node:url';
 import {
   IAM_APPLICATION_BOOTSTRAP_ENV,
   loadEnvFile,
+  loadProfile,
+  mergeRuntimeEnv,
   REPO_ROOT,
-  resolveIamDevEnv,
-  resolveIamSigningMasterSecretDevEnv,
+  resolveDevProfileId,
   resolveStandaloneGatewayConfigPath,
 } from './lib/im-topology.mjs';
 import { resolveImProductSiteDirEnv } from './lib/im-product-site-dirs.mjs';
@@ -138,16 +139,18 @@ async function main() {
   }
 
   const fileEnv = loadEnvFile(resolveDevEnvFilePath(settings.devEnvFile), repoRoot);
-  const iamDevEnv = resolveIamDevEnv({ ...process.env, ...fileEnv }, repoRoot);
-  const iamSigningDevEnv = resolveIamSigningMasterSecretDevEnv({ ...iamDevEnv, ...process.env, ...fileEnv });
-  const baseEnv = {
-    ...iamDevEnv,
-    ...iamSigningDevEnv,
-    ...resolveSdkworkImSharedDatabaseConfig({ env: { ...process.env, ...fileEnv }, repoRoot }).env,
+  const profileId = resolveDevProfileId('standalone', 'unified-process');
+  const profileEnv = loadProfile(profileId);
+  const iamDevEnv = profileEnv;
+  const baseEnv = mergeRuntimeEnv(process.env, profileEnv, fileEnv, {
+    SDKWORK_IM_PROFILE_ID: profileId,
+    SDKWORK_IM_DEPLOYMENT_PROFILE: 'standalone',
+    SDKWORK_IM_SERVICE_LAYOUT: 'unified-process',
+    ...resolveSdkworkImSharedDatabaseConfig({ env: { ...process.env, ...profileEnv, ...fileEnv }, repoRoot }).env,
     ...IAM_APPLICATION_BOOTSTRAP_ENV,
     SDKWORK_IM_STANDALONE_GATEWAY_CONFIG: configPath,
     SDKWORK_IM_STANDALONE_GATEWAY_ENVIRONMENT: settings.environment,
-  };
+  });
   const realtimeClusterEnv = resolveRealtimeClusterDevEnv(
     { ...process.env, ...fileEnv, ...baseEnv },
     {

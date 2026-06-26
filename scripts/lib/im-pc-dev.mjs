@@ -8,6 +8,8 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { resolveSdkworkChatIamCommandEnv } from '../../apps/sdkwork-im-pc/scripts/sdkwork-chat-iam-env.mjs';
+import { ensurePostgresDevDatabaseReady } from '../dev/ensure-postgres-dev-database.mjs';
+import { resolvePostgresDevProfile } from '../dev/sdkwork-im-postgres-dev-profile.mjs';
 import { mergeSdkworkImBootstrapAccessTokenEnv } from '../dev/sdkwork-im-bootstrap-access-token.mjs';
 import { resolveSdkworkImSharedDatabaseConfig } from '../dev/sdkwork-im-shared-database.mjs';
 import {
@@ -17,7 +19,6 @@ import {
 import {
   IAM_APPLICATION_BOOTSTRAP_ENV,
   resolveIamDevEnv,
-  resolveIamSigningMasterSecretDevEnv,
   resolveStandaloneGatewayConfigPath,
 } from './im-topology.mjs';
 import { resolveImProductSiteDirEnv } from './im-product-site-dirs.mjs';
@@ -130,6 +131,22 @@ function normalizeGatewayBind(value, label = 'SDKWORK_API_CLOUD_GATEWAY_BIND') {
     throw new Error(`${label} must be a host:port bind address, not a URL`);
   }
   return normalized;
+}
+
+export function deriveWebSocketBaseUrlFromHttpBaseUrl(httpBaseUrl) {
+  const normalized = normalizeText(httpBaseUrl);
+  if (!normalized) {
+    return undefined;
+  }
+  const parsedUrl = new URL(normalized);
+  if (parsedUrl.protocol === 'http:') {
+    parsedUrl.protocol = 'ws:';
+  } else if (parsedUrl.protocol === 'https:') {
+    parsedUrl.protocol = 'wss:';
+  } else {
+    throw new Error(`cannot derive websocket URL from non-http base URL: ${normalized}`);
+  }
+  return parsedUrl.toString().replace(/\/+$/u, '');
 }
 
 export function resolveSdkworkApiGatewayBind(env = process.env) {
@@ -299,10 +316,8 @@ export function createStandaloneGatewayProcess({
 
   const configPath = resolveStandaloneGatewayConfigPath(env, resolvedRepoRoot);
   const iamDevEnv = resolveIamDevEnv(env, resolvedRepoRoot);
-  const iamSigningDevEnv = resolveIamSigningMasterSecretDevEnv({ ...iamDevEnv, ...env });
   const gatewayEnv = {
     ...iamDevEnv,
-    ...iamSigningDevEnv,
     ...env,
     ...IAM_APPLICATION_BOOTSTRAP_ENV,
     ...resolveRealtimeClusterDevEnv({ ...iamDevEnv, ...env }),
@@ -342,10 +357,8 @@ export function createManagedSdkworkApiGatewayProcess({
 
   const apiGatewayWorkspaceRoot = path.resolve(resolvedRepoRoot, '..', 'sdkwork-api-cloud-gateway');
   const iamDevEnv = resolveIamDevEnv(env, resolvedRepoRoot);
-  const iamSigningDevEnv = resolveIamSigningMasterSecretDevEnv({ ...iamDevEnv, ...env });
   const gatewayEnv = {
     ...iamDevEnv,
-    ...iamSigningDevEnv,
     ...env,
     ...IAM_APPLICATION_BOOTSTRAP_ENV,
     CARGO_TARGET_DIR: normalizeText(env.SDKWORK_API_CLOUD_GATEWAY_CARGO_TARGET_DIR)
@@ -501,11 +514,7 @@ function resolveEnvFilePath(envFile, root) {
 }
 
 function resolveDefaultPostgresEnvFile(root) {
-  const localEnvFile = path.resolve(root, '.env.postgres');
-  if (fs.existsSync(localEnvFile)) {
-    return localEnvFile;
-  }
-  return path.resolve(root, '.env.postgres.example');
+  return path.resolve(root, '.env.postgres');
 }
 
 export function loadSdkworkChatPcDevEnvFile(envFile, {
@@ -593,12 +602,24 @@ export function createSdkworkChatPcDevPlan({
   const defaultEnvFile = databaseProfile === 'postgres'
     ? resolveDefaultPostgresEnvFile(resolvedRepoRoot)
     : undefined;
-  const devEnvFile = loadSdkworkChatPcDevEnvFile(options.envFile ?? defaultEnvFile, {
-    repoRoot: resolvedRepoRoot,
-  });
+  const postgresDevProfile = databaseProfile === 'postgres'
+    ? resolvePostgresDevProfile({
+      env: {
+        ...env,
+        ...serverEnv,
+      },
+      repoRoot: resolvedRepoRoot,
+    })
+    : undefined;
+  const devEnvFile = databaseProfile === 'postgres'
+    ? postgresDevProfile.fileEnv
+    : loadSdkworkChatPcDevEnvFile(options.envFile ?? defaultEnvFile, {
+      repoRoot: resolvedRepoRoot,
+    });
   const requestedEnv = {
     ...env,
     ...devEnvFile,
+    ...(postgresDevProfile?.env ?? {}),
   };
   const cargoEnv = createSdkworkImServerCargoEnv({
     env: {
@@ -642,6 +663,9 @@ export function createSdkworkChatPcDevPlan({
   mergedEnv[SDKWORK_IM_PC_DEV_HOST_ENV] = devServer.host;
   mergedEnv[SDKWORK_IM_PC_DEV_PORT_ENV] = String(devServer.port);
   const applicationPublicHttpUrl = resolveApplicationPublicHttpUrl(mergedEnv);
+  const applicationPublicWebSocketUrl = deriveWebSocketBaseUrlFromHttpBaseUrl(
+    applicationPublicHttpUrl,
+  );
   const platformApiGatewayBaseUrl = resolveSdkworkApiGatewayBaseUrl({
     ...mergedEnv,
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
@@ -650,8 +674,10 @@ export function createSdkworkChatPcDevPlan({
   const rendererInputEnv = {
     ...mergedEnv,
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: applicationPublicWebSocketUrl,
     SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: platformApiGatewayBaseUrl,
     VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
+    VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: applicationPublicWebSocketUrl,
     VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: platformApiGatewayBaseUrl,
   };
   const command = pnpmCommand();
@@ -670,42 +696,43 @@ export function createSdkworkChatPcDevPlan({
     throw new Error(resolvedRendererEnv.errors.join('\n'));
   }
   const rendererEnv = mergeSdkworkImBootstrapAccessTokenEnv(resolvedRendererEnv.env);
-  const explicitDriveAppApiUpstream = resolveExplicitAppApiUpstream(
-    mergedEnv,
-    DRIVE_APP_API_UPSTREAM_ENV_KEYS,
-  );
-  const explicitNotaryAppApiUpstream = resolveExplicitAppApiUpstream(
-    mergedEnv,
-    NOTARY_APP_API_UPSTREAM_ENV_KEYS,
-  );
-  const explicitCommerceAppApiUpstream = resolveExplicitAppApiUpstream(
-    mergedEnv,
-    COMMERCE_APP_API_UPSTREAM_ENV_KEYS,
-  );
-  const explicitMailAppApiUpstream = resolveExplicitAppApiUpstream(
-    mergedEnv,
-    MAIL_APP_API_UPSTREAM_ENV_KEYS,
-  );
-  const explicitCommunityAppApiUpstream = resolveExplicitAppApiUpstream(
-    mergedEnv,
-    COMMUNITY_APP_API_UPSTREAM_ENV_KEYS,
-  );
-  const explicitCourseAppApiUpstream = resolveExplicitAppApiUpstream(
-    mergedEnv,
-    COURSE_APP_API_UPSTREAM_ENV_KEYS,
-  );
-  const explicitKnowledgebaseAppApiUpstream = resolveExplicitAppApiUpstream(
-    mergedEnv,
-    KNOWLEDGEBASE_APP_API_UPSTREAM_ENV_KEYS,
-  );
+  const explicitDriveAppApiUpstream = standaloneUnified
+    ? undefined
+    : resolveExplicitAppApiUpstream(mergedEnv, DRIVE_APP_API_UPSTREAM_ENV_KEYS);
+  const explicitNotaryAppApiUpstream = standaloneUnified
+    ? undefined
+    : resolveExplicitAppApiUpstream(mergedEnv, NOTARY_APP_API_UPSTREAM_ENV_KEYS);
+  const explicitCommerceAppApiUpstream = standaloneUnified
+    ? undefined
+    : resolveExplicitAppApiUpstream(mergedEnv, COMMERCE_APP_API_UPSTREAM_ENV_KEYS);
+  const explicitMailAppApiUpstream = standaloneUnified
+    ? undefined
+    : resolveExplicitAppApiUpstream(mergedEnv, MAIL_APP_API_UPSTREAM_ENV_KEYS);
+  const explicitCommunityAppApiUpstream = standaloneUnified
+    ? undefined
+    : resolveExplicitAppApiUpstream(mergedEnv, COMMUNITY_APP_API_UPSTREAM_ENV_KEYS);
+  const explicitCourseAppApiUpstream = standaloneUnified
+    ? undefined
+    : resolveExplicitAppApiUpstream(mergedEnv, COURSE_APP_API_UPSTREAM_ENV_KEYS);
+  const explicitKnowledgebaseAppApiUpstream = standaloneUnified
+    ? undefined
+    : resolveExplicitAppApiUpstream(mergedEnv, KNOWLEDGEBASE_APP_API_UPSTREAM_ENV_KEYS);
+  const sharedDatabaseEnv = resolveSdkworkImSharedDatabaseConfig({
+    env: mergedEnv,
+    repoRoot: resolvedRepoRoot,
+  }).env;
+  const iamDevEnv = resolveIamDevEnv({ ...mergedEnv, ...sharedDatabaseEnv }, resolvedRepoRoot);
   const gatewayServerEnv = {
     ...mergedEnv,
-    ...resolveSdkworkImSharedDatabaseConfig({ env: mergedEnv, repoRoot: resolvedRepoRoot }).env,
+    ...sharedDatabaseEnv,
+    ...iamDevEnv,
     SDKWORK_IM_BROWSER_ORIGINS: mergedEnv.SDKWORK_IM_BROWSER_ORIGINS
       ?? createSdkworkChatBrowserOrigins(devServer),
     SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
+    SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: applicationPublicWebSocketUrl,
     SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: platformApiGatewayBaseUrl,
     VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL: applicationPublicHttpUrl,
+    VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL: applicationPublicWebSocketUrl,
     VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: platformApiGatewayBaseUrl,
     SDKWORK_API_CLOUD_GATEWAY_BIND: standaloneUnified
       ? normalizeGatewayBind(
@@ -735,6 +762,19 @@ export function createSdkworkChatPcDevPlan({
       ? { SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM: explicitKnowledgebaseAppApiUpstream }
       : {}),
   };
+  if (standaloneUnified) {
+    for (const key of [
+      'SDKWORK_IM_DRIVE_APP_API_UPSTREAM',
+      'SDKWORK_IM_NOTARY_APP_API_UPSTREAM',
+      'SDKWORK_IM_COMMERCE_APP_API_UPSTREAM',
+      'SDKWORK_IM_MAIL_APP_API_UPSTREAM',
+      'SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM',
+      'SDKWORK_IM_COURSE_APP_API_UPSTREAM',
+      'SDKWORK_IM_KNOWLEDGEBASE_APP_API_UPSTREAM',
+    ]) {
+      delete gatewayServerEnv[key];
+    }
+  }
   const managedStandaloneGatewayProcess = standaloneUnified
     ? createStandaloneGatewayProcess({
       env: gatewayServerEnv,
@@ -854,11 +894,11 @@ export async function runSdkworkChatPcDev({
     env: envWithSiteDirs,
     repoRoot: resolvedRepoRoot,
   });
-  const gatewayProcess = serverPortPlan.processes[0];
-  const resolvedServerBind = gatewayProcess?.label === 'sdkwork-im-server'
-    || gatewayProcess?.label === 'sdkwork-im-standalone-gateway'
+  const serverBindGateway = serverPortPlan.processes[0];
+  const resolvedServerBind = serverBindGateway?.label === 'sdkwork-im-server'
+    || serverBindGateway?.label === 'sdkwork-im-standalone-gateway'
     ? await resolveServerBindEnv({
-      env: gatewayProcess.env,
+      env: serverBindGateway.env,
     })
     : { env: {} };
   const plan = createSdkworkChatPcDevPlan({
@@ -872,6 +912,18 @@ export async function runSdkworkChatPcDev({
   if (plan.dryRun) {
     stdout.write(`${formatPlan(plan)}\n`);
     return 0;
+  }
+
+  const gatewayProcess = plan.processes.find((entry) => (
+    entry.label === 'sdkwork-im-server' || entry.label === 'sdkwork-im-standalone-gateway'
+  ));
+  if (gatewayProcess) {
+    await ensurePostgresDevDatabaseReady({
+      env: gatewayProcess.env,
+      repoRoot: resolvedRepoRoot,
+      stdout,
+      stderr,
+    });
   }
 
   const children = [];

@@ -36,7 +36,7 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("governance-service failed to bind local listener: {error}"))?;
 
-    let app = sdkwork_router_im_governance_backend_api::build_public_app();
+    let app = sdkwork_routes_im_governance_backend_api::build_public_app();
 
     axum::serve(listener, app)
         .with_graceful_shutdown(async {

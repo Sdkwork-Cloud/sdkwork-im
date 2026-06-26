@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, Duration, FixedOffset};
+use chrono::{DateTime, Duration, FixedOffset, TimeZone};
 use im_time::{rfc3339_le, utc_now_rfc3339_millis};
 use serde::{Deserialize, Serialize};
 
@@ -663,10 +663,11 @@ impl SocialControlState {
                         SocialSharedChannelSyncLeaseStatus::Stale
                     ) {
                         let lease_seconds = shared_channel_sync_claim_lease_seconds();
-                        if let (Some(owner_id), Some(owner_kind)) = (
-                            pending.owner_actor_id.as_deref(),
-                            pending.owner_actor_kind.as_deref(),
-                        ) {
+                        let owner_id = pending.owner_actor_id.clone();
+                        let owner_kind = pending.owner_actor_kind.clone();
+                        if let (Some(owner_id), Some(owner_kind)) =
+                            (owner_id.as_deref(), owner_kind.as_deref())
+                        {
                             pending.renew_claim_lease(owner_id, owner_kind, now, lease_seconds);
                         }
                     }
@@ -1083,11 +1084,7 @@ impl SocialRuntime {
         };
         self.persist_state_snapshot("shared-channel sync repair reclaim")?;
         let (reclaimed, requests, _) = requests;
-        let trigger = self
-            .shared_channel_sync_trigger
-            .read()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
-            .clone();
+        let trigger = self.shared_channel_linked_member_sync_trigger();
         let Some(trigger) = trigger else {
             return Ok(SocialSharedChannelSyncRepairResponse {
                 status: "trigger_unconfigured",
@@ -1233,11 +1230,7 @@ impl SocialRuntime {
             selected
         };
 
-        let trigger = self
-            .shared_channel_sync_trigger
-            .read()
-            .unwrap_or_else(Self::recover_poisoned_social_runtime_lock)
-            .clone();
+        let trigger = self.shared_channel_linked_member_sync_trigger();
         let Some(trigger) = trigger else {
             return Ok(SocialSharedChannelSyncRepublishResponse {
                 status: "trigger_unconfigured",

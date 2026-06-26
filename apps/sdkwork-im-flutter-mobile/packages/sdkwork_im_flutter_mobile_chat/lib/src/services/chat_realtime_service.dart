@@ -34,6 +34,9 @@ class _ChatLiveHub {
     _connection = connection;
     _stateSubscription = connection.lifecycle.onStateChange((state) {
       _liveConnected = state.status == 'open';
+      if (_liveConnected && _connection != null) {
+        _syncSubscriptions(_connection!);
+      }
       if (state.status == 'closed' || state.status == 'error') {
         _connection = null;
         _liveConnected = false;
@@ -56,6 +59,9 @@ class _ChatLiveHub {
   }
 
   void _syncSubscriptions(ImLiveConnection connection) {
+    if (!_liveConnected) {
+      return;
+    }
     connection.subscriptions.syncConversations(_conversationHandlers.keys.toList());
     connection.subscriptions.syncScopes(_buildScopeSubscriptions());
   }

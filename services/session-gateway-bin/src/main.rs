@@ -20,7 +20,7 @@ async fn run() -> Result<(), String> {
     let bind_addr = resolve_bind_addr()?;
     let bootstrap = session_gateway::bootstrap_realtime_plane_from_env().await?;
     let cluster_subscriber = session_gateway::spawn_cluster_route_event_subscriber(&bootstrap);
-    let app = sdkwork_router_im_realtime_open_api::build_public_app_with_realtime_bootstrap(
+    let app = sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap(
         &bootstrap,
     );
     let link_transport_handles = session_gateway::spawn_link_transport_listeners(

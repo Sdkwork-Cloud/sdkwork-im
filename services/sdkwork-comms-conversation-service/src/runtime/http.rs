@@ -22,6 +22,7 @@ use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -360,13 +361,6 @@ fn shared_channel_sync_request_key(
         request.local_actor_kind,
         request.external_member_id
     )
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct HealthResponse {
-    status: &'static str,
-    service: &'static str,
 }
 
 #[derive(Debug, Deserialize)]
@@ -732,10 +726,22 @@ impl From<RuntimeError> for ApiError {
             RuntimeError::ReadCursorInvalid(message) => {
                 Self::bad_request("read_cursor_invalid", message)
             }
-            RuntimeError::Contract(_) => Self {
-                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                code: "journal_unavailable",
-                message: "commit journal unavailable".into(),
+            RuntimeError::Contract(error) => match error {
+                sdkwork_im_contract_core::ContractError::Unavailable(message) => Self {
+                    status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                    code: "journal_unavailable",
+                    message,
+                },
+                sdkwork_im_contract_core::ContractError::Conflict(message) => Self {
+                    status: axum::http::StatusCode::CONFLICT,
+                    code: "journal_conflict",
+                    message,
+                },
+                sdkwork_im_contract_core::ContractError::UnsupportedCapability(message) => Self {
+                    status: axum::http::StatusCode::NOT_IMPLEMENTED,
+                    code: "journal_capability_unsupported",
+                    message,
+                },
             },
         }
     }
@@ -842,7 +848,10 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    apply_public_http_guardrails(build_default_app())
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router(default_app_state())),
+        im_service_router_config(),
+    )
 }
 
 pub fn build_public_app_with_allow_all_principals() -> Router {
@@ -852,9 +861,12 @@ pub fn build_public_app_with_allow_all_principals() -> Router {
 pub fn build_public_app_with_principal_directory(
     principal_directory: Arc<dyn PrincipalDirectory>,
 ) -> Router {
-    apply_public_http_guardrails(build_default_app_with_principal_directory(
-        principal_directory,
-    ))
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router(
+            app_state_with_principal_directory(principal_directory),
+        )),
+        im_service_router_config(),
+    )
 }
 
 pub fn build_domain_api_router(state: AppState) -> Router {
@@ -971,13 +983,18 @@ pub fn build_domain_api_router(state: AppState) -> Router {
         .with_state(state)
 }
 
-fn build_app(state: AppState) -> Router {
+fn build_business_router(state: AppState) -> Router {
     Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
         .merge(build_domain_api_router(state))
+}
+
+fn build_app(state: AppState) -> Router {
+    mount_im_infra_routes(
+        build_business_router(state),
+        im_service_router_config(),
+    )
 }
 
 async fn enforce_in_flight_gate(
@@ -987,7 +1004,7 @@ async fn enforce_in_flight_gate(
 ) -> Response {
     if matches!(
         request.uri().path(),
-        "/healthz" | "/readyz" | "/openapi.json" | "/docs"
+        "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json" | "/docs"
     ) {
         return next.run(request).await;
     }
@@ -1024,29 +1041,6 @@ fn resolve_max_http_request_body_bytes() -> usize {
         .filter(|&parsed| parsed > 0)
         .unwrap_or(CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_DEFAULT)
         .min(CONVERSATION_RUNTIME_MAX_REQUEST_BODY_BYTES_MAX)
-}
-
-async fn healthz() -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "ok",
-        service: "comms-conversation-service",
-    })
-}
-
-async fn readyz() -> impl IntoResponse {
-    let status = sdkwork_im_service_readiness::im_service_readiness_status_label();
-    let code = if status == "ok" {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-    (
-        code,
-        Json(HealthResponse {
-            status,
-            service: "comms-conversation-service",
-        }),
-    )
 }
 
 async fn openapi_json() -> Result<Json<serde_json::Value>, ApiError> {

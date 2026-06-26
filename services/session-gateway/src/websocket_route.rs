@@ -18,9 +18,10 @@ pub(crate) async fn prepare_realtime_websocket_route(
     auth: Option<Extension<AppContext>>,
     headers: &HeaderMap,
     state: &AppState,
+    query_device_id: Option<String>,
 ) -> Result<RealtimeWebsocketRouteContext, ApiError> {
     let auth = crate::resolve_request_app_context(auth, headers, &state.auth_resolver).await?;
-    let device_id = resolve_requested_device_id(&auth, None)?;
+    let device_id = resolve_requested_device_id(&auth, query_device_id)?;
     state.prepare_active_client_route(&auth, device_id.as_str(), "websocket", false)?;
     Ok(RealtimeWebsocketRouteContext {
         auth,

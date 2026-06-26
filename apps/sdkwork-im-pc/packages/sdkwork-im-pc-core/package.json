@@ -68,6 +68,10 @@
       "types": "./src/sdk/imSdkClient.ts",
       "default": "./src/sdk/imSdkClient.ts"
     },
+    "./sdk/pcRealtimeConnectionManager": {
+      "types": "./src/sdk/pcRealtimeConnectionManager.ts",
+      "default": "./src/sdk/pcRealtimeConnectionManager.ts"
+    },
     "./sdk/session": {
       "types": "./src/sdk/session.ts",
       "default": "./src/sdk/session.ts"
@@ -114,6 +118,7 @@
     "@sdkwork/notary-pc-notary": "workspace:*",
     "sdkwork-drive-pc-core": "workspace:*",
     "sdkwork-knowledgebase-pc-core": "workspace:*",
-    "@sdkwork/utils": "workspace:*"
+    "@sdkwork/utils": "workspace:*",
+    "@sdkwork/im-sdk": "workspace:*"
   }
 }

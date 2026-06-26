@@ -62,10 +62,10 @@ for (const required of [
   'SDKWORK_CLAW_DATABASE_USERNAME=sdkwork_ai_dev',
   'SDKWORK_CLAW_DATABASE_PASSWORD=sdkworkdev123',
   'SDKWORK_IM_DATABASE_SSL_MODE=disable',
-  'SDKWORK_IM_DATABASE_ADMIN_USERNAME=postgres',
-  'SDKWORK_IM_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
-  'SDKWORK_IM_DATABASE_ADMIN_DATABASE=postgres',
-  'SDKWORK_IM_DATABASE_ADMIN_SSL_MODE=disable',
+  'SDKWORK_CLAW_DATABASE_ADMIN_USERNAME=postgres',
+  'SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD=postgres_admin_pass',
+  'SDKWORK_CLAW_DATABASE_ADMIN_DATABASE=postgres',
+  'SDKWORK_CLAW_DATABASE_ADMIN_SSL_MODE=disable',
 ]) {
   assert.ok(envExample.includes(required), `.env.postgres.example must document ${required}`);
 }

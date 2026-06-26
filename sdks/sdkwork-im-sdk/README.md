@@ -30,10 +30,11 @@ The TypeScript family is layered:
 ## Websocket Contract
 
 `/im/v3/api/realtime/ws` is intentionally excluded from generated HTTP SDK input
-and is implemented by the authored TypeScript realtime adapter. The adapter uses
-legacy JSON websocket mode by default, sends `subscriptions.sync` on open,
-decodes `event.window` frames into conversation message callbacks, and
-acknowledges delivery with `events.ack`.
+and is implemented by the authored TypeScript realtime adapter. The adapter negotiates
+CCP WebSocket subprotocol `sdkwork-im.ccp.ws.v1`, completes the CCP control handshake,
+sends `subscriptions.sync` only after the connection enters the `ready` phase, decodes
+inbound CCP business payloads into conversation message callbacks, and acknowledges
+delivery with `events.ack`.
 
 Browser runtimes use `globalThis.WebSocket` and depend on gateway/session
 AppContext for websocket authentication. Node, Tauri, tests, and other hosts can

@@ -12,6 +12,7 @@ type HttpRequestOptions = RequestOptions & {
 
 export class HttpClient extends BaseHttpClient {
   private static readonly ACCESS_TOKEN_HEADER: string = 'Access-Token';
+  private static readonly AUTHORIZATION_HEADER: string = 'Authorization';
 
   constructor(config: SdkworkImConfig) {
     super(config as any);
@@ -217,18 +218,32 @@ export class HttpClient extends BaseHttpClient {
     this.getInternalAuthConfig().tokenManager = manager;
   }
 
+  private normalizeAuthorizationHeader(token: string): string {
+    const trimmed = token.trim();
+    if (trimmed.length === 0) {
+      return trimmed;
+    }
+    return /^Bearer\s+/iu.test(trimmed) ? trimmed : `Bearer ${trimmed}`;
+  }
+
   private applySdkworkAuthHeaders(headers?: Record<string, string>): Record<string, string> | undefined {
     const authConfig = this.getInternalAuthConfig();
     const tokenManager = authConfig.tokenManager;
     const accessToken = tokenManager?.getAccessToken?.();
-    if (!accessToken) {
+    const authToken = tokenManager?.getAuthToken?.();
+    if (!accessToken && !authToken) {
       return headers;
     }
-
-    return {
+    const mergedHeaders: Record<string, string> = {
       ...(headers ?? {}),
-      [HttpClient.ACCESS_TOKEN_HEADER]: accessToken,
     };
+    if (accessToken && accessToken.trim().length > 0) {
+      mergedHeaders[HttpClient.ACCESS_TOKEN_HEADER] = accessToken;
+    }
+    if (authToken && authToken.trim().length > 0) {
+      mergedHeaders[HttpClient.AUTHORIZATION_HEADER] = this.normalizeAuthorizationHeader(authToken);
+    }
+    return mergedHeaders;
   }
 
   async request<T>(path: string, options: HttpRequestOptions = {}): Promise<T> {

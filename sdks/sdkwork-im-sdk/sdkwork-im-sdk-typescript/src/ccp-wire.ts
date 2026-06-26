@@ -108,6 +108,50 @@ export function encodeCcpHeartbeatFrame(sequence: number): string {
   });
 }
 
+export function encodeCcpSessionResumeFrame(sessionId: string, lastAckedSeq = 0): string {
+  return encodeCcpControlFrame('cc.control.session_resume.v1', 'session_resume', {
+    session_id: sessionId,
+    last_acked_seq: lastAckedSeq,
+  });
+}
+
+function parseCcpControlPayload(raw: string): Record<string, unknown> | undefined {
+  const envelope = decodeCcpEnvelope(raw);
+  if (!envelope) {
+    return undefined;
+  }
+  return parseCcpEnvelopePayload(envelope);
+}
+
+function ccpControlPayloadData(payload: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!payload) {
+    return undefined;
+  }
+  const data = payload.data;
+  return isRecord(data) ? data : payload;
+}
+
+function ccpCapabilityItems(payload: Record<string, unknown> | undefined): string[] {
+  const data = ccpControlPayloadData(payload);
+  const capabilities = data?.capabilities;
+  if (!isRecord(capabilities)) {
+    return [];
+  }
+  const items = capabilities.items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  return items.filter((item): item is string => typeof item === 'string');
+}
+
+export function ccpHelloAckNegotiatesSessionResume(raw: string): boolean {
+  const payload = parseCcpControlPayload(raw);
+  if (pickString(payload?.type) !== 'hello_ack') {
+    return false;
+  }
+  return ccpCapabilityItems(payload).includes('session.resume');
+}
+
 export function isCcpHelloAckEnvelope(raw: string): boolean {
   const envelope = decodeCcpEnvelope(raw);
   return envelope?.schema === 'cc.control.hello_ack.v1';
@@ -116,6 +160,11 @@ export function isCcpHelloAckEnvelope(raw: string): boolean {
 export function isCcpAuthOkEnvelope(raw: string): boolean {
   const envelope = decodeCcpEnvelope(raw);
   return envelope?.schema === 'cc.control.auth_ok.v1';
+}
+
+export function isCcpSessionResumedEnvelope(raw: string): boolean {
+  const envelope = decodeCcpEnvelope(raw);
+  return envelope?.schema === 'cc.control.session_resumed.v1';
 }
 
 export function decodeJwtPayload(token: string | undefined): Record<string, unknown> | undefined {

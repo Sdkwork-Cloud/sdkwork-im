@@ -23,7 +23,7 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("audit-service failed to bind local listener: {error}"))?;
 
-    axum::serve(listener, sdkwork_router_im_audit_backend_api::build_public_app())
+    axum::serve(listener, sdkwork_routes_im_audit_backend_api::build_public_app())
         .with_graceful_shutdown(async {
             tokio::signal::ctrl_c().await.ok();
         })

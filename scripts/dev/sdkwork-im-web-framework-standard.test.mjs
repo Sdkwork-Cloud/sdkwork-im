@@ -197,6 +197,18 @@ assert.match(bootstrapLib, /with_web_request_context/u);
 assert.match(bootstrapLib, /ImAppContextInjector/u);
 
 assert.match(bootstrapLib, /\/im\/v3\/api/u);
+assert.match(bootstrapLib, /IamWebRequestContextResolver/u);
+assert.match(bootstrapLib, /iam_web_request_context_resolver_from_env/u);
+assert.doesNotMatch(
+  bootstrapLib,
+  /IamDatabaseWebRequestContextResolver/u,
+  'im web bootstrap must use the canonical IAM web request context resolver type',
+);
+assert.doesNotMatch(
+  bootstrapLib,
+  /iam_database_resolver_from_env/u,
+  'im web bootstrap must use the canonical IAM web request context resolver factory',
+);
 
 
 
@@ -232,12 +244,22 @@ assert.match(gatewayWebFramework, /with_web_request_context/u);
 
 assert.match(gatewayWebFramework, /service_router/u);
 
-assert.match(gatewayWebFramework, /IamDatabaseWebRequestContextResolver/u);
+assert.match(gatewayWebFramework, /IamWebRequestContextResolver/u);
 
 assert.match(
   gatewayWebFramework,
+  /iam_web_request_context_resolver_from_env/u,
+  'gateway web framework must wire the canonical IAM web request context resolver from environment',
+);
+assert.doesNotMatch(
+  gatewayWebFramework,
+  /IamDatabaseWebRequestContextResolver/u,
+  'gateway web framework must not reference the concrete IAM database resolver type in application integration',
+);
+assert.doesNotMatch(
+  gatewayWebFramework,
   /iam_database_resolver_from_env/u,
-  'gateway web framework must wire IAM database resolver from environment',
+  'gateway web framework must not keep the legacy IAM database resolver factory name',
 );
 
 assert.match(gatewayWebFramework, /IM_APP_API_PREFIX/u);
@@ -254,19 +276,19 @@ assert.match(
 );
 
 for (const relativePath of [
-  'crates/sdkwork-router-im-social-open-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-social-backend-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-space-open-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-chat-open-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-realtime-open-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-media-app-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-automation-app-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-notification-app-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-stream-app-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-audit-backend-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-ops-backend-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-governance-backend-api/src/web_bootstrap.rs',
-  'crates/sdkwork-router-im-projection-open-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-social-open-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-social-backend-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-space-open-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-chat-open-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-realtime-open-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-media-app-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-automation-app-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-notification-app-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-stream-app-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-audit-backend-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-ops-backend-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-governance-backend-api/src/web_bootstrap.rs',
+  'crates/sdkwork-routes-im-projection-open-api/src/web_bootstrap.rs',
 ]) {
   const source = read(relativePath);
   assert.match(

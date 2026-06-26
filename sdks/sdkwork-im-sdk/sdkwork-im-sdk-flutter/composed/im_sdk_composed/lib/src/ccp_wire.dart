@@ -120,6 +120,53 @@ String encodeCcpHeartbeatFrame(int sequence) {
   });
 }
 
+String encodeCcpSessionResumeFrame(String sessionId, {int lastAckedSeq = 0}) {
+  return encodeCcpControlFrame('cc.control.session_resume.v1', 'session_resume', <String, dynamic>{
+    'session_id': sessionId,
+    'last_acked_seq': lastAckedSeq,
+  });
+}
+
+Map<String, dynamic>? _parseCcpControlPayload(String raw) {
+  final envelope = decodeCcpEnvelope(raw);
+  if (envelope == null) {
+    return null;
+  }
+  return parseCcpEnvelopePayload(envelope);
+}
+
+Map<String, dynamic>? _ccpControlPayloadData(Map<String, dynamic>? payload) {
+  if (payload == null) {
+    return null;
+  }
+  final data = payload['data'];
+  if (data is Map) {
+    return Map<String, dynamic>.from(data);
+  }
+  return payload;
+}
+
+List<String> _ccpCapabilityItems(Map<String, dynamic>? payload) {
+  final data = _ccpControlPayloadData(payload);
+  final capabilities = data?['capabilities'];
+  if (capabilities is! Map) {
+    return const [];
+  }
+  final items = capabilities['items'];
+  if (items is! List) {
+    return const [];
+  }
+  return items.whereType<String>().toList();
+}
+
+bool ccpHelloAckNegotiatesSessionResume(String raw) {
+  final payload = _parseCcpControlPayload(raw);
+  if (_pickString([payload?['type']]) != 'hello_ack') {
+    return false;
+  }
+  return _ccpCapabilityItems(payload).contains('session.resume');
+}
+
 bool isCcpHelloAckEnvelope(String raw) {
   final envelope = decodeCcpEnvelope(raw);
   return envelope?['schema'] == 'cc.control.hello_ack.v1';
@@ -128,6 +175,11 @@ bool isCcpHelloAckEnvelope(String raw) {
 bool isCcpAuthOkEnvelope(String raw) {
   final envelope = decodeCcpEnvelope(raw);
   return envelope?['schema'] == 'cc.control.auth_ok.v1';
+}
+
+bool isCcpSessionResumedEnvelope(String raw) {
+  final envelope = decodeCcpEnvelope(raw);
+  return envelope?['schema'] == 'cc.control.session_resumed.v1';
 }
 
 Map<String, dynamic>? decodeJwtPayload(String? token) {
@@ -148,6 +200,14 @@ Map<String, dynamic>? decodeJwtPayload(String? token) {
     }
   } catch (_) {}
   return null;
+}
+
+String? deviceIdFromAccessToken(String? accessToken) {
+  final claims = decodeJwtPayload(accessToken);
+  return _pickString([
+    claims?['device_id'],
+    claims?['deviceId'],
+  ]);
 }
 
 ImCcpAuthBindContext? resolveCcpAuthBindContext({

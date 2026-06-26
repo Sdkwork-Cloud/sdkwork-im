@@ -22,7 +22,7 @@ const sessionGatewayBin = read('services/session-gateway-bin/src/main.rs');
 const standaloneGatewayMain = read('services/sdkwork-im-standalone-gateway/src/main.rs');
 const gatewayConfigLib = read('crates/sdkwork-im-cloud-gateway-config/src/lib.rs');
 const gatewayLib = read('services/sdkwork-im-cloud-gateway/src/lib.rs');
-const openApiRouter = read('crates/sdkwork-router-im-realtime-open-api/src/lib.rs');
+const openApiRouter = read('crates/sdkwork-routes-im-realtime-open-api/src/lib.rs');
 const topologySpec = readJson('specs/topology.spec.json');
 
 const haEnvKeys = [

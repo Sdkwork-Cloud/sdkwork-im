@@ -2,25 +2,25 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { MessageSquare, Moon, Sun, X } from 'lucide-react';
 import { LoadingBlock } from '@sdkwork/ui-pc-react';
-import { SDKWORK_IM_PC_SETTINGS_STORAGE_KEY, readPersistedSettingsRecord } from '@sdkwork/im-pc-commons';
+import { SDKWORK_IM_PC_SETTINGS_STORAGE_KEY, applyHostAppearanceTheme, readPersistedSettingsRecord } from '@sdkwork/im-pc-commons';
 import {
   SdkworkIamAuthRoutes,
 } from '@sdkwork/auth-pc-react';
 import {
   appAuthService,
+  bootstrapLocalDevGatewayDiscovery,
   getSdkworkChatIamRuntime,
   hydrateAppSdkSessionFromSecureStorage,
   isSdkworkChatDesktopRuntime,
   isAppSdkSessionAuthenticated,
   readAppSdkSessionTokens,
+  resetSdkworkChatAuthenticatedSdkClients,
   resolveSdkworkChatAuthAppearance,
   resolveSdkworkChatAuthRuntimeConfig,
   SDKWORK_IM_SESSION_CHANGED_EVENT,
   type SdkworkChatSession,
   type SdkworkChatSessionChangedDetail,
 } from '@sdkwork/im-pc-core';
-
-import { PrivacyLockGate } from './PrivacyLockGate';
 
 interface AuthGateProps {
   children: ReactNode;
@@ -120,12 +120,7 @@ function resolveInitialAuthThemeMode(): AuthThemeMode {
 }
 
 function applyAuthThemeMode(theme: AuthThemeMode): void {
-  if (typeof document === 'undefined') {
-    return;
-  }
-
-  document.documentElement.classList.toggle('light-mode', theme === 'light');
-  document.documentElement.style.colorScheme = theme;
+  applyHostAppearanceTheme(theme);
 }
 
 function resolveTauriWindowApi(): DesktopWindowLike | null {
@@ -475,13 +470,15 @@ export function AuthGate({ children }: AuthGateProps) {
     () => resolveRedirectTarget(location.pathname, location.search, location.hash),
     [location.hash, location.pathname, location.search],
   );
-  const isAuthenticated = isAuthenticatedSession(session) && isAuthenticatedSession(readAppSdkSessionTokens());
+  const isAuthenticated = isAuthenticatedSession(readAppSdkSessionTokens());
   const isAuthPath = isAuthRoute(location.pathname);
 
   useEffect(() => {
     let disposed = false;
 
     const bootstrapAuthSession = async () => {
+      await bootstrapLocalDevGatewayDiscovery();
+      resetSdkworkChatAuthenticatedSdkClients();
       await hydrateAppSdkSessionFromSecureStorage();
       if (disposed) {
         return;
@@ -510,7 +507,8 @@ export function AuthGate({ children }: AuthGateProps) {
           return;
         }
 
-        setSession(null);
+        const fallbackSession = readAppSdkSessionTokens();
+        setSession(isAuthenticatedSession(fallbackSession) ? fallbackSession : null);
         setIsBootstrapped(true);
       }
     };
@@ -560,11 +558,7 @@ export function AuthGate({ children }: AuthGateProps) {
   }
 
   if (isAuthenticated) {
-    return (
-      <PrivacyLockGate>
-        {children}
-      </PrivacyLockGate>
-    );
+    return children;
   }
 
   return (

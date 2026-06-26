@@ -31,7 +31,7 @@ async fn run() -> Result<(), String> {
         .connect_pool()
         .map_err(|error| format!("postgres pool for comms-space-service: {error:?}"))?;
     let state = space_service::app_state_from_postgres_pool(pool);
-    let app = sdkwork_router_im_space_open_api::build_public_app(state);
+    let app = sdkwork_routes_im_space_open_api::build_public_app(state);
 
     let listener = tokio::net::TcpListener::bind(bind_addr.as_str())
         .await

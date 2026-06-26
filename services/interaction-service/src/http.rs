@@ -2,28 +2,10 @@
 //! Canonical client paths live under `/im/v3/api/chat/` in `sdkwork-im-im.openapi.yaml`.
 
 use axum::Router;
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
-use axum::routing::get;
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 
 pub fn build_app() -> Router {
-    Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
-}
-
-async fn healthz() -> &'static str {
-    "ok"
-}
-
-async fn readyz() -> impl IntoResponse {
-    let status = sdkwork_im_service_readiness::im_service_readiness_status_label();
-    let code = if status == "ok" {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-    (code, status)
+    mount_im_infra_routes(Router::new(), im_service_router_config())
 }
 
 pub fn build_public_app() -> Router {

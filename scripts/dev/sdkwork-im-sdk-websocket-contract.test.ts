@@ -233,6 +233,42 @@ function emitCcpAuthOk(
   });
 }
 
+function emitCcpSessionResumed(
+  socket: FakeWebSocket | FakeBrowserWebSocket,
+  sessionId: string,
+): void {
+  socket.emit('message', {
+    data: encodeCcpControlFrame('cc.control.session_resumed.v1', 'session_resumed', {
+      session_id: sessionId,
+      resumed: true,
+    }),
+  });
+}
+
+function tryParseCcpControlType(raw: string | undefined): string | undefined {
+  if (!raw) {
+    return undefined;
+  }
+  try {
+    const envelope = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof envelope.payload !== 'string') {
+      return undefined;
+    }
+    return parseCcpControlType(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+function completeNegotiatedSessionResume(
+  socket: FakeWebSocket | FakeBrowserWebSocket,
+  sessionId: string,
+): void {
+  const resumeIndex = socket.sent.findIndex((frame) => tryParseCcpControlType(frame) === 'session_resume');
+  assert.notEqual(resumeIndex, -1, 'client must send CCP session_resume when session.resume is negotiated');
+  emitCcpSessionResumed(socket, sessionId);
+}
+
 function completeFactoryCcpHandshake(
   socket: FakeWebSocket,
   bindContext = {
@@ -247,6 +283,7 @@ function completeFactoryCcpHandshake(
   emitCcpHelloAck(socket);
   assert.equal(parseCcpControlType(socket.sent[1] ?? ''), 'auth_bind', 'factory websocket must send CCP auth_bind after hello_ack');
   emitCcpAuthOk(socket, bindContext);
+  completeNegotiatedSessionResume(socket, bindContext.sessionId ?? 'session-1');
 }
 
 function completeBrowserGatewayAuthAndCcp(
@@ -268,6 +305,10 @@ function completeBrowserGatewayAuthAndCcp(
     deviceId: typeof authOk.deviceId === 'string' ? authOk.deviceId : undefined,
     sessionId: typeof authOk.sessionId === 'string' ? authOk.sessionId : undefined,
   });
+  completeNegotiatedSessionResume(
+    browserSocket,
+    typeof authOk.sessionId === 'string' ? authOk.sessionId : 'session_real',
+  );
 }
 
 async function main(): Promise<void> {
@@ -337,10 +378,16 @@ async function main(): Promise<void> {
     });
 
     socket.open();
+    assert.equal(
+      socket.sent.some((frame) => frame.includes('subscriptions.sync')),
+      false,
+      'factory websocket must not send subscriptions before CCP handshake completes',
+    );
     completeFactoryCcpHandshake(socket);
 
     assert.deepEqual(lifecycleStates, ['connecting', 'open']);
-    assert.deepEqual(parseCcpBusinessPayload(socket.sent[2]), {
+    assert.equal(parseCcpControlType(socket.sent[2] ?? ''), 'session_resume', 'factory websocket must send CCP session_resume when negotiated');
+    assert.deepEqual(parseCcpBusinessPayload(socket.sent[3]), {
       type: 'subscriptions.sync',
       requestId: 'sdkwork-im-subscriptions-sync-1',
       items: [
@@ -357,7 +404,7 @@ async function main(): Promise<void> {
       ],
     });
     connection.subscriptions.syncConversations(['conversation-1', 'conversation-3']);
-    assert.deepEqual(parseCcpBusinessPayload(socket.sent[3]), {
+    assert.deepEqual(parseCcpBusinessPayload(socket.sent[4]), {
       type: 'subscriptions.sync',
       requestId: 'sdkwork-im-subscriptions-sync-2',
       items: [
@@ -374,13 +421,13 @@ async function main(): Promise<void> {
       ],
     });
     connection.subscriptions.syncConversations([]);
-    assert.deepEqual(parseCcpBusinessPayload(socket.sent[4]), {
+    assert.deepEqual(parseCcpBusinessPayload(socket.sent[5]), {
       type: 'subscriptions.sync',
       requestId: 'sdkwork-im-subscriptions-sync-3',
       items: [],
     });
     connection.subscriptions.syncConversations(['conversation-1', 'conversation-3']);
-    assert.deepEqual(parseCcpBusinessPayload(socket.sent[5]), {
+    assert.deepEqual(parseCcpBusinessPayload(socket.sent[6]), {
       type: 'subscriptions.sync',
       requestId: 'sdkwork-im-subscriptions-sync-4',
       items: [
@@ -408,7 +455,7 @@ async function main(): Promise<void> {
         ],
       },
     ]);
-    assert.deepEqual(parseCcpBusinessPayload(socket.sent[6]), {
+    assert.deepEqual(parseCcpBusinessPayload(socket.sent[7]), {
       type: 'subscriptions.sync',
       requestId: 'sdkwork-im-subscriptions-sync-5',
       items: [
@@ -479,7 +526,7 @@ async function main(): Promise<void> {
       },
     });
     await userScopeEvents[0].context.ack();
-    assert.deepEqual(parseCcpBusinessPayload(socket.sent[7]), {
+    assert.deepEqual(parseCcpBusinessPayload(socket.sent[8]), {
       type: 'events.ack',
       requestId: 'sdkwork-im-events-ack-6',
       ackedSeq: 6,
@@ -1126,7 +1173,7 @@ async function main(): Promise<void> {
     unsubscribeIncoming();
 
     await received[0].context.ack();
-    assert.deepEqual(parseCcpBusinessPayload(socket.sent[8]), {
+    assert.deepEqual(parseCcpBusinessPayload(socket.sent[9]), {
       type: 'events.ack',
       requestId: 'sdkwork-im-events-ack-7',
       ackedSeq: 7,
@@ -1168,7 +1215,7 @@ async function main(): Promise<void> {
       deviceId: 'heartbeat-device-1',
     });
     await new Promise((resolve) => setTimeout(resolve, 12));
-    assert.equal(parseCcpControlType(heartbeatSocket.sent[2] ?? ''), 'heartbeat', 'IM realtime connection must send CCP heartbeat frames after opening');
+    assert.equal(parseCcpControlType(heartbeatSocket.sent[3] ?? ''), 'heartbeat', 'IM realtime connection must send CCP heartbeat frames after opening');
     heartbeatSocket.emit('message', {
       data: encodeCcpControlFrame('cc.control.heartbeat.v1', 'heartbeat', { sequence: 1 }),
     });
@@ -1456,6 +1503,12 @@ async function main(): Promise<void> {
       false,
       'browser websocket must not send subscriptions before auth.ok',
     );
+    browserConnection.subscriptions.syncConversations(['browser-conversation-early']);
+    assert.equal(
+      browserSocket.sent.some((frame) => frame.includes('subscriptions.sync')),
+      false,
+      'browser websocket must not send subscriptions before CCP handshake completes',
+    );
 
     completeBrowserGatewayAuthAndCcp(browserSocket, {
       requestId: 'sdkwork-im-auth-init-1',
@@ -1465,13 +1518,14 @@ async function main(): Promise<void> {
       deviceId: 'browser-device-1',
     });
     assert.deepEqual(browserStates, ['connecting', 'open']);
-    assert.deepEqual(parseCcpBusinessPayload(browserSocket.sent[3]), {
+    assert.equal(parseCcpControlType(browserSocket.sent[3] ?? ''), 'session_resume', 'browser websocket must send CCP session_resume when negotiated');
+    assert.deepEqual(parseCcpBusinessPayload(browserSocket.sent[4]), {
       type: 'subscriptions.sync',
       requestId: 'sdkwork-im-subscriptions-sync-1',
       items: [
         {
           scopeType: 'conversation',
-          scopeId: 'browser-conversation-1',
+          scopeId: 'browser-conversation-early',
           eventTypes: ['message.posted'],
         },
       ],

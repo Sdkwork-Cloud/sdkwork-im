@@ -11,5 +11,7 @@ export * from './sdk/knowledgebasePcIntegration';
 export * from './sdk/appAuthService';
 export * from './sdk/appAuthRuntime';
 export * from './sdk/imSdkClient';
+export * from './sdk/pcRealtimeConnectionManager';
+export * from './sdk/runtimeGatewayDiscovery';
 export * from './sdk/session';
 export * from './runtime/desktopEnvironment';

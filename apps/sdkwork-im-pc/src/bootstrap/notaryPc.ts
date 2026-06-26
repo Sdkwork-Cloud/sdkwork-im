@@ -3,14 +3,13 @@ import type { ComponentType } from 'react';
 import { CallOverlay, createDefaultAvatar, toast as imToast } from '@sdkwork/im-pc-chat';
 import {
   cn,
+  createImPcHostLanguageBridge,
   MediaViewer,
-  resolvePersistedLanguage,
   sanitizeMessageLinkHref,
-  SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT,
 } from '@sdkwork/im-pc-commons';
 import { bootstrapNotaryPcForIm } from '@sdkwork/im-pc-core';
 
-const SUPPORTED_LANGUAGES = ['zh-CN', 'en-US'] as const;
+const hostLanguageBridge = createImPcHostLanguageBridge();
 
 function createImNotaryPcHostAdapter(): NotaryPcHostAdapter {
   return {
@@ -32,19 +31,8 @@ function createImNotaryPcHostAdapter(): NotaryPcHostAdapter {
       return sanitizeMessageLinkHref(url) ?? '';
     },
     cn,
-    resolveInitialLanguage() {
-      return resolvePersistedLanguage(SUPPORTED_LANGUAGES, 'zh-CN');
-    },
-    onLanguageChange(listener) {
-      const handler = (event: Event) => {
-        const lang = (event as CustomEvent<{ lang?: string }>).detail?.lang;
-        if (typeof lang === 'string') {
-          listener(lang);
-        }
-      };
-      window.addEventListener(SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT, handler);
-      return () => window.removeEventListener(SDKWORK_IM_PC_LANGUAGE_CHANGED_EVENT, handler);
-    },
+    resolveInitialLanguage: hostLanguageBridge.resolveInitialLanguage,
+    onLanguageChange: hostLanguageBridge.onLanguageChange,
   };
 }
 

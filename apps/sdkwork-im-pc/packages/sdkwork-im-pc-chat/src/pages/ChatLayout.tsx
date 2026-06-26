@@ -41,7 +41,7 @@ import {
 } from "../services/NotificationService";
 import { settingsService, type AppSettings } from "../services/SettingsService";
 import { systemAssistantService } from "../services/SystemAssistantService";
-import { appAuthService } from "@sdkwork/im-pc-core";
+import { appAuthService, isAppSdkSessionAuthenticated, SDKWORK_IM_SESSION_CHANGED_EVENT, readAppSdkSessionTokens } from "@sdkwork/im-pc-core";
 import { AppShellFrame, ModuleRenderHost } from "@sdkwork/im-pc-shell";
 import { CapabilityModuleSurface } from "../surfaces/CapabilityModuleSurface";
 import type { Chat, User } from "@sdkwork/im-pc-types";
@@ -74,6 +74,7 @@ const ChatLayoutComponent: React.FC = () => {
   const [chatStartupError, setChatStartupError] = useState<string | null>(null);
   const [isAssistantAvailable, setIsAssistantAvailable] = useState(false);
   const [friendRequestUnreadCount, setFriendRequestUnreadCount] = useState(0);
+  const [runtimeReady, setRuntimeReady] = useState(false);
   const chatListProjectionRevisionRef = useRef(0);
   const chatsRef = useRef<Chat[]>([]);
   const activeChatIdRef = useRef<string | undefined>(undefined);
@@ -493,9 +494,39 @@ const ChatLayoutComponent: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    void loadChatStartup(() => isMounted);
+
+    const startRuntime = async () => {
+      const session = await appAuthService.getCurrentSession().catch(() => readAppSdkSessionTokens());
+      if (!isMounted) {
+        return;
+      }
+
+      if (!isAppSdkSessionAuthenticated(session)) {
+        setRuntimeReady(false);
+        setIsChatStartupLoading(false);
+        return;
+      }
+
+      setRuntimeReady(true);
+      void loadChatStartup(() => isMounted);
+    };
+
+    const handleSessionChanged = () => {
+      if (!isMounted) {
+        return;
+      }
+
+      if (!isAppSdkSessionAuthenticated(readAppSdkSessionTokens())) {
+        setRuntimeReady(false);
+        setIsChatStartupLoading(false);
+      }
+    };
+
+    void startRuntime();
+    window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, handleSessionChanged);
     return () => {
       isMounted = false;
+      window.removeEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, handleSessionChanged);
     };
   }, []);
 
@@ -544,6 +575,9 @@ const ChatLayoutComponent: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!runtimeReady) {
+      return undefined;
+    }
     let isMounted = true;
     if (activeChat?.type !== "group") {
       setGroupMemberProfiles([]);
@@ -581,9 +615,12 @@ const ChatLayoutComponent: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [activeChat?.id, activeChat?.type, activeGroupMemberSignature, currentUser]);
+  }, [activeChat?.id, activeChat?.type, activeGroupMemberSignature, currentUser, runtimeReady]);
 
   useEffect(() => {
+    if (!runtimeReady) {
+      return undefined;
+    }
     return chatService.subscribeChats((nextChats) => {
       handlePotentialIncomingNotifications(nextChats);
       const projectionRevision = chatListProjectionRevisionRef.current + 1;
@@ -625,7 +662,7 @@ const ChatLayoutComponent: React.FC = () => {
         })
         .catch(() => undefined);
     });
-  }, []);
+  }, [runtimeReady]);
 
   useEffect(() => {
     const handleOpenConversation = (event: Event) => {
@@ -644,6 +681,9 @@ const ChatLayoutComponent: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!runtimeReady) {
+      return undefined;
+    }
     return contactService.subscribePendingFriendRequestCount((count) => {
       const previousCount = previousFriendRequestUnreadCountRef.current;
       setFriendRequestUnreadCount(count);
@@ -656,7 +696,7 @@ const ChatLayoutComponent: React.FC = () => {
       }
       previousFriendRequestUnreadCountRef.current = count;
     });
-  }, [t]);
+  }, [runtimeReady, t]);
 
   useEffect(() => {
     const openSettingsFromTray = () => {
@@ -741,6 +781,9 @@ const ChatLayoutComponent: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!runtimeReady) {
+      return undefined;
+    }
     let cancelled = false;
 
     const syncIncomingCallWatch = async () => {
@@ -766,9 +809,12 @@ const ChatLayoutComponent: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [chats, t]);
+  }, [chats, runtimeReady, t]);
 
   useEffect(() => {
+    if (!runtimeReady) {
+      return undefined;
+    }
     const refreshAfterContactsChanged = () => {
       void refreshChats().catch(() => undefined);
     };
@@ -776,7 +822,7 @@ const ChatLayoutComponent: React.FC = () => {
     return () => {
       window.removeEventListener(SDKWORK_IM_FRIEND_REQUESTS_CHANGED_EVENT, refreshAfterContactsChanged);
     };
-  }, []);
+  }, [runtimeReady]);
 
   useEffect(() => {
     return callService.subscribe((snapshot) => {

@@ -23,7 +23,7 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("streaming-service failed to bind local listener: {error}"))?;
 
-    axum::serve(listener, sdkwork_router_im_stream_app_api::build_public_app())
+    axum::serve(listener, sdkwork_routes_im_stream_app_api::build_public_app())
         .with_graceful_shutdown(async {
             tokio::signal::ctrl_c().await.ok();
         })

@@ -8,7 +8,7 @@ use axum::response::{Html, IntoResponse, Response};
 use axum::{Json, Router, routing::{get, post}};
 use im_app_context::{AppContext, AppContextError, resolve_app_context};
 use im_adapters_postgres_journal::{PostgresJournalConfig, RetentionCleanupReport, purge_expired_retention_batch, retention_purge_metrics};
-use sdkwork_im_web_bootstrap::im_service_http_metrics;
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use im_time::utc_now_rfc3339_millis;
 use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
@@ -416,13 +416,6 @@ pub struct ProviderBindingDriftItemView {
 pub struct ProviderBindingDriftView {
     pub baseline_tenant_id: Option<String>,
     pub items: Vec<ProviderBindingDriftItemView>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct HealthResponse {
-    status: &'static str,
-    service: &'static str,
 }
 
 pub struct OpsRuntime {
@@ -898,15 +891,22 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    apply_public_http_guardrails(build_default_app())
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router(Arc::new(OpsRuntime::default()))),
+        im_service_router_config(),
+    )
 }
 
 pub fn build_app(runtime: Arc<OpsRuntime>) -> Router {
+    mount_im_infra_routes(
+        build_business_router(runtime),
+        im_service_router_config(),
+    )
+}
+
+fn build_business_router(runtime: Arc<OpsRuntime>) -> Router {
     let state = AppState { runtime };
     Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
-        .route("/metrics", get(metrics))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs))
         .merge(build_domain_api_router(state))
@@ -919,7 +919,7 @@ async fn enforce_in_flight_gate(
 ) -> Response {
     if matches!(
         request.uri().path(),
-        "/healthz" | "/readyz" | "/metrics" | "/openapi.json" | "/docs"
+        "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json" | "/docs"
     ) {
         return next.run(request).await;
     }
@@ -940,58 +940,6 @@ async fn enforce_in_flight_gate(
     response
 }
 
-async fn healthz() -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "ok",
-        service: "ops-service",
-    })
-}
-
-async fn readyz() -> impl IntoResponse {
-    let status = sdkwork_im_service_readiness::im_service_readiness_status_label();
-    let code = if status == "ok" {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-    (
-        code,
-        Json(HealthResponse {
-            status,
-            service: "ops-service",
-        }),
-    )
-}
-
-async fn metrics() -> impl IntoResponse {
-    let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
-        .unwrap_or_else(|_| "development".to_owned());
-    let deployment_profile = std::env::var("SDKWORK_IM_DEPLOYMENT_PROFILE")
-        .unwrap_or_else(|_| "standalone".to_owned());
-    let mut body = retention_purge_metrics().render_prometheus(
-        "ops-service",
-        environment_metric_label(environment.as_str()),
-        deployment_profile.as_str(),
-        "server",
-    );
-    body.push('\n');
-    body.push_str(&im_service_http_metrics().render_prometheus());
-    (
-        StatusCode::OK,
-        [(header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")],
-        body,
-    )
-}
-
-fn environment_metric_label(environment: &str) -> &'static str {
-    match environment.trim().to_ascii_lowercase().as_str() {
-        "production" | "prod" => "production",
-        "staging" => "staging",
-        "test" => "test",
-        _ => "development",
-    }
-}
-
 async fn openapi_json() -> Result<Json<serde_json::Value>, OpsError> {
     Ok(Json(build_ops_service_openapi_document().map_err(
         |message| OpsError::internal("openapi_export_failed", message),
@@ -1006,7 +954,7 @@ fn build_ops_service_openapi_document() -> Result<serde_json::Value, String> {
     let source = include_str!("lib.rs");
     let mut routes = extract_routes_from_function(
         source,
-        "build_app",
+        "build_business_router",
         &[],
         &["/openapi.json", "/docs"],
     )?;

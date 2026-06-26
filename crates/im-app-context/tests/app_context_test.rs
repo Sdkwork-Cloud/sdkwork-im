@@ -516,3 +516,65 @@ fn test_resolve_app_context_rejects_raw_json_bearer_outside_dev_test() {
     assert!(error.message().contains("JSON bearer"));
     ensure_test_dev_environment();
 }
+
+#[test]
+fn websocket_upgrade_auth_headers_detect_authorization_and_access_token_variants() {
+    let mut headers = HeaderMap::new();
+    assert!(!im_app_context::has_websocket_upgrade_auth_headers(&headers));
+
+    headers.insert(
+        header::AUTHORIZATION,
+        HeaderValue::from_static("Bearer auth-token"),
+    );
+    assert!(im_app_context::has_websocket_upgrade_auth_headers(&headers));
+
+    headers.remove(header::AUTHORIZATION);
+    headers.insert("Access-Token", HeaderValue::from_static("access-token"));
+    assert!(im_app_context::has_websocket_upgrade_auth_headers(&headers));
+
+    headers.remove("Access-Token");
+    headers.insert("access-token", HeaderValue::from_static("access-token"));
+    assert!(im_app_context::has_websocket_upgrade_auth_headers(&headers));
+}
+
+#[test]
+fn websocket_query_device_id_is_extracted_from_path_and_query() {
+    assert_eq!(
+        im_app_context::websocket_query_device_id_from_path_and_query(
+            "/im/v3/api/realtime/ws?deviceId=d_pad"
+        ),
+        Some("d_pad".to_owned())
+    );
+    assert_eq!(
+        im_app_context::websocket_query_device_id_from_path_and_query(
+            "/im/v3/api/realtime/ws?deviceId=d_pad&conversationId=c1"
+        ),
+        Some("d_pad".to_owned())
+    );
+    assert_eq!(
+        im_app_context::websocket_query_device_id_from_path_and_query("/im/v3/api/realtime/ws"),
+        None
+    );
+}
+
+#[test]
+fn coalesce_websocket_device_id_prefers_frame_then_query() {
+    assert_eq!(
+        im_app_context::coalesce_websocket_device_id(
+            Some("frame_device".to_owned()),
+            Some("query_device".to_owned()),
+        ),
+        Some("frame_device".to_owned())
+    );
+    assert_eq!(
+        im_app_context::coalesce_websocket_device_id(
+            None,
+            Some("query_device".to_owned()),
+        ),
+        Some("query_device".to_owned())
+    );
+    assert_eq!(
+        im_app_context::coalesce_websocket_device_id(None, None),
+        None
+    );
+}

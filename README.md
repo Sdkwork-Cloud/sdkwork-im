@@ -384,3 +384,6 @@ Deep dive: [docs/架构/08-安全-多租户-SaaS-私有化-部署设计.md](./do
 - [docs/product/prd/PRD.md](docs/product/prd/PRD.md)
 - [docs/architecture/tech/TECH_ARCHITECTURE.md](docs/architecture/tech/TECH_ARCHITECTURE.md)
 
+## Application Roots
+
+- [apps directory index](apps/README.md)

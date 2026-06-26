@@ -236,7 +236,8 @@ dependencies = [
  "sdkwork-im-api-registry",
  "sdkwork-im-openapi",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-audit-backend-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-routes-im-audit-backend-api",
  "sdkwork-utils-rust",
  "serde",
  "serde_json",
@@ -253,7 +254,7 @@ dependencies = [
  "audit-service",
  "axum 0.8.9",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-audit-backend-api",
+ "sdkwork-routes-im-audit-backend-api",
  "tokio",
  "tracing",
 ]
@@ -282,7 +283,8 @@ dependencies = [
  "sdkwork-im-contract-message",
  "sdkwork-im-openapi",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-automation-app-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-routes-im-automation-app-api",
  "serde",
  "serde_json",
  "tokio",
@@ -298,7 +300,7 @@ dependencies = [
  "automation-service",
  "axum 0.8.9",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-automation-app-api",
+ "sdkwork-routes-im-automation-app-api",
  "tokio",
  "tracing",
 ]
@@ -678,8 +680,8 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-social-backend-api",
- "sdkwork-router-im-social-open-api",
+ "sdkwork-routes-im-social-backend-api",
+ "sdkwork-routes-im-social-open-api",
  "social-service",
  "tokio",
  "tracing",
@@ -712,7 +714,7 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "im-adapters-social-postgres",
- "sdkwork-router-im-social-open-api",
+ "sdkwork-routes-im-social-open-api",
  "social-service",
 ]
 
@@ -1218,7 +1220,8 @@ dependencies = [
  "sdkwork-im-api-registry",
  "sdkwork-im-ccp-registry",
  "sdkwork-im-openapi",
- "sdkwork-router-im-governance-backend-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-routes-im-governance-backend-api",
  "serde",
  "serde_json",
  "session-gateway",
@@ -1235,7 +1238,7 @@ dependencies = [
  "axum 0.8.9",
  "governance-service",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-governance-backend-api",
+ "sdkwork-routes-im-governance-backend-api",
  "serde_json",
  "tokio",
  "tracing",
@@ -1893,6 +1896,7 @@ dependencies = [
  "axum 0.8.9",
  "im-app-context",
  "sdkwork-im-service-readiness",
+ "sdkwork-im-web-bootstrap",
 ]
 
 [[package]]
@@ -2158,7 +2162,8 @@ dependencies = [
  "sdkwork-im-api-registry",
  "sdkwork-im-openapi",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-media-app-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-routes-im-media-app-api",
  "serde",
  "serde_json",
  "tokio",
@@ -2174,7 +2179,7 @@ dependencies = [
  "axum 0.8.9",
  "media-service",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-media-app-api",
+ "sdkwork-routes-im-media-app-api",
  "tokio",
  "tracing",
 ]
@@ -2253,7 +2258,8 @@ dependencies = [
  "sdkwork-im-contract-notification",
  "sdkwork-im-openapi",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-notification-app-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-routes-im-notification-app-api",
  "serde",
  "serde_json",
  "tokio",
@@ -2269,7 +2275,7 @@ dependencies = [
  "axum 0.8.9",
  "notification-service",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-notification-app-api",
+ "sdkwork-routes-im-notification-app-api",
  "tokio",
  "tracing",
 ]
@@ -2490,7 +2496,7 @@ dependencies = [
  "sdkwork-im-openapi",
  "sdkwork-im-service-readiness",
  "sdkwork-im-web-bootstrap",
- "sdkwork-router-im-ops-backend-api",
+ "sdkwork-routes-im-ops-backend-api",
  "serde",
  "serde_json",
  "tokio",
@@ -2507,7 +2513,7 @@ dependencies = [
  "im-adapters-postgres-journal",
  "ops-service",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-ops-backend-api",
+ "sdkwork-routes-im-ops-backend-api",
  "tokio",
  "tracing",
 ]
@@ -2783,7 +2789,8 @@ dependencies = [
  "sdkwork-im-api-registry",
  "sdkwork-im-openapi",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-projection-open-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-routes-im-projection-open-api",
  "sdkwork-web-core",
  "serde",
  "serde_json",
@@ -2800,7 +2807,7 @@ dependencies = [
  "axum 0.8.9",
  "projection-service",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-projection-open-api",
+ "sdkwork-routes-im-projection-open-api",
  "tokio",
  "tracing",
 ]
@@ -3527,6 +3534,7 @@ dependencies = [
  "im-platform-contracts",
  "im-time",
  "prost 0.14.4",
+ "sdkwork-database-config",
  "sdkwork-im-api-registry",
  "sdkwork-im-contract-core",
  "sdkwork-im-contract-message",
@@ -3534,7 +3542,8 @@ dependencies = [
  "sdkwork-im-rpc-sdk-rust",
  "sdkwork-im-rpc-service-rust",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-chat-open-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-routes-im-chat-open-api",
  "sdkwork-utils-rust",
  "sdkwork-web-core",
  "serde",
@@ -3554,7 +3563,7 @@ dependencies = [
  "axum 0.8.9",
  "sdkwork-comms-conversation-service",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-chat-open-api",
+ "sdkwork-routes-im-chat-open-api",
  "tokio",
  "tracing",
 ]
@@ -3677,10 +3686,15 @@ dependencies = [
 name = "sdkwork-iam-bootstrap"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
+ "base64",
  "chrono",
+ "rand_core 0.6.4",
  "sdkwork-iam-context-service",
  "sdkwork-iam-module-registry",
+ "sha2 0.10.9",
  "sqlx",
+ "uuid",
 ]
 
 [[package]]
@@ -3751,6 +3765,7 @@ dependencies = [
  "password-hash",
  "rand_core 0.6.4",
  "reqwest",
+ "sdkwork-database-config",
  "sdkwork-database-sqlx",
  "sdkwork-iam-bootstrap",
  "sdkwork-iam-context-service",
@@ -3914,16 +3929,20 @@ dependencies = [
  "reqwest",
  "sdkwork-api-config",
  "sdkwork-api-product-runtime",
+ "sdkwork-iam-database-host",
  "sdkwork-iam-web-adapter",
  "sdkwork-im-api-registry",
  "sdkwork-im-cloud-gateway-config",
  "sdkwork-im-cloud-gateway-observability",
  "sdkwork-im-database-pool",
+ "sdkwork-im-iam-application-bootstrap",
  "sdkwork-im-openapi",
  "sdkwork-im-realtime-api-paths",
  "sdkwork-im-runtime-link",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-realtime-open-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-im-websocket-auth-gate",
+ "sdkwork-routes-im-realtime-open-api",
  "sdkwork-web-axum",
  "sdkwork-web-bootstrap",
  "sdkwork-web-core",
@@ -4037,6 +4056,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-im-gateway-assembly"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "sdkwork-routes-im-audit-backend-api",
+ "sdkwork-routes-im-automation-app-api",
+ "sdkwork-routes-im-chat-open-api",
+ "sdkwork-routes-im-governance-backend-api",
+ "sdkwork-routes-im-media-app-api",
+ "sdkwork-routes-im-notification-app-api",
+ "sdkwork-routes-im-ops-backend-api",
+ "sdkwork-routes-im-projection-open-api",
+ "sdkwork-routes-im-realtime-open-api",
+ "sdkwork-routes-im-social-backend-api",
+ "sdkwork-routes-im-social-open-api",
+ "sdkwork-routes-im-space-open-api",
+ "sdkwork-routes-im-stream-app-api",
+ "social-service",
+ "space-service",
+ "tokio",
+]
+
+[[package]]
 name = "sdkwork-im-iam-application-bootstrap"
 version = "0.1.0"
 dependencies = [
@@ -4136,6 +4178,7 @@ name = "sdkwork-im-standalone-gateway"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "futures-util",
  "im-adapters-postgres-journal",
  "sdkwork-api-config",
  "sdkwork-api-product-runtime",
@@ -4144,12 +4187,17 @@ dependencies = [
  "sdkwork-im-cloud-gateway-config",
  "sdkwork-im-cloud-gateway-observability",
  "sdkwork-im-database-pool",
+ "sdkwork-im-gateway-assembly",
  "sdkwork-im-iam-application-bootstrap",
  "sdkwork-im-service-readiness",
- "sdkwork-router-iam-app-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-routes-iam-app-api",
+ "sdkwork-routes-im-realtime-open-api",
  "serde",
  "serde_json",
+ "session-gateway",
  "tokio",
+ "tokio-tungstenite 0.28.0",
  "toml",
  "tower-http",
  "tracing",
@@ -4163,9 +4211,23 @@ dependencies = [
  "im-app-context",
  "sdkwork-iam-web-adapter",
  "sdkwork-im-realtime-api-paths",
+ "sdkwork-im-service-readiness",
  "sdkwork-web-axum",
  "sdkwork-web-bootstrap",
  "sdkwork-web-core",
+ "tokio",
+]
+
+[[package]]
+name = "sdkwork-im-websocket-auth-gate"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "futures-util",
+ "im-app-context",
+ "sdkwork-im-realtime-api-paths",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
@@ -4174,7 +4236,7 @@ name = "sdkwork-platform-id-service"
 version = "0.1.0"
 
 [[package]]
-name = "sdkwork-router-iam-app-api"
+name = "sdkwork-routes-iam-app-api"
 version = "0.1.0"
 dependencies = [
  "argon2",
@@ -4206,7 +4268,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-audit-backend-api"
+name = "sdkwork-routes-im-audit-backend-api"
 version = "0.1.0"
 dependencies = [
  "audit-service",
@@ -4217,7 +4279,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-automation-app-api"
+name = "sdkwork-routes-im-automation-app-api"
 version = "0.1.0"
 dependencies = [
  "automation-service",
@@ -4228,7 +4290,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-chat-open-api"
+name = "sdkwork-routes-im-chat-open-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4239,7 +4301,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-governance-backend-api"
+name = "sdkwork-routes-im-governance-backend-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4250,7 +4312,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-media-app-api"
+name = "sdkwork-routes-im-media-app-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4261,7 +4323,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-notification-app-api"
+name = "sdkwork-routes-im-notification-app-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4272,7 +4334,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-ops-backend-api"
+name = "sdkwork-routes-im-ops-backend-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4283,7 +4345,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-projection-open-api"
+name = "sdkwork-routes-im-projection-open-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4294,7 +4356,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-realtime-open-api"
+name = "sdkwork-routes-im-realtime-open-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4307,7 +4369,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-social-backend-api"
+name = "sdkwork-routes-im-social-backend-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4318,7 +4380,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-social-open-api"
+name = "sdkwork-routes-im-social-open-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4329,7 +4391,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-space-open-api"
+name = "sdkwork-routes-im-space-open-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4340,7 +4402,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-im-stream-app-api"
+name = "sdkwork-routes-im-stream-app-api"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
@@ -4453,6 +4515,7 @@ dependencies = [
  "sdkwork-web-core",
  "serde",
  "serde_json",
+ "sqlx",
  "tokio",
  "tracing",
  "tracing-opentelemetry",
@@ -4669,7 +4732,8 @@ dependencies = [
  "sdkwork-im-rpc-service-rust",
  "sdkwork-im-runtime-link",
  "sdkwork-im-runtime-route",
- "sdkwork-router-im-realtime-open-api",
+ "sdkwork-im-websocket-auth-gate",
+ "sdkwork-routes-im-realtime-open-api",
  "sdkwork-utils-rust",
  "sdkwork-web-core",
  "serde",
@@ -4689,7 +4753,7 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-realtime-open-api",
+ "sdkwork-routes-im-realtime-open-api",
  "session-gateway",
  "tokio",
  "tracing",
@@ -4833,10 +4897,12 @@ dependencies = [
  "im-domain-events",
  "im-platform-contracts",
  "im-time",
+ "sdkwork-database-config",
  "sdkwork-im-api-registry",
  "sdkwork-im-openapi",
  "sdkwork-im-runtime-id",
  "sdkwork-im-service-readiness",
+ "sdkwork-im-web-bootstrap",
  "sdkwork-utils-rust",
  "serde",
  "serde_json",
@@ -4878,10 +4944,12 @@ dependencies = [
  "im-app-context",
  "im-domain-core",
  "im-platform-contracts",
+ "sdkwork-database-config",
  "sdkwork-im-contract-core",
  "sdkwork-im-runtime-id",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-space-open-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-routes-im-space-open-api",
  "serde",
  "serde_json",
  "tokio",
@@ -4897,7 +4965,7 @@ dependencies = [
  "axum 0.8.9",
  "im-adapters-social-postgres",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-space-open-api",
+ "sdkwork-routes-im-space-open-api",
  "space-service",
  "tokio",
  "tracing",
@@ -5138,7 +5206,8 @@ dependencies = [
  "sdkwork-im-contract-stream",
  "sdkwork-im-openapi",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-stream-app-api",
+ "sdkwork-im-web-bootstrap",
+ "sdkwork-routes-im-stream-app-api",
  "serde",
  "serde_json",
  "tokio",
@@ -5153,7 +5222,7 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "sdkwork-im-service-readiness",
- "sdkwork-router-im-stream-app-api",
+ "sdkwork-routes-im-stream-app-api",
  "streaming-service",
  "tokio",
  "tracing",

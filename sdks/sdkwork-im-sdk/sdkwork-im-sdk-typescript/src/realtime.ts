@@ -8,12 +8,15 @@ import type {
 
 import {
   IM_CCP_WEBSOCKET_SUBPROTOCOL,
+  ccpHelloAckNegotiatesSessionResume,
   encodeCcpAuthBindFrame,
   encodeCcpBusinessFrame,
   encodeCcpHeartbeatFrame,
   encodeCcpHelloFrame,
+  encodeCcpSessionResumeFrame,
   isCcpAuthOkEnvelope,
   isCcpHelloAckEnvelope,
+  isCcpSessionResumedEnvelope,
   resolveCcpAuthBindContext,
   unwrapInboundRealtimeFrame,
 } from './ccp-wire';
@@ -237,6 +240,7 @@ type ImRealtimeConnectionPhase =
   | 'gateway_auth'
   | 'ccp_hello_ack'
   | 'ccp_auth_ok'
+  | 'ccp_session_resume'
   | 'ready';
 
 function subscribe<T>(set: Set<T>, value: T): ImSubscription {
@@ -404,6 +408,19 @@ function buildWebSocketHeaders({
   }
 
   return resolvedHeaders;
+}
+
+function hasUpgradeAuthHeaders(headers: Record<string, string>): boolean {
+  for (const [key, value] of Object.entries(headers)) {
+    if (!value.trim()) {
+      continue;
+    }
+    const normalized = key.toLowerCase();
+    if (normalized === 'authorization' || normalized === 'access-token') {
+      return true;
+    }
+  }
+  return false;
 }
 
 function resolveWebSocketCredentials({
@@ -836,13 +853,14 @@ export function createImLiveConnection({
     },
   });
   const usesBrowserWebSocket = !webSocketFactory;
+  const resolvedHeaders = buildWebSocketHeaders({ ...credentials, headerProvider, headers });
   const socket = resolveWebSocketFactory(webSocketFactory)(url, {
-    headers: buildWebSocketHeaders({ ...credentials, headerProvider, headers }),
+    headers: resolvedHeaders,
     protocols: [IM_CCP_WEBSOCKET_SUBPROTOCOL],
   });
   const authInitRequestId = 'sdkwork-im-auth-init-1';
   const ccpHelloRequestId = 'sdkwork-im-ccp-hello-1';
-  const frameAuthRequired = usesBrowserWebSocket && auth?.mode !== 'none';
+  const frameAuthRequired = (usesBrowserWebSocket || !hasUpgradeAuthHeaders(resolvedHeaders)) && auth?.mode !== 'none';
   const frameAuthCredentials = credentials.accessToken && credentials.authToken
     ? { accessToken: credentials.accessToken, authToken: credentials.authToken }
     : undefined;
@@ -934,6 +952,19 @@ export function createImLiveConnection({
   };
 
   let pendingCcpAuthBindContext: ReturnType<typeof resolveCcpAuthBindContext> | undefined;
+  let resumeNegotiated = false;
+
+  const beginSessionResumeIfNeeded = (): void => {
+    const sessionId = pendingCcpAuthBindContext?.sessionId;
+    if (!resumeNegotiated || !sessionId) {
+      pendingCcpAuthBindContext = undefined;
+      emitOpenAndSyncSubscriptions();
+      return;
+    }
+    connectionPhase = 'ccp_session_resume';
+    socket.send(encodeCcpSessionResumeFrame(sessionId));
+    startAuthTimeout();
+  };
 
   const beginCcpHandshake = (authOk?: Record<string, unknown>): void => {
     const bindContext = resolveCcpAuthBindContext({
@@ -1036,7 +1067,11 @@ export function createImLiveConnection({
   };
 
   const flushSubscriptionSync = (): void => {
-    if (!subscriptionSnapshotDirty || socket.readyState !== SOCKET_OPEN_STATE) {
+    if (
+      !subscriptionSnapshotDirty
+      || socket.readyState !== SOCKET_OPEN_STATE
+      || connectionPhase !== 'ready'
+    ) {
       return;
     }
     subscriptionSnapshotDirty = false;
@@ -1051,13 +1086,17 @@ export function createImLiveConnection({
   const syncConversations = (conversationIds: string[]): void => {
     subscriptionConversations = pickStringArray(conversationIds);
     subscriptionSnapshotDirty = true;
-    flushSubscriptionSync();
+    if (connectionPhase === 'ready') {
+      flushSubscriptionSync();
+    }
   };
 
   const syncScopes = (scopes: ImRealtimeScopeSubscription[]): void => {
     subscriptionScopes = normalizeRealtimeScopeSubscriptions(scopes);
     subscriptionSnapshotDirty = true;
-    flushSubscriptionSync();
+    if (connectionPhase === 'ready') {
+      flushSubscriptionSync();
+    }
   };
 
   connectionTimeout = setTimeout(failConnectionTimeout, websocketConnectionTimeoutMs(options));
@@ -1125,6 +1164,7 @@ export function createImLiveConnection({
     }
     if (connectionPhase === 'ccp_hello_ack') {
       if (isCcpHelloAckEnvelope(raw)) {
+        resumeNegotiated = ccpHelloAckNegotiatesSessionResume(raw);
         const bindContext = pendingCcpAuthBindContext;
         if (!bindContext) {
           failCcpHandshake(
@@ -1145,6 +1185,17 @@ export function createImLiveConnection({
     }
     if (connectionPhase === 'ccp_auth_ok') {
       if (isCcpAuthOkEnvelope(raw)) {
+        beginSessionResumeIfNeeded();
+        return;
+      }
+      const authError = parseRealtimeControlError(raw);
+      if (authError) {
+        failCcpHandshake(authError.code, authError.message);
+      }
+      return;
+    }
+    if (connectionPhase === 'ccp_session_resume') {
+      if (isCcpSessionResumedEnvelope(raw)) {
         pendingCcpAuthBindContext = undefined;
         emitOpenAndSyncSubscriptions();
         return;

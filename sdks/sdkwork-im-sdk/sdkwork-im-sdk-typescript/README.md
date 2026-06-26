@@ -34,8 +34,9 @@ browser connection starts with:
 }
 ```
 
-After `auth.ok`, subscriptions are synchronized with `subscriptions.sync`
-frames. `conversationId` values must not be appended to the websocket URL.
+After `auth.ok`, the SDK completes the CCP control handshake (`hello` → `hello_ack` →
+`auth_bind` → `auth_ok`) and only then enters lifecycle `open` and sends `subscriptions.sync`
+frames as CCP `kind: cmd` business envelopes. `conversationId` values must not be appended to the websocket URL.
 
 Node, Tauri, tests, and other host runtimes can inject a transport:
 
@@ -82,11 +83,11 @@ connection.subscriptions.syncConversations([
 ]);
 ```
 
-The default wire mode is the backend legacy JSON websocket protocol:
+The wire mode is CCP JSON over WebSocket subprotocol `sdkwork-im.ccp.ws.v1`:
 
-- Browser mode sends `auth.init` first and waits for `auth.ok` before reporting the connection open.
-- Node/Tauri injected websocket factories may still forward `Authorization`, `Access-Token`, and AppContext headers for trusted host runtimes.
-- `subscriptions.sync` is sent as a websocket frame for requested conversation subscriptions. Call `connection.subscriptions.syncConversations(...)` to replace the active conversation subscription snapshot on an existing connection.
+- Browser mode sends `auth.init` first, waits for `auth.ok`, completes the CCP handshake, and only then reports lifecycle `open`.
+- Node/Tauri injected websocket factories may forward `Authorization`, `Access-Token`, and AppContext headers for trusted host runtimes and skip `auth.init`.
+- `subscriptions.sync` is deferred until the CCP `ready` phase. Calling `connection.subscriptions.syncConversations(...)` before `open` only marks a dirty snapshot; the SDK flushes it after `auth_ok`.
 - A connection that never reaches the native websocket `open` event emits `websocket_connect_timeout` and queues a close for the first safe moment. Application connection managers should treat this as a reconnectable transport error.
 - Heartbeats are enabled by default. The SDK sends `ping` frames and treats any inbound frame as liveness; if the socket stays silent past `timeoutMs`, it emits `websocket_heartbeat_timeout` and closes the connection so the app-level connection manager can reconnect. Pass `heartbeat: false` only for tests or runtimes with their own equivalent liveness checks.
 - Server `error` control frames are surfaced through `connection.lifecycle.onError(...)`. Fatal websocket auth, session, token, upstream, and connect errors also move the connection into `error` state and close the socket; non-fatal subscription or business errors leave the socket open.

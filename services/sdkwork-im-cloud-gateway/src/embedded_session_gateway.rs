@@ -5,6 +5,7 @@ use tracing::warn;
 
 pub struct EmbeddedSessionGatewayRuntime {
     pub session_router: Option<Router>,
+    pub embedded_realtime_app_state: Option<session_gateway::AppState>,
     pub link_transport_handles: Vec<JoinHandle<()>>,
     pub cluster_subscriber: Option<std::thread::JoinHandle<()>>,
 }
@@ -13,6 +14,7 @@ impl EmbeddedSessionGatewayRuntime {
     pub fn empty() -> Self {
         Self {
             session_router: None,
+            embedded_realtime_app_state: None,
             link_transport_handles: Vec::new(),
             cluster_subscriber: None,
         }
@@ -49,10 +51,14 @@ pub async fn bootstrap_embedded_session_gateway_runtime(
     let embedded = session_gateway::bootstrap_gateway_embedded_realtime_plane().await?;
     let node_id = embedded.node_id().to_owned();
     let cluster_bus_configured = embedded.bootstrap.cluster_bus.is_some();
+    let _ = sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env().await;
+    let embedded_realtime_app_state =
+        session_gateway::AppState::from_realtime_bootstrap(&embedded.bootstrap);
     let session_router =
-        sdkwork_router_im_realtime_open_api::build_public_app_with_realtime_bootstrap(
+        sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap_from_env(
             &embedded.bootstrap,
-        );
+        )
+        .await;
     tracing::info!(
         target: "sdkwork.im",
         event = "im.gateway.embed_session_gateway",
@@ -64,6 +70,7 @@ pub async fn bootstrap_embedded_session_gateway_runtime(
 
     Ok(EmbeddedSessionGatewayRuntime {
         session_router: Some(session_router),
+        embedded_realtime_app_state: Some(embedded_realtime_app_state),
         link_transport_handles: embedded.link_transport_handles,
         cluster_subscriber: embedded.cluster_subscriber,
     })

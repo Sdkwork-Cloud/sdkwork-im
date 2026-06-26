@@ -166,7 +166,7 @@ function databaseBridgeEnv({
 }) {
   const resolvedMaxConnections = maxConnections
     ?? envValue(env, 'SDKWORK_IM_DATABASE_MAX_CONNECTIONS', 'SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS');
-  return {
+  const bridged = {
     SDKWORK_IM_DATABASE_ENGINE: engine,
     SDKWORK_IM_DATABASE_URL: databaseUrl,
     SDKWORK_CLAW_DATABASE_URL: databaseUrl,
@@ -177,6 +177,11 @@ function databaseBridgeEnv({
       }
       : {}),
   };
+  if (/^postgres(?:ql)?:\/\//iu.test(databaseUrl)) {
+    bridged.SDKWORK_IAM_DATABASE_URL = databaseUrl;
+    bridged.SDKWORK_DATABASE_URL = databaseUrl;
+  }
+  return bridged;
 }
 
 export function resolveSdkworkImSharedDatabaseConfig({

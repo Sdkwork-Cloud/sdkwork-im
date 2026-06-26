@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use axum::Router;
+use im_adapters_social_postgres::SocialPostgresPool;
 use im_platform_contracts::IdGenerator;
 
 use super::block;
@@ -14,6 +15,7 @@ use super::user_settings;
 /// Shared state for Postgres supplemental social handlers.
 #[derive(Clone)]
 pub struct PostgresAppState {
+    pub postgres_pool: SocialPostgresPool,
     pub friend_request_store:
         Arc<dyn im_adapters_social_postgres::friend_request_store::FriendRequestStore>,
     pub friendship_store: Arc<dyn im_adapters_social_postgres::friendship_store::FriendshipStore>,

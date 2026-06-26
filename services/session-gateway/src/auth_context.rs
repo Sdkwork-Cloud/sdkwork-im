@@ -9,7 +9,8 @@ use im_app_context::{
     app_context_from_web_principal, resolve_app_context,
 };
 use sdkwork_iam_web_adapter::{
-    resolve_iam_app_context_from_dual_tokens, web_request_principal_from_iam,
+    resolve_iam_app_context_from_dual_tokens, resolve_iam_postgres_pool_from_env,
+    web_request_principal_from_iam,
 };
 use sqlx::PgPool;
 
@@ -87,11 +88,7 @@ fn extract_access_token(headers: &HeaderMap) -> Option<String> {
 }
 
 pub async fn resolve_iam_auth_pool_from_env() -> Option<Arc<PgPool>> {
-    sdkwork_database_sqlx::create_pool_from_env("IAM")
-        .await
-        .ok()
-        .flatten()
-        .and_then(|pool| pool.as_postgres().cloned().map(Arc::new))
+    resolve_iam_postgres_pool_from_env().await
 }
 
 #[cfg(test)]

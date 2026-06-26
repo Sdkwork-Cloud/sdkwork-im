@@ -15,7 +15,7 @@ fn test_projection_service_http_surface_moves_out_of_lib_impl() {
     for forbidden_symbol in [
         "struct RegisterDeviceRequest {",
         "struct SyncFeedQuery {",
-        "struct HealthResponse {",
+        "struct ListQuery {",
         "struct TimelineResponse {",
         "struct InboxResponse {",
         "struct ClientRouteSyncFeedResponse {",

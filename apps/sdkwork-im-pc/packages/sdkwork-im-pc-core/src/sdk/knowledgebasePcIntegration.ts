@@ -1,6 +1,7 @@
 import { configureKnowledgebasePcRuntime } from '@sdkwork/knowledgebase-pc-knowledge';
 import type { KnowledgebasePcSdkPorts } from '@sdkwork/knowledgebase-pc-knowledge';
 import type { SessionSnapshot } from 'sdkwork-knowledgebase-pc-core';
+import { createImPcHostLanguageBridge } from '@sdkwork/im-pc-commons';
 
 import { getDriveAppSdkClient } from './driveAppSdkClient';
 import { getKnowledgebaseAppSdkClient } from './knowledgebaseAppSdkClient';
@@ -52,6 +53,7 @@ function mapImSessionToKnowledgebaseSnapshot(
 }
 
 function createImKnowledgebasePcSdkPorts(): KnowledgebasePcSdkPorts {
+  const hostLanguageBridge = createImPcHostLanguageBridge();
   return {
     getKnowledgebaseClient: getKnowledgebaseAppSdkClient,
     getDriveClient: getDriveAppSdkClient,
@@ -61,6 +63,8 @@ function createImKnowledgebasePcSdkPorts(): KnowledgebasePcSdkPorts {
       window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, handler);
       return () => window.removeEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, handler);
     },
+    resolveHostLanguage: hostLanguageBridge.resolveInitialLanguage,
+    subscribeHostLanguage: hostLanguageBridge.onLanguageChange,
   };
 }
 

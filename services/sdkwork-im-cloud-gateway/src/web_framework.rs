@@ -3,8 +3,9 @@ use std::sync::Arc;
 use axum::Router;
 use im_app_context::resolve_web_environment_from_process_env;
 use sdkwork_iam_web_adapter::{
-    iam_database_resolver_from_env, IamAuthorizationPolicy, IamDatabaseWebRequestContextResolver,
+    IamAuthorizationPolicy, IamWebRequestContextResolver,
 };
+use sdkwork_im_web_bootstrap::shared_iam_web_request_context_resolver_from_env;
 use sdkwork_im_realtime_api_paths::REALTIME_WS;
 use sdkwork_web_axum::with_web_request_context;
 use sdkwork_web_bootstrap::{
@@ -72,7 +73,7 @@ where
 
 fn wrap_gateway_router_with_resolver(
     router: Router,
-    resolver: IamDatabaseWebRequestContextResolver,
+    resolver: IamWebRequestContextResolver,
     readiness: Option<Arc<dyn ReadinessCheck>>,
     sync_dev_assembly: bool,
 ) -> Router {
@@ -127,7 +128,7 @@ fn wrap_gateway_router_with_resolver(
 
 async fn wrap_gateway_router_with_resolver_from_env(
     router: Router,
-    resolver: IamDatabaseWebRequestContextResolver,
+    resolver: IamWebRequestContextResolver,
     readiness: Arc<dyn ReadinessCheck>,
 ) -> Router {
     let environment = resolve_web_environment_from_process_env();
@@ -180,7 +181,7 @@ async fn wrap_gateway_router_with_resolver_from_env(
 pub fn wrap_gateway_router(router: Router) -> Router {
     wrap_gateway_router_with_resolver(
         router,
-        IamDatabaseWebRequestContextResolver::new(None),
+        IamWebRequestContextResolver::new(None),
         Some(Arc::new(sdkwork_web_bootstrap::AlwaysReady)),
         true,
     )
@@ -188,7 +189,7 @@ pub fn wrap_gateway_router(router: Router) -> Router {
 
 /// Wrap the gateway router using IAM database dual-token verification when configured.
 pub async fn wrap_gateway_router_from_env(router: Router) -> Router {
-    let resolver = iam_database_resolver_from_env().await;
+    let resolver = shared_iam_web_request_context_resolver_from_env().await;
     let readiness = sdkwork_im_service_readiness::resolve_gateway_readiness_check().await;
     wrap_gateway_router_with_resolver_from_env(router, resolver, readiness).await
 }

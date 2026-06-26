@@ -6,14 +6,12 @@ import type {
   InboxResponse,
   ConversationProfileView,
   ImDecodedMessage,
-  ImLiveConnection,
   ImMessageContext,
   ImRealtimeEventContext,
   ImRealtimeScopeSubscription,
   ImSdkClient,
   MediaKind,
   MediaResource,
-  ImSubscription,
   MessageInteractionSummaryView,
   MessageReplyReference,
   SocialUserSearchResult,
@@ -31,6 +29,14 @@ import { getDriveAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/driveAp
 import {
   getImSdkClientWithSession,
 } from '@sdkwork/im-pc-core/sdk/imSdkClient';
+import {
+  configurePcRealtimeConnectionManager,
+  onPcLiveAuthenticationFailure,
+  onPcLiveConnectionOpen,
+  recoverPcLiveConnection,
+  subscribePcConversationMessages,
+  subscribePcRealtimeScope,
+} from '@sdkwork/im-pc-core/sdk/pcRealtimeConnectionManager';
 import {
   SDKWORK_IM_SESSION_CHANGED_EVENT,
   readAppSdkSessionTokens,
@@ -86,19 +92,6 @@ interface ConversationLiveSubscription {
   notifiedMessageVersions: Map<string, string>;
 }
 
-interface LiveSubscriptionSession {
-  closeErrorStream?: ImSubscription;
-  closeLifecycleStream?: ImSubscription;
-  closeMessageStreams: Map<string, ImSubscription>;
-  closeScopeStreams: Map<string, ImSubscription>;
-  connectionAttempt: number;
-  connection?: ImLiveConnection;
-  isClosed: boolean;
-  reconnectAttempt: number;
-  reconnectTimer?: ReturnType<typeof setTimeout>;
-  started: Promise<void>;
-}
-
 export interface ChatService {
   getChats(): Promise<Chat[]>;
   subscribeChats(handler: ChatListHandler): () => void;
@@ -149,9 +142,6 @@ const CHAT_LIST_REALTIME_EVENT_TYPES = [
 const CHAT_DRIVE_SCENE = 'im';
 const CHAT_DRIVE_SOURCE = 'chat_message';
 const CHAT_DRIVE_APP_RESOURCE_TYPE = 'im_conversation';
-const LIVE_RECONNECT_BASE_DELAY_MS = 1000;
-const LIVE_RECONNECT_MAX_DELAY_MS = 30000;
-const LIVE_RECONNECT_JITTER_RATIO = 0.2;
 const CHAT_MESSAGE_TYPES = new Set<Message['type']>([
   'applet',
   'card',
@@ -186,16 +176,6 @@ function parseTimestamp(value: string | undefined): number {
   }
   const timestamp = new Date(value).getTime();
   return Number.isFinite(timestamp) ? timestamp : Date.now();
-}
-
-function computeLiveReconnectDelay(attempt: number): number {
-  const normalizedAttempt = Math.max(1, attempt);
-  const exponentialDelay = Math.min(
-    LIVE_RECONNECT_MAX_DELAY_MS,
-    LIVE_RECONNECT_BASE_DELAY_MS * (2 ** (normalizedAttempt - 1)),
-  );
-  const jitterSpan = exponentialDelay * LIVE_RECONNECT_JITTER_RATIO;
-  return Math.round(exponentialDelay - jitterSpan + Math.random() * jitterSpan * 2);
 }
 
 async function mapWithConcurrencyLimit<T, R>(
@@ -297,14 +277,6 @@ function isMediaMessageType(value: Message['type']): value is SendableMediaMessa
 
 function isStructuredMessageType(value: Message['type']): value is SendableStructuredMessageType {
   return Object.prototype.hasOwnProperty.call(STRUCTURED_MESSAGE_SCHEMA_BY_TYPE, value);
-}
-
-function isFatalLiveConnectionError(error: unknown): boolean {
-  const code = pickString(toRecord(error).code);
-  return Boolean(code && (
-    /^websocket_(?:auth|upstream|connect|heartbeat)/u.test(code)
-    || /(?:auth|session|token).*(?:failed|expired|invalid|required)/iu.test(code)
-  ));
 }
 
 function resolveDecodedMessageType(message: ImDecodedMessage): Message['type'] {
@@ -1593,12 +1565,19 @@ function mergeMessageLists(remoteMessages: Message[], localMessages: Message[]):
   return Array.from(byId.values()).sort((left, right) => left.timestamp - right.timestamp);
 }
 
+configurePcRealtimeConnectionManager({
+  getClient: getImSdkClientWithSession,
+  getDeviceId: resolveSdkworkChatPcClientId,
+  getSession: readAppSdkSessionTokens,
+});
+
 class SdkworkChatService implements ChatService {
   private readonly chatListHandlers = new Set<ChatListHandler>();
   private conversationViewState = new Map<string, ConversationViewState>();
+  private conversationWireUnsubs = new Map<string, () => void>();
   private liveCatchUpConversations = new Set<string>();
+  private liveInboxWireUnsub?: () => void;
   private liveSubscriptions = new Map<string, ConversationLiveSubscription>();
-  private liveSession?: LiveSubscriptionSession;
   private localMessages = new Map<string, Message[]>();
   private latestReadSeq = new Map<string, number>();
   private readonly getClient: () => ImSdkClient;
@@ -1616,15 +1595,9 @@ class SdkworkChatService implements ChatService {
     this.closeAllLiveSubscriptions('auth session changed');
   };
 
-  private readonly handleBrowserOnline = (): void => {
-    this.recoverRealtimeConnection('browser online');
-  };
-
-  private readonly handleBrowserVisibilityChanged = (): void => {
-    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-      this.recoverRealtimeConnection('browser visible');
-    }
-  };
+  private handleRealtimeAuthenticationFailure(reason: string): void {
+    this.closeAllLiveSubscriptions(reason);
+  }
 
   constructor(dependencies: ChatServiceDependencies | (() => ImSdkClient) = {}) {
     if (typeof dependencies === 'function') {
@@ -1638,11 +1611,13 @@ class SdkworkChatService implements ChatService {
     }
     if (typeof window !== 'undefined') {
       window.addEventListener(SDKWORK_IM_SESSION_CHANGED_EVENT, this.handleAuthSessionChanged);
-      window.addEventListener('online', this.handleBrowserOnline);
     }
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', this.handleBrowserVisibilityChanged);
-    }
+    onPcLiveConnectionOpen(() => {
+      void this.catchUpOnConnectionOpen();
+    });
+    onPcLiveAuthenticationFailure((reason) => {
+      this.handleRealtimeAuthenticationFailure(reason);
+    });
   }
 
   private client(): ImSdkClient {
@@ -2365,21 +2340,10 @@ class SdkworkChatService implements ChatService {
   }
 
   recoverRealtimeConnection(reason = 'realtime recovery requested'): void {
-    const session = this.liveSession;
-    if (
-      !session
-      || session.isClosed
-      || !this.hasLiveSubscriptionDemand()
-      || this.liveSession !== session
-    ) {
+    if (!this.hasLiveSubscriptionDemand()) {
       return;
     }
-
-    if (session.reconnectTimer) {
-      clearTimeout(session.reconnectTimer);
-      session.reconnectTimer = undefined;
-    }
-    this.restartLiveSession(session, reason);
+    recoverPcLiveConnection(reason);
   }
 
   private getOrCreateLiveSubscription(chatId: string): ConversationLiveSubscription {
@@ -2398,243 +2362,99 @@ class SdkworkChatService implements ChatService {
       ),
     };
     this.liveSubscriptions.set(chatId, subscription);
-    this.ensureLiveSession();
-    this.syncLiveSessionSubscriptions();
+    this.ensureConversationWireSubscription(chatId);
     return subscription;
   }
 
-  private ensureLiveSession(): LiveSubscriptionSession {
-    if (this.liveSession && !this.liveSession.isClosed) {
-      return this.liveSession;
+  private ensureConversationWireSubscription(conversationId: string): void {
+    if (this.conversationWireUnsubs.has(conversationId)) {
+      return;
     }
-
-    const session: LiveSubscriptionSession = {
-      closeMessageStreams: new Map<string, ImSubscription>(),
-      closeScopeStreams: new Map<string, ImSubscription>(),
-      connectionAttempt: 0,
-      isClosed: false,
-      reconnectAttempt: 0,
-      started: Promise.resolve(),
-    };
-    session.started = this.startLiveSession(session);
-    this.liveSession = session;
-    return session;
+    const unsubscribe = subscribePcConversationMessages(
+      conversationId,
+      (message, context) => {
+        this.handleLiveMessage(conversationId, message, context);
+      },
+    );
+    this.conversationWireUnsubs.set(conversationId, unsubscribe);
   }
 
-  private async startLiveSession(session: LiveSubscriptionSession): Promise<void> {
-    const connectionAttempt = session.connectionAttempt + 1;
-    session.connectionAttempt = connectionAttempt;
-    try {
-      const connection = await this.client().connect({
-        deviceId: resolveSdkworkChatPcClientId(),
-        subscriptions: {
-          conversations: [],
-        },
-      });
-      if (session.connectionAttempt !== connectionAttempt) {
-        connection.disconnect(1000, 'stale conversation subscription connection');
-        return;
-      }
-      if (session.isClosed) {
-        connection.disconnect(1000, 'conversation subscription closed');
-        return;
-      }
+  private releaseConversationWireSubscription(conversationId: string): void {
+    this.conversationWireUnsubs.get(conversationId)?.();
+    this.conversationWireUnsubs.delete(conversationId);
+  }
 
-      session.connection = connection;
-      session.reconnectAttempt = 0;
-      this.syncLiveSessionSubscriptions(session);
-      session.closeLifecycleStream = connection.lifecycle.onStateChange((state) => {
-        if (state.status === 'open' && !session.isClosed) {
-          void this.catchUpLiveSessionMessages(session);
-        }
-        if ((state.status === 'closed' || state.status === 'error') && !session.isClosed) {
-          this.scheduleLiveSessionReconnect(session);
-        }
-      });
-      session.closeErrorStream = connection.lifecycle.onError((error) => {
-        if (isFatalLiveConnectionError(error)) {
-          this.scheduleLiveSessionReconnect(session);
-        }
-      });
-    } catch {
-      if (session.connectionAttempt !== connectionAttempt) {
-        return;
-      }
-      if (this.liveSession === session && this.liveSubscriptions.size > 0 && !session.isClosed) {
-        this.scheduleLiveSessionReconnect(session);
-      } else if (this.liveSession === session) {
-        this.liveSession = undefined;
-      }
+  private ensureInboxWireSubscription(): void {
+    if (this.liveInboxWireUnsub || this.chatListHandlers.size === 0) {
+      return;
+    }
+    const scopes = this.getChatListRealtimeScopes();
+    const inboxScope = scopes[0];
+    if (!inboxScope) {
+      return;
+    }
+    this.liveInboxWireUnsub = subscribePcRealtimeScope(inboxScope, (context) => {
+      this.handleLiveScopeEvent(context);
+    });
+  }
+
+  private releaseInboxWireSubscription(): void {
+    this.liveInboxWireUnsub?.();
+    this.liveInboxWireUnsub = undefined;
+  }
+
+  private ensureLiveSession(): void {
+    this.ensureInboxWireSubscription();
+  }
+
+  private syncLiveSessionSubscriptions(): void {
+    if (this.chatListHandlers.size > 0) {
+      this.ensureInboxWireSubscription();
+    } else {
+      this.releaseInboxWireSubscription();
     }
   }
 
   private closeLiveSubscription(
     chatId: string,
     subscription: ConversationLiveSubscription,
-    reason = 'conversation subscription closed',
   ): void {
     if (this.liveSubscriptions.get(chatId) !== subscription) {
       return;
     }
     this.liveSubscriptions.delete(chatId);
-    this.syncLiveSessionSubscriptions();
+    this.releaseConversationWireSubscription(chatId);
     if (this.liveSubscriptions.size === 0 && this.chatListHandlers.size === 0) {
-      this.closeLiveSession(reason);
+      this.releaseInboxWireSubscription();
     }
   }
 
-  private closeAllLiveSubscriptions(reason: string): void {
+  private closeAllLiveSubscriptions(_reason: string): void {
+    for (const conversationId of [...this.liveSubscriptions.keys()]) {
+      this.releaseConversationWireSubscription(conversationId);
+    }
     this.liveSubscriptions.clear();
-    this.closeLiveSession(reason);
+    this.releaseInboxWireSubscription();
   }
 
-  private closeLiveSession(reason: string): void {
-    const session = this.liveSession;
-    if (!session) {
-      return;
-    }
-
-    session.isClosed = true;
-    if (session.reconnectTimer) {
-      clearTimeout(session.reconnectTimer);
-      session.reconnectTimer = undefined;
-    }
-    for (const closeMessageStream of session.closeMessageStreams.values()) {
-      closeMessageStream();
-    }
-    session.closeMessageStreams.clear();
-    for (const closeScopeStream of session.closeScopeStreams.values()) {
-      closeScopeStream();
-    }
-    session.closeScopeStreams.clear();
-    session.closeLifecycleStream?.();
-    session.closeErrorStream?.();
-    session.connection?.disconnect(1000, reason);
-    if (this.liveSession === session) {
-      this.liveSession = undefined;
-    }
-  }
-
-  private restartLiveSession(
-    session: LiveSubscriptionSession,
-    reason = 'restarting conversation subscription',
-  ): void {
-    if (
-      session.isClosed
-      || !this.hasLiveSubscriptionDemand()
-      || this.liveSession !== session
-    ) {
-      return;
-    }
-
-    for (const closeMessageStream of session.closeMessageStreams.values()) {
-      closeMessageStream();
-    }
-    session.closeMessageStreams.clear();
-    for (const closeScopeStream of session.closeScopeStreams.values()) {
-      closeScopeStream();
-    }
-    session.closeScopeStreams.clear();
-    session.closeLifecycleStream?.();
-    session.closeErrorStream?.();
-    session.connection?.disconnect(1000, reason);
-    session.closeLifecycleStream = undefined;
-    session.closeErrorStream = undefined;
-    session.connection = undefined;
-    session.reconnectTimer = undefined;
-    session.started = this.startLiveSession(session);
-  }
-
-  private scheduleLiveSessionReconnect(session: LiveSubscriptionSession): void {
-    if (
-      session.reconnectTimer
-      || session.isClosed
-      || !this.hasLiveSubscriptionDemand()
-      || this.liveSession !== session
-    ) {
-      return;
-    }
-
-    session.reconnectAttempt += 1;
-    session.reconnectTimer = setTimeout(
-      () => this.restartLiveSession(session),
-      computeLiveReconnectDelay(session.reconnectAttempt),
-    );
-  }
-
-  private syncLiveSessionSubscriptions(session = this.liveSession): void {
-    if (!session || session.isClosed) {
-      return;
-    }
-
-    const conversationIds = Array.from(this.liveSubscriptions.keys());
-    const scopes = this.getChatListRealtimeScopes();
-    for (const [conversationId, closeMessageStream] of Array.from(session.closeMessageStreams.entries())) {
-      if (this.liveSubscriptions.has(conversationId)) {
-        continue;
-      }
-      closeMessageStream();
-      session.closeMessageStreams.delete(conversationId);
-    }
-    const scopeKeys = new Set(scopes.map((scope) => this.realtimeScopeKey(scope)));
-    for (const [scopeKey, closeScopeStream] of Array.from(session.closeScopeStreams.entries())) {
-      if (scopeKeys.has(scopeKey)) {
-        continue;
-      }
-      closeScopeStream();
-      session.closeScopeStreams.delete(scopeKey);
-    }
-
-    const connection = session.connection;
-    if (!connection) {
-      return;
-    }
-
-    for (const conversationId of conversationIds) {
-      if (session.closeMessageStreams.has(conversationId)) {
-        continue;
-      }
-      session.closeMessageStreams.set(
-        conversationId,
-        connection.messages.onConversation(
-          conversationId,
-          (message, context) => {
-            this.handleLiveMessage(conversationId, message, context);
-          },
-        ),
-      );
-    }
-    for (const scope of scopes) {
-      const scopeKey = this.realtimeScopeKey(scope);
-      if (session.closeScopeStreams.has(scopeKey)) {
-        continue;
-      }
-      session.closeScopeStreams.set(
-        scopeKey,
-        connection.events.onScope(scope.scopeType, scope.scopeId, (_event, context) => {
-          this.handleLiveScopeEvent(context);
-        }),
-      );
-    }
-    connection.subscriptions.syncConversations(conversationIds);
-    connection.subscriptions.syncScopes(scopes);
+  private closeLiveSession(_reason: string): void {
+    this.releaseInboxWireSubscription();
   }
 
   private hasLiveSubscriptionDemand(): boolean {
     return this.liveSubscriptions.size > 0 || this.chatListHandlers.size > 0;
   }
 
-  private async catchUpLiveSessionMessages(session: LiveSubscriptionSession): Promise<void> {
-    if (session.isClosed || this.liveSession !== session) {
+  private async catchUpOnConnectionOpen(): Promise<void> {
+    if (!this.hasLiveSubscriptionDemand()) {
       return;
     }
 
     const conversationIds = Array.from(this.liveSubscriptions.keys());
     for (const conversationId of conversationIds) {
-      if (session.isClosed || this.liveSession !== session || !this.liveSubscriptions.has(conversationId)) {
+      if (!this.liveSubscriptions.has(conversationId)) {
         return;
       }
-
       await this.catchUpConversationMessages(conversationId).catch(() => undefined);
     }
     if (this.chatListHandlers.size > 0) {
@@ -2740,10 +2560,6 @@ class SdkworkChatService implements ChatService {
         scopeType: 'user',
       },
     ];
-  }
-
-  private realtimeScopeKey(scope: Pick<ImRealtimeScopeSubscription, 'scopeId' | 'scopeType'>): string {
-    return `${scope.scopeType}:${scope.scopeId}`;
   }
 
   private handleLiveScopeEvent(context: ImRealtimeEventContext): void {

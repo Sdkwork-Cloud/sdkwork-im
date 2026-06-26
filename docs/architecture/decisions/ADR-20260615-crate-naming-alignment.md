@@ -36,7 +36,7 @@ named by responsibility under the SDKWork owner token:
 
 - Business logic: `sdkwork-<domain>-<capability>-service`
 - SQLx/repository access: `sdkwork-<domain>-<capability>-repository-sqlx`
-- HTTP route adapters: `sdkwork-router-<capability>-<surface>`
+- HTTP route adapters: `sdkwork-routes-<capability>-<surface>`
 - HTTP server processes: `sdkwork-<app>-api-server`
 - In-process service containers: `sdkwork-<app>-service-host`
 - Background jobs: `sdkwork-<domain>-<capability>-worker`

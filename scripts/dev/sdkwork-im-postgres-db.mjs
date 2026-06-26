@@ -4,6 +4,12 @@ import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+import {
+  initializePostgresRoleAndDatabase,
+  initializePostgresSchemaAndGrants,
+} from './sdkwork-im-postgres-init-node.mjs';
+import { resolvePostgresDevProfile } from './sdkwork-im-postgres-dev-profile.mjs';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultRepoRoot = path.resolve(__dirname, '..', '..');
@@ -326,7 +332,7 @@ function validateAdminConfig(admin) {
   const missing = [];
   for (const field of ['host', 'database', 'username']) {
     if (!normalizeField(admin[field])) {
-      missing.push(`SDKWORK_IM_DATABASE_ADMIN_${field.toUpperCase()}`);
+      missing.push(`SDKWORK_CLAW_DATABASE_ADMIN_${field.toUpperCase()}`);
     }
   }
   if (missing.length > 0) {
@@ -338,7 +344,7 @@ function validateAdminExecutionConfig(admin) {
   validateAdminConfig(admin);
   if (!normalizeField(admin.password)) {
     throw new Error(
-      'PostgreSQL initialization requires SDKWORK_IM_DATABASE_ADMIN_PASSWORD or SDKWORK_IM_DATABASE_ADMIN_URL',
+      'PostgreSQL initialization requires SDKWORK_CLAW_DATABASE_ADMIN_PASSWORD or SDKWORK_CLAW_DATABASE_ADMIN_URL',
     );
   }
 }
@@ -530,31 +536,57 @@ function psqlPathStyle(config) {
   return config.psql?.pathStyle;
 }
 
+function shouldUsePsqlInit(config) {
+  return Boolean(normalizeField(config.psql?.command));
+}
+
+function createNodeInitRoleStep(config) {
+  return createStep({
+    action: 'role-and-database',
+    config,
+    kind: 'node-init',
+    label: 'initialize PostgreSQL role and database',
+  });
+}
+
+function createNodeInitSchemaStep(config) {
+  return createStep({
+    action: 'schema-and-grants',
+    config,
+    kind: 'node-init',
+    label: 'initialize PostgreSQL schema and grants',
+  });
+}
+
 function createStep({
+  action,
   args,
   command,
+  config,
   cwd,
   env,
   input,
+  kind = 'shell',
   label,
   shell,
 }) {
   return {
+    action,
     args,
     command,
+    config,
     cwd,
     env,
     input,
+    kind,
     label,
     shell,
   };
 }
 
 function createFrameworkBootstrapStep(repoRoot, config, redactSecrets) {
-  const databaseUrl = sanitizePostgresDatabaseUrl(buildPostgresDatabaseUrl(config.database));
+  const databaseUrl = buildPostgresDatabaseUrl(config.database);
   return createStep({
-    label: 'bootstrap IM database lifecycle via sdkwork-database-cli',
-    command: 'cargo',
     args: [
       'run',
       '--manifest-path',
@@ -566,11 +598,16 @@ function createFrameworkBootstrapStep(repoRoot, config, redactSecrets) {
       repoRoot,
       'bootstrap',
     ],
+    command: 'cargo',
     cwd: repoRoot,
     env: {
-      SDKWORK_IM_DATABASE_URL: redactSecrets ? '***' : databaseUrl,
       SDKWORK_IM_DATABASE_AUTO_MIGRATE: 'true',
+      SDKWORK_IM_DATABASE_URL: redactSecrets
+        ? sanitizePostgresDatabaseUrl(databaseUrl)
+        : databaseUrl,
     },
+    kind: 'shell',
+    label: 'bootstrap IM database lifecycle via sdkwork-database-cli',
   });
 }
 
@@ -590,37 +627,44 @@ export function createPostgresDbPlan({
   if (!['init', 'migrate', 'plan'].includes(normalizedMode)) {
     throw new Error(`unsupported PostgreSQL database mode: ${normalizedMode}`);
   }
-  const command = psqlStepCommand(config, psqlCommand);
-  const shell = psqlStepShell(config);
   const steps = [];
   if (normalizedMode === 'init' || normalizedMode === 'plan') {
     validateAdminExecutionConfig(config.admin);
-    const adminDatabaseConnection = {
-      ...config.admin,
-      database: config.admin.database ?? 'postgres',
-    };
-    const targetDatabaseAdminConnection = {
-      ...config.admin,
-      database: config.database.database,
-    };
-    steps.push(createStep({
-      args: psqlStepArgs(config, psqlConnectionArgs(adminDatabaseConnection)),
-      command,
-      cwd: repoRoot,
-      env: psqlStepEnv(config, adminDatabaseConnection, redactSecrets),
-      input: createRoleAndDatabaseSql(config, redactSecrets),
-      label: 'initialize PostgreSQL role and database',
-      shell,
-    }));
-    steps.push(createStep({
-      args: psqlStepArgs(config, psqlConnectionArgs(targetDatabaseAdminConnection)),
-      command,
-      cwd: repoRoot,
-      env: psqlStepEnv(config, targetDatabaseAdminConnection, redactSecrets),
-      input: createSchemaAndGrantSql(config),
-      label: 'initialize PostgreSQL schema and grants',
-      shell,
-    }));
+    if (shouldUsePsqlInit(config)) {
+      const adminDatabaseConnection = {
+        ...config.admin,
+        database: config.admin.database ?? 'postgres',
+      };
+      const targetDatabaseAdminConnection = {
+        ...config.admin,
+        database: config.database.database,
+      };
+      const command = psqlStepCommand(config, psqlCommand);
+      const shell = psqlStepShell(config);
+      steps.push(createStep({
+        args: psqlStepArgs(config, psqlConnectionArgs(adminDatabaseConnection)),
+        command,
+        cwd: repoRoot,
+        env: psqlStepEnv(config, adminDatabaseConnection, redactSecrets),
+        input: createRoleAndDatabaseSql(config, redactSecrets),
+        kind: 'shell',
+        label: 'initialize PostgreSQL role and database',
+        shell,
+      }));
+      steps.push(createStep({
+        args: psqlStepArgs(config, psqlConnectionArgs(targetDatabaseAdminConnection)),
+        command,
+        cwd: repoRoot,
+        env: psqlStepEnv(config, targetDatabaseAdminConnection, redactSecrets),
+        input: createSchemaAndGrantSql(config),
+        kind: 'shell',
+        label: 'initialize PostgreSQL schema and grants',
+        shell,
+      }));
+    } else {
+      steps.push(createNodeInitRoleStep(config));
+      steps.push(createNodeInitSchemaStep(config));
+    }
   }
   if (normalizedMode === 'migrate' || normalizedMode === 'plan') {
     steps.push(createFrameworkBootstrapStep(repoRoot, config, redactSecrets));
@@ -697,7 +741,9 @@ export function formatPostgresDbPlan(plan) {
     '',
     ...plan.steps.flatMap((step, index) => [
       `${index + 1}. ${step.label}`,
-      `   command: ${formatShellCommand(step.command, step.args)}`,
+      step.kind === 'node-init'
+        ? '   runtime: node (pg)'
+        : `   command: ${formatShellCommand(step.command, step.args)}`,
       step.input ? `   stdin:\n${step.input.split('\n').map((line) => `     ${line}`).join('\n')}` : undefined,
       '',
     ].filter(Boolean)),
@@ -717,17 +763,45 @@ function helpText() {
     '  migrate   Bootstrap IM schema via sdkwork-database-cli (database/ lifecycle).',
     '',
     'Config:',
-    '  .env.postgres split fields and postgresql.yaml are both supported.',
-    '  Passwords are passed through PGPASSWORD or stdin, never as psql command-line arguments.',
+    '  .env.postgres is the single source of truth for app startup and db:* commands.',
+    '  Windows init uses node/pg by default; set SDKWORK_IM_DATABASE_PSQL_COMMAND for psql/WSL.',
     '',
   ].join('\n');
 }
 
-export function runPostgresDbCli({
+async function executePostgresDbStep(step) {
+  if (step.kind === 'node-init') {
+    if (step.action === 'role-and-database') {
+      await initializePostgresRoleAndDatabase(step.config);
+      return;
+    }
+    if (step.action === 'schema-and-grants') {
+      await initializePostgresSchemaAndGrants(step.config);
+      return;
+    }
+    throw new Error(`unsupported node init action: ${step.action}`);
+  }
+
+  const spawned = spawnSync(step.command, step.args, {
+    cwd: step.cwd,
+    encoding: 'utf8',
+    env: step.env,
+    input: step.input,
+    shell: step.shell ?? process.platform === 'win32',
+    stdio: ['pipe', 'inherit', 'inherit'],
+  });
+  if (spawned.error) {
+    throw spawned.error;
+  }
+  if (spawned.status !== 0) {
+    throw new Error(`PostgreSQL step failed with exit code ${spawned.status}: ${step.label}`);
+  }
+}
+
+export async function runPostgresDbCli({
   argv = process.argv.slice(2),
   env = process.env,
   repoRoot = defaultRepoRoot,
-  spawnSyncImpl = spawnSync,
   stderr = process.stderr,
   stdout = process.stdout,
 } = {}) {
@@ -736,14 +810,9 @@ export function runPostgresDbCli({
     stdout.write(helpText());
     return { status: 0 };
   }
-  const configPath = resolveConfigPath(args.configPath, repoRoot);
-  if (!fs.existsSync(configPath)) {
-    throw new Error(`PostgreSQL config file does not exist: ${configPath}`);
-  }
-  const config = parsePostgresConfig({
-    configPath,
-    repoRoot,
-  });
+
+  const profile = resolvePostgresDevProfile({ env, repoRoot });
+  const config = profile.config;
   if (env.SDKWORK_IM_DATABASE_SCHEMA || env.SDKWORK_CLAW_DATABASE_SCHEMA) {
     config.database.schema = env.SDKWORK_IM_DATABASE_SCHEMA ?? env.SDKWORK_CLAW_DATABASE_SCHEMA;
   }
@@ -759,6 +828,11 @@ export function runPostgresDbCli({
     redactSecrets: !shouldExecute,
     repoRoot,
   });
+  plan.source = {
+    format: 'env',
+    path: profile.configPath,
+  };
+  plan.target.databaseUrl = profile.databaseUrl;
   const redactedPlan = shouldExecute
     ? createPostgresDbPlan({
       config,
@@ -769,6 +843,8 @@ export function runPostgresDbCli({
       repoRoot,
     })
     : plan;
+  redactedPlan.source = plan.source;
+  redactedPlan.target.databaseUrl = sanitizePostgresDatabaseUrl(profile.databaseUrl);
 
   if (!shouldExecute) {
     stdout.write(`${formatPostgresDbPlan(redactedPlan)}\n`);
@@ -778,34 +854,42 @@ export function runPostgresDbCli({
   stdout.write(`${formatPostgresDbPlan(redactedPlan)}\n`);
   for (const step of plan.steps) {
     stdout.write(`[sdkwork-im-db] ${step.label}\n`);
-    const spawned = spawnSyncImpl(step.command, step.args, {
-      cwd: step.cwd,
-      encoding: 'utf8',
-      env: {
-        ...env,
-        ...step.env,
-      },
-      input: step.input,
-      shell: step.shell ?? process.platform === 'win32',
-      stdio: ['pipe', 'inherit', 'inherit'],
+    const stepEnv = {
+      ...profile.env,
+      ...step.env,
+    };
+    if (step.kind === 'shell') {
+      const spawned = spawnSync(step.command, step.args, {
+        cwd: step.cwd,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          ...stepEnv,
+        },
+        input: step.input,
+        shell: step.shell ?? process.platform === 'win32',
+        stdio: ['pipe', 'inherit', 'inherit'],
+      });
+      if (spawned.error) {
+        throw spawned.error;
+      }
+      if (spawned.status !== 0) {
+        throw new Error(`PostgreSQL step failed with exit code ${spawned.status}: ${step.label}`);
+      }
+      continue;
+    }
+    await executePostgresDbStep({
+      ...step,
+      env: stepEnv,
     });
-    if (spawned.error) {
-      throw spawned.error;
-    }
-    if (spawned.status !== 0) {
-      throw new Error(`PostgreSQL step failed with exit code ${spawned.status}: ${step.label}`);
-    }
   }
   stdout.write('[sdkwork-im-db] PostgreSQL database task completed\n');
   return { plan: redactedPlan, status: 0 };
 }
 
 if (path.resolve(process.argv[1] ?? '') === __filename) {
-  try {
-    const result = runPostgresDbCli();
-    process.exitCode = result.status ?? 0;
-  } catch (error) {
+  runPostgresDbCli().catch((error) => {
     process.stderr.write(`[sdkwork-im-db] ${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;
-  }
+  });
 }

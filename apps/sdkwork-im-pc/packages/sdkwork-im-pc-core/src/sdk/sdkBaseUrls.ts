@@ -3,10 +3,12 @@ import {
   DEFAULT_LOCAL_APPLICATION_PUBLIC_HTTP_URL,
   DEFAULT_LOCAL_APPLICATION_PUBLIC_WEBSOCKET_URL,
   DEFAULT_LOCAL_PLATFORM_API_GATEWAY_HTTP_URL,
+  VITE_SDKWORK_IAM_APP_API_BASE_URL,
   VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL,
   VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL,
   VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL,
 } from './topologyEnvKeys';
+import { readDiscoveredDevGatewayHttpUrl } from './devGatewayDiscoveryCache';
 
 const SDKWORK_APP_API_PREFIX = '/app/v3/api';
 const SDKWORK_BACKEND_API_PREFIX = '/backend/v3/api';
@@ -176,10 +178,11 @@ export function deriveWebSocketBaseUrlFromHttpBaseUrl(value: string | undefined)
 }
 
 export function resolveAppbaseAppApiBaseUrl(): string | undefined {
-  return readSdkBaseUrlEnvValue('VITE_SDKWORK_IAM_APP_API_BASE_URL')
+  return readSdkBaseUrlEnvValue(VITE_SDKWORK_IAM_APP_API_BASE_URL)
     ?? readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL)
     ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_APPBASE_APP_API_BASE_URL')
     ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_SDK_BASE_URL')
+    ?? readDiscoveredDevGatewayHttpUrl()
     ?? resolveLocalDevPlatformBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
 }
@@ -187,6 +190,7 @@ export function resolveAppbaseAppApiBaseUrl(): string | undefined {
 export function resolveProductAppApiBaseUrl(): string | undefined {
   return readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL)
     ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_SDK_BASE_URL')
+    ?? readDiscoveredDevGatewayHttpUrl()
     ?? resolveLocalDevPlatformBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
 }
@@ -194,8 +198,43 @@ export function resolveProductAppApiBaseUrl(): string | undefined {
 export function resolveImApiBaseUrl(): string | undefined {
   return readSdkBaseUrlEnvValue(VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL)
     ?? readSdkBaseUrlEnvValue('VITE_SDKWORK_IM_SDK_BASE_URL')
+    ?? readDiscoveredDevGatewayHttpUrl()
     ?? resolveLocalDevApplicationHttpBaseUrl()
     ?? resolveSameOriginHttpBaseUrl();
+}
+
+export function resolveApplicationOrPlatformHttpBaseUrl(): string | undefined {
+  return resolveImApiBaseUrl() ?? resolveAppbaseAppApiBaseUrl();
+}
+
+export function resolveApplicationOrPlatformHttpBaseUrlOrThrow(): string {
+  const baseUrl = resolveApplicationOrPlatformHttpBaseUrl();
+  if (!baseUrl) {
+    throw new Error(
+      'Sdkwork application SDK base URL is not configured. Set VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL.',
+    );
+  }
+  return normalizeHttpSdkBaseUrl(baseUrl);
+}
+
+export function resolveImApiBaseUrlOrThrow(): string {
+  const baseUrl = resolveImApiBaseUrl();
+  if (!baseUrl) {
+    throw new Error(
+      'Sdkwork IM SDK API base URL is not configured. Set VITE_SDKWORK_IM_APPLICATION_PUBLIC_HTTP_URL.',
+    );
+  }
+  return normalizeHttpSdkBaseUrl(baseUrl);
+}
+
+export function resolveImWebSocketBaseUrlOrThrow(): string {
+  const baseUrl = resolveImWebSocketBaseUrl();
+  if (!baseUrl) {
+    throw new Error(
+      'Sdkwork IM SDK websocket base URL is not configured. Set VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL.',
+    );
+  }
+  return baseUrl;
 }
 
 export function resolveProductBackendApiBaseUrl(): string | undefined {

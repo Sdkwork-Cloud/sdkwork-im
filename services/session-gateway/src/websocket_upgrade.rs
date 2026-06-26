@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use axum::extract::WebSocketUpgrade;
 use axum::extract::ws::WebSocket;
-use axum::extract::{Extension, State};
+use axum::extract::{Extension, Query, State};
 use axum::http::header;
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
-use im_app_context::AppContext;
+use im_app_context::{has_websocket_upgrade_auth_headers, AppContext};
+use serde::Deserialize;
 use sdkwork_im_runtime_link::{
     LinkWebsocketMode, LinkWebsocketUpgradeHandoff, prepare_websocket_upgrade,
     supported_websocket_subprotocols,
@@ -22,6 +23,12 @@ use crate::{ApiError, AppState, RealtimeDeliveryRuntime};
 const REALTIME_MAX_WEBSOCKET_MESSAGE_BYTES: usize = 512 * 1024;
 const REALTIME_MAX_WEBSOCKET_FRAME_BYTES: usize = 256 * 1024;
 
+#[derive(Debug, Deserialize)]
+pub(crate) struct RealtimeWebsocketQuery {
+    #[serde(rename = "deviceId")]
+    device_id: Option<String>,
+}
+
 pub(crate) struct RealtimeWebsocketUpgradeContext {
     auth: AppContext,
     device_id: String,
@@ -32,6 +39,7 @@ pub(crate) struct RealtimeWebsocketUpgradeContext {
 pub(crate) async fn realtime_websocket(
     ws: WebSocketUpgrade,
     auth: Option<Extension<AppContext>>,
+    Query(query): Query<RealtimeWebsocketQuery>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
@@ -44,7 +52,29 @@ pub(crate) async fn realtime_websocket(
             code: "websocket_overloaded",
             message: "server is at maximum websocket capacity, please retry later".to_owned(),
         })?;
-    let context = websocket_route::prepare_realtime_websocket_route(auth, &headers, &state).await?;
+
+    if auth.is_none() && !has_websocket_upgrade_auth_headers(&headers) {
+        let requested_protocol = requested_websocket_subprotocol(&headers).map(str::to_owned);
+        let state = state.clone();
+        return Ok(ws
+            .protocols(realtime_websocket_subprotocols())
+            .max_message_size(REALTIME_MAX_WEBSOCKET_MESSAGE_BYTES)
+            .max_frame_size(REALTIME_MAX_WEBSOCKET_FRAME_BYTES)
+            .on_upgrade(move |socket| {
+                crate::websocket_auth_init::realtime_websocket_after_auth_init_frame(
+                    socket,
+                    state,
+                    requested_protocol,
+                    query.device_id,
+                    permit,
+                )
+            })
+            .into_response());
+    }
+
+    let context =
+        websocket_route::prepare_realtime_websocket_route(auth, &headers, &state, query.device_id)
+            .await?;
     let requested_protocol = requested_websocket_subprotocol(&headers);
     Ok(upgrade_realtime_websocket(
         ws,
@@ -144,7 +174,7 @@ pub(crate) fn prepare_realtime_websocket_upgrade(
     )
 }
 
-async fn serve_realtime_websocket_upgrade(
+pub(crate) async fn serve_realtime_websocket_upgrade(
     socket: WebSocket,
     context: RealtimeWebsocketUpgradeContext,
     mode: LinkWebsocketMode,

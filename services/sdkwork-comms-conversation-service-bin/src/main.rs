@@ -35,7 +35,7 @@ async fn run() -> Result<(), String> {
             let directory = conversation_runtime::StaticPrincipalDirectory::from_json_file(
                 std::path::Path::new(catalog_path.as_str()),
             )?;
-            sdkwork_router_im_chat_open_api::build_public_app_with_principal_directory_from_env(
+            sdkwork_routes_im_chat_open_api::build_public_app_with_principal_directory_from_env(
                 Arc::new(directory),
             )
             .await
@@ -55,7 +55,7 @@ async fn run() -> Result<(), String> {
                      this must never be used in production",
                     ALLOW_ALL_PRINCIPALS_ENV
                 );
-                sdkwork_router_im_chat_open_api::build_public_app_with_allow_all_principals_from_env(
+                sdkwork_routes_im_chat_open_api::build_public_app_with_allow_all_principals_from_env(
                 )
                 .await
             } else {

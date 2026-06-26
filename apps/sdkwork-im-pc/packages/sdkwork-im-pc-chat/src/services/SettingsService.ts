@@ -15,7 +15,9 @@ import {
   listCommercialRuntimeModules,
 } from "@sdkwork/im-pc-shell/moduleRegistry";
 import {
+  applyHostAppearanceTheme,
   readPersistedSettingsRecord,
+  SDKWORK_IM_PC_SETTINGS_CHANGED_EVENT,
   SDKWORK_IM_PC_SETTINGS_STORAGE_KEY,
 } from "@sdkwork/im-pc-commons";
 
@@ -33,7 +35,7 @@ const NOTIFICATION_PREVIEW_MODES = new Set([
   "sender-only",
   "hidden",
 ]);
-const SETTINGS_CHANGED_EVENT = "sdkwork-im-pc:settings-changed";
+const SETTINGS_CHANGED_EVENT = SDKWORK_IM_PC_SETTINGS_CHANGED_EVENT;
 const LEGACY_AUTOFILLED_SIDEBAR_MODULES = [
   "chat",
   "workspace",
@@ -83,7 +85,6 @@ export interface AppSettings {
   notifySystem: boolean;
   notificationPreview: "hidden" | "sender-and-preview" | "sender-only";
   notificationWhenFocused: boolean;
-  privacyRequireAuth: boolean;
   privacyShowOnline: boolean;
   theme: "system" | "dark" | "light";
   sidebarModules: string[];
@@ -254,7 +255,6 @@ class SdkworkSettingsService implements SettingsService {
       notifySystem: false,
       notificationPreview: "sender-and-preview",
       notificationWhenFocused: false,
-      privacyRequireAuth: true,
       privacyShowOnline: true,
       theme: "system",
       sidebarModules: [...DEFAULT_SIDEBAR_MODULES],
@@ -294,20 +294,7 @@ class SdkworkSettingsService implements SettingsService {
   }
 
   applyTheme(theme: "system" | "dark" | "light") {
-    if (typeof window === "undefined" || typeof document === "undefined") {
-      return;
-    }
-    let mode = theme;
-    if (theme === "system") {
-      mode = window.matchMedia("(prefers-color-scheme: light)").matches
-        ? "light"
-        : "dark";
-    }
-    if (mode === "light") {
-      document.documentElement.classList.add("light-mode");
-    } else {
-      document.documentElement.classList.remove("light-mode");
-    }
+    applyHostAppearanceTheme(theme);
   }
 
   async getSettings(): Promise<AppSettings> {

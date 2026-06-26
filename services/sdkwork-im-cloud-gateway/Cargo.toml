@@ -17,6 +17,7 @@ sdkwork-im-api-registry = { path = "../../crates/sdkwork-im-api-registry" }
 sdkwork-im-openapi = { path = "../../crates/sdkwork-im-openapi" }
 sdkwork-im-cloud-gateway-config = { path = "../../crates/sdkwork-im-cloud-gateway-config" }
 sdkwork-im-cloud-gateway-observability = { path = "../../crates/sdkwork-im-cloud-gateway-observability" }
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 sdkwork-im-runtime-link = { path = "../../crates/sdkwork-im-runtime-link" }
 futures-util.workspace = true
 im-app-context = { path = "../../crates/im-app-context" }
@@ -39,10 +40,13 @@ sdkwork_web_store_sqlx.workspace = true
 sdkwork_web_core.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
 sdkwork_im_database_pool = { workspace = true }
+sdkwork_iam_database_host = { path = "../../../sdkwork-iam/crates/sdkwork-iam-database-host", package = "sdkwork-iam-database-host" }
+sdkwork_im_iam_application_bootstrap = { workspace = true }
 im-adapters-postgres-journal = { path = "../../adapters/postgres-journal" }
 session-gateway = { path = "../session-gateway" }
-sdkwork-router-im-realtime-open-api = { path = "../../crates/sdkwork-router-im-realtime-open-api" }
+sdkwork-routes-im-realtime-open-api = { path = "../../crates/sdkwork-routes-im-realtime-open-api" }
 sdkwork_im_realtime_api_paths.workspace = true
+sdkwork_im_websocket_auth_gate.workspace = true
 
 [dev-dependencies]
 futures-util.workspace = true

@@ -25,7 +25,7 @@ async fn run() -> Result<(), String> {
         .await
         .map_err(|error| format!("ops-service failed to bind local listener: {error}"))?;
 
-    axum::serve(listener, sdkwork_router_im_ops_backend_api::build_public_app())
+    axum::serve(listener, sdkwork_routes_im_ops_backend_api::build_public_app())
         .with_graceful_shutdown(async move {
             tokio::signal::ctrl_c().await.ok();
             if let Some(handle) = retention_scheduler {

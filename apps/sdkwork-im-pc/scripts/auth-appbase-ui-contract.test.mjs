@@ -309,6 +309,18 @@ assert.match(
   'Sdkwork IM auth service must provide only app identity, auth base path, and product extra packages to the high-level auth integration factory.',
 );
 
+assert.match(
+  appAuthServiceSource,
+  /function\s+isDuplicateCapabilityPackageError\([\s\S]*Duplicate capability package[\s\S]*\n\}/u,
+  'Sdkwork IM auth service must detect duplicate capability package startup failures from appbase capability registry construction.',
+);
+
+assert.match(
+  appAuthServiceSource,
+  /try\s*\{[\s\S]*createSdkworkAuthAppbaseIntegration\([\s\S]*extraPackageNames:\s*\[[\s\S]*@sdkwork\/im-pc-react[\s\S]*\][\s\S]*\}\)[\s\S]*\}\s*catch\s*\(error\)\s*\{[\s\S]*isDuplicateCapabilityPackageError\(error\)[\s\S]*createSdkworkAuthAppbaseIntegration\([\s\S]*app:\s*\{[\s\S]*id:\s*['"]sdkwork-im-pc['"][\s\S]*title:\s*['"]Sdkwork IM PC['"][\s\S]*\}[\s\S]*basePath:\s*['"]\/auth['"][\s\S]*\}\)[\s\S]*throw\s+error[\s\S]*\}/u,
+  'Sdkwork IM auth service must gracefully retry auth integration creation without extra capability packages when upstream package catalogs already include shell-level capabilities.',
+);
+
 assert.doesNotMatch(
   appAuthServiceSource,
   /createSdkworkAppCapabilityPresetManifest|createAuthRouteCatalog|appbasePackageMeta|authPackageMeta|@sdkwork\/appbase-pc-react|@sdkwork\/auth-pc-react\/auth/u,
@@ -383,8 +395,8 @@ assert.match(
 
 assert.match(
   appAuthServiceSource,
-  /catch\s*\{[\s\S]*clearSdkworkChatIamRuntimeSession\(\)[\s\S]*resetSdkworkChatIamRuntime\(\)[\s\S]*return\s+null/u,
-  'Sdkwork IM current-session bootstrap must fail closed and clear stale sessions when appbase rejects the session.',
+  /catch\s*\(error\)\s*\{[\s\S]*isAuthSessionRejectedError\(error\)[\s\S]*clearSdkworkChatIamRuntimeSession\(\)[\s\S]*return\s+null[\s\S]*return\s+storedSession/u,
+  'Sdkwork IM current-session bootstrap must clear rejected sessions and preserve locally authenticated sessions on transient failures.',
 );
 
 assert.doesNotMatch(
@@ -407,8 +419,13 @@ assert.match(
 
 assert.match(
   authGateSource,
-  /isAuthenticatedSession\(\s*session\s*\)\s*&&\s*isAuthenticatedSession\(\s*readAppSdkSessionTokens\(\)\s*\)/u,
-  'AuthGate must treat the user as authenticated only when both in-memory state and persisted session storage are still authenticated.',
+  /isAuthenticatedSession\(\s*readAppSdkSessionTokens\(\)\s*\)/u,
+  'AuthGate must treat persisted dual-token session storage as the authentication source of truth.',
+);
+assert.match(
+  authGateSource,
+  /bootstrapLocalDevGatewayDiscovery/u,
+  'AuthGate must discover the local dev gateway before authenticated SDK clients bootstrap.',
 );
 
 assert.match(

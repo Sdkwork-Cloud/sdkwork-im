@@ -24,20 +24,24 @@ pub fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> AppState {
     }
 }
 
-/// Builds the embedded space router when `SDKWORK_IM_DATABASE_URL` is configured.
-pub fn try_build_embedded_app_from_database_url_env() -> Option<Router> {
-    let database_url = std::env::var(DATABASE_URL_ENV).ok()?;
-    let pool = SocialPostgresConfig::new(database_url)
+/// Resolves space [`AppState`] when the IM PostgreSQL database is configured.
+pub fn try_app_state_from_database_url_env() -> Option<AppState> {
+    let config = sdkwork_database_config::DatabaseConfig::from_env("IM").ok()?;
+    if config.engine != sdkwork_database_config::DatabaseEngine::Postgres {
+        return None;
+    }
+    let pool = SocialPostgresConfig::from_database_config(&config)
         .connect_pool()
         .ok()?;
-    Some(build_embedded_app(app_state_from_postgres_pool(pool)))
+    Some(app_state_from_postgres_pool(pool))
+}
+
+/// Builds the embedded space router when `SDKWORK_IM_DATABASE_URL` is configured.
+pub fn try_build_embedded_app_from_database_url_env() -> Option<Router> {
+    try_app_state_from_database_url_env().map(build_embedded_app)
 }
 
 /// Builds the public space router when `SDKWORK_IM_DATABASE_URL` is configured.
 pub fn try_build_public_app_from_database_url_env() -> Option<Router> {
-    let database_url = std::env::var(DATABASE_URL_ENV).ok()?;
-    let pool = SocialPostgresConfig::new(database_url)
-        .connect_pool()
-        .ok()?;
-    Some(build_public_app(app_state_from_postgres_pool(pool)))
+    try_app_state_from_database_url_env().map(build_public_app)
 }

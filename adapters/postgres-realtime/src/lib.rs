@@ -970,7 +970,7 @@ impl RealtimeSubscriptionStore for PostgresRealtimeSubscriptionStore {
             let deleted = client
                 .execute(
                     CLEAR_REALTIME_SUBSCRIPTION_SQL,
-                    &[&tenant_id, &client_route_scope_key],
+                    &[&tenant_id, &organization_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("clear subscription", error))?;
             Ok(deleted > 0)
@@ -1043,7 +1043,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             let checkpoint_row = transaction
                 .query_opt(
                     LOAD_REALTIME_CHECKPOINT_SQL,
-                    &[&tenant_id, &client_route_scope_key],
+                    &[&tenant_id, &organization_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("load event window checkpoint", error))?;
             let Some(checkpoint) = checkpoint_row.map(checkpoint_from_row).transpose()? else {
@@ -1172,7 +1172,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             let deleted = client
                 .execute(
                     CLEAR_REALTIME_CLIENT_ROUTE_EVENTS_SQL,
-                    &[&tenant_id, &client_route_scope_key],
+                    &[&tenant_id, &organization_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("clear event window events", error))?;
             Ok(deleted > 0)
@@ -1235,7 +1235,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
             let existing = transaction
                 .query_opt(
                     LOAD_REALTIME_CHECKPOINT_SQL,
-                    &[&tenant_id, &client_route_scope_key],
+                    &[&tenant_id, &organization_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("load checkpoint for trim", error))?
                 .map(checkpoint_from_row)
@@ -1251,6 +1251,7 @@ impl RealtimeEventWindowStore for PostgresRealtimeEventWindowStore {
                 })
                 .unwrap_or_else(|| RealtimeCheckpointRecord {
                     tenant_id: tenant_id.clone(),
+                    organization_id: organization_id.clone(),
                     principal_kind: principal_kind.clone(),
                     principal_id: principal_id.clone(),
                     device_id: device_id.clone(),
@@ -1375,7 +1376,7 @@ impl RealtimeCheckpointStore for PostgresRealtimeCheckpointStore {
             let row = client
                 .query_opt(
                     LOAD_REALTIME_CHECKPOINT_SQL,
-                    &[&tenant_id, &client_route_scope_key],
+                    &[&tenant_id, &organization_id, &client_route_scope_key],
                 )
                 .map_err(|error| postgres_unavailable("load checkpoint", error))?;
             row.map(checkpoint_from_row).transpose()

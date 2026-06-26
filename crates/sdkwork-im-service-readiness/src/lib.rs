@@ -148,6 +148,26 @@ pub fn im_service_readiness_status_label() -> &'static str {
     }
 }
 
+#[derive(Clone, Default)]
+struct ImEnvReadinessCheck;
+
+impl ReadinessCheck for ImEnvReadinessCheck {
+    fn check(&self) -> ReadinessFuture<'_> {
+        Box::pin(async {
+            if evaluate_im_runtime_dependency_health_from_env() {
+                Ok(())
+            } else {
+                Err("im runtime dependencies are unavailable".into())
+            }
+        })
+    }
+}
+
+/// Default readiness probe for split IM HTTP service processes.
+pub fn im_env_readiness_check() -> Arc<dyn ReadinessCheck> {
+    Arc::new(ImEnvReadinessCheck)
+}
+
 /// Synchronous dependency probe for split-service processes that expose `/readyz`
 /// without async startup wiring.
 pub fn evaluate_im_runtime_dependency_health_from_env() -> bool {

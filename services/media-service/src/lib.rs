@@ -12,6 +12,7 @@ use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
 };
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use serde::Serialize;
 use tokio::sync::Semaphore;
 
@@ -65,14 +66,6 @@ impl MediaRuntime {
             .insert("uploadLifecycle".into(), "delegated-to-drive".into());
         Ok(snapshot)
     }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct HealthResponse {
-    status: &'static str,
-    service: &'static str,
-    storage_authority: &'static str,
 }
 
 #[derive(Debug, Clone)]
@@ -199,41 +192,24 @@ pub fn build_domain_api_router(state: AppState) -> Router {
 }
 
 pub fn build_app(runtime: Arc<MediaRuntime>) -> Router {
+    mount_im_infra_routes(
+        build_business_router(runtime),
+        im_service_router_config(),
+    )
+}
+
+fn build_business_router(runtime: Arc<MediaRuntime>) -> Router {
     let state = AppState { runtime };
     Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
         .route("/openapi.json", get(openapi_json))
         .route("/docs", get(docs_html))
         .merge(build_domain_api_router(state))
 }
 
 pub fn build_public_app() -> Router {
-    apply_public_http_guardrails(build_default_app())
-}
-
-async fn healthz() -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "ok",
-        service: "media-service",
-        storage_authority: "sdkwork-drive",
-    })
-}
-
-async fn readyz() -> impl IntoResponse {
-    let status = sdkwork_im_service_readiness::im_service_readiness_status_label();
-    let code = if status == "ok" {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-    (
-        code,
-        Json(HealthResponse {
-            status,
-            service: "media-service",
-            storage_authority: "sdkwork-drive",
-        }),
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router(Arc::new(MediaRuntime::new()))),
+        im_service_router_config(),
     )
 }
 
@@ -249,7 +225,7 @@ async fn docs_html() -> Html<String> {
 
 fn build_media_service_openapi_document() -> Result<serde_json::Value, String> {
     let source = include_str!("lib.rs");
-    let routes = extract_routes_from_function(source, "build_app", &[], &[])?;
+    let routes = extract_routes_from_function(source, "build_business_router", &[], &[])?;
     Ok(build_openapi_document(
         &media_service_openapi_spec(),
         &routes,
@@ -324,7 +300,7 @@ async fn enforce_in_flight_gate(
 ) -> Result<Response, MediaError> {
     if matches!(
         request.uri().path(),
-        "/healthz" | "/readyz" | "/openapi.json" | "/docs"
+        "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json" | "/docs"
     ) {
         return Ok(next.run(request).await);
     }

@@ -17,8 +17,9 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 
 [dev-dependencies]
 http-body-util.workspace = true
 tower.workspace = true
-sdkwork-router-im-media-app-api = { path = "../../crates/sdkwork-router-im-media-app-api" }
+sdkwork-routes-im-media-app-api = { path = "../../crates/sdkwork-routes-im-media-app-api" }

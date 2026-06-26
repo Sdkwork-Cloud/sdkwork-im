@@ -67,7 +67,10 @@ impl WebGatewayConfig {
         bind_addr: String,
         runtime_mode: GatewayRuntimeMode,
     ) -> Self {
-        let upstreams = default_split_upstreams();
+        let upstreams = match runtime_mode {
+            GatewayRuntimeMode::Unified => default_unified_process_upstreams(),
+            GatewayRuntimeMode::Split => default_split_upstreams(),
+        };
         Self {
             bind_addr,
             runtime_mode,
@@ -75,6 +78,27 @@ impl WebGatewayConfig {
             upstreams,
         }
     }
+}
+
+/// IM foundation services embedded in standalone unified-process assembly.
+/// These must not be HTTP-proxied to split-service ports in unified mode.
+pub fn is_assembly_embedded_im_service(service_id: &str) -> bool {
+    matches!(
+        canonical_service_id(service_id),
+        "session-gateway"
+            | "governance-service"
+            | "comms-conversation-service"
+            | "conversation-runtime"
+            | "projection-service"
+            | "streaming-service"
+            | "media-service"
+            | "notification-service"
+            | "automation-service"
+            | "audit-service"
+            | "ops-service"
+            | "comms-social-service"
+            | "comms-space-service"
+    )
 }
 
 fn first_env_value(names: &[&str]) -> Option<String> {
@@ -185,6 +209,32 @@ fn parse_toml_key_value(trimmed: &str, keys: &[&str]) -> Option<String> {
         return None;
     }
     Some(value.to_owned())
+}
+
+/// Upstreams for standalone unified-process: sibling app APIs only.
+/// IM foundation routes are served by gateway assembly, not split-service ports.
+pub fn default_unified_process_upstreams() -> Vec<ServiceUpstreamConfig> {
+    let appbase_upstream = default_appbase_app_api_upstream();
+    let drive_upstream = default_drive_app_api_upstream();
+    let notary_upstream = default_notary_app_api_upstream();
+    let commerce_upstream = default_commerce_app_api_upstream();
+    let mail_upstream = default_mail_app_api_upstream();
+    let community_upstream = default_community_app_api_upstream();
+    let course_upstream = default_course_app_api_upstream();
+    let knowledgebase_upstream = default_knowledgebase_app_api_upstream();
+    vec![
+        service_upstream("sdkwork-iam-app-api", appbase_upstream.as_str()),
+        service_upstream("sdkwork-drive-app-api", drive_upstream.as_str()),
+        service_upstream("sdkwork-notary-app-api", notary_upstream.as_str()),
+        service_upstream("sdkwork-commerce-app-api", commerce_upstream.as_str()),
+        service_upstream("sdkwork-mail-app-api", mail_upstream.as_str()),
+        service_upstream("sdkwork-community-app-api", community_upstream.as_str()),
+        service_upstream("sdkwork-course-app-api", course_upstream.as_str()),
+        service_upstream(
+            "sdkwork-knowledgebase-app-api",
+            knowledgebase_upstream.as_str(),
+        ),
+    ]
 }
 
 pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
@@ -659,6 +709,28 @@ bind_address = "127.0.0.1:38080"
             Some("http://127.0.0.1:18093")
         );
         assert_eq!(config.upstream_base_url("interaction-service"), None);
+    }
+
+    #[test]
+    fn test_web_gateway_config_unified_process_omits_split_foundation_upstreams() {
+        let _guard = gateway_config_env_guard();
+        let _layout = ScopedEnvVar::set("SDKWORK_IM_SERVICE_LAYOUT", "unified-process");
+        let _platform_gateway = ScopedEnvVar::remove("SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL");
+        let _gateway_base_url = ScopedEnvVar::remove("SDKWORK_API_CLOUD_GATEWAY_BASE_URL");
+        let _gateway_bind = ScopedEnvVar::remove("SDKWORK_API_CLOUD_GATEWAY_BIND");
+
+        let config = WebGatewayConfig::from_env();
+
+        assert_eq!(config.runtime_mode, GatewayRuntimeMode::Unified);
+        assert_eq!(
+            config.upstream_base_url("sdkwork-iam-app-api"),
+            Some("http://127.0.0.1:3900")
+        );
+        assert_eq!(config.upstream_base_url("session-gateway"), None);
+        assert_eq!(config.upstream_base_url("comms-social-service"), None);
+        assert_eq!(config.upstream_base_url("comms-space-service"), None);
+        assert_eq!(config.upstream_base_url("projection-service"), None);
+        assert!(super::is_assembly_embedded_im_service("social-service"));
     }
 
     #[test]

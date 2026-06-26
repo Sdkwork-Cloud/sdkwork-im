@@ -10,6 +10,7 @@ use sdkwork_im_contract_control::{RealtimeCheckpointRecord, RealtimeSubscription
 pub const LOAD_REALTIME_CHECKPOINT_SQL: &str = r#"
 select
     tenant_id,
+    organization_id,
     principal_kind,
     principal_id,
     device_id,
@@ -115,6 +116,7 @@ on conflict (tenant_id, organization_id, client_route_scope_key, realtime_seq) d
 pub const LIST_REALTIME_CLIENT_ROUTE_EVENTS_SQL: &str = r#"
 select
     tenant_id,
+    organization_id,
     principal_kind,
     principal_id,
     device_id,
@@ -230,6 +232,7 @@ limit $1
 pub const LOAD_REALTIME_SUBSCRIPTION_SQL: &str = r#"
 select
     tenant_id,
+    organization_id,
     principal_kind,
     principal_id,
     device_id,
@@ -365,6 +368,7 @@ order by s.device_id asc
 pub const LOAD_REALTIME_DISCONNECT_FENCE_SQL: &str = r#"
 select
     tenant_id,
+    organization_id,
     principal_kind,
     principal_id,
     device_id,
@@ -1056,6 +1060,7 @@ const DEVICE_SCOPE_BINDINGS: &[RealtimePostgresParameterBinding] = &[
 
 const LOAD_REALTIME_CHECKPOINT_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
     row_column("tenant_id", "tenant_id", "String", ""),
+    row_column("organization_id", "organization_id", "String", ""),
     row_column("principal_kind", "principal_kind", "String", ""),
     row_column("principal_id", "principal_id", "String", ""),
     row_column("device_id", "device_id", "String", ""),
@@ -1146,6 +1151,7 @@ const LIST_REALTIME_CLIENT_ROUTE_EVENTS_BINDINGS: &[RealtimePostgresParameterBin
 
 const LIST_REALTIME_CLIENT_ROUTE_EVENTS_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
     row_column("tenant_id", "tenant_id", "String", ""),
+    row_column("organization_id", "organization_id", "String", ""),
     row_column("principal_kind", "principal_kind", "String", ""),
     row_column("principal_id", "principal_id", "String", ""),
     row_column("device_id", "device_id", "String", ""),
@@ -1273,6 +1279,7 @@ const ORPHANED_REALTIME_CLIENT_ROUTE_EVENTS_ROW_COLUMNS: &[RealtimePostgresRowCo
 
 const LOAD_REALTIME_SUBSCRIPTION_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
     row_column("tenant_id", "tenant_id", "String", ""),
+    row_column("organization_id", "organization_id", "String", ""),
     row_column("principal_kind", "principal_kind", "String", ""),
     row_column("principal_id", "principal_id", "String", ""),
     row_column("device_id", "device_id", "String", ""),
@@ -1359,6 +1366,7 @@ const LOAD_REALTIME_DISCONNECT_FENCE_BINDINGS: &[RealtimePostgresParameterBindin
 
 const LOAD_REALTIME_DISCONNECT_FENCE_ROW_COLUMNS: &[RealtimePostgresRowColumn] = &[
     row_column("tenant_id", "tenant_id", "String", ""),
+    row_column("organization_id", "organization_id", "String", ""),
     row_column("principal_kind", "principal_kind", "String", ""),
     row_column("principal_id", "principal_id", "String", ""),
     row_column("device_id", "device_id", "String", ""),
@@ -1616,14 +1624,14 @@ const SAVE_CHECKPOINT_STEPS: &[RealtimePostgresMethodStep] = &[step(
 
 const LOAD_CHECKPOINT_STEPS: &[RealtimePostgresMethodStep] = &[step(
     "LOAD_REALTIME_CHECKPOINT_SQL",
-    "tenant_id and derived client_route_scope_key.",
+    "tenant_id, organization_id, and derived client_route_scope_key.",
     "Map optional row to RealtimeCheckpointRecord and normalize sequence metadata.",
 )];
 
 const LOAD_WINDOW_STEPS: &[RealtimePostgresMethodStep] = &[
     step(
         "LOAD_REALTIME_CHECKPOINT_SQL",
-        "tenant_id and derived client_route_scope_key.",
+        "tenant_id, organization_id, and derived client_route_scope_key.",
         "Provides principal/device identity and trim metadata.",
     ),
     step(

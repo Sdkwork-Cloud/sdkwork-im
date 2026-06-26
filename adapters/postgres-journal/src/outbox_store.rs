@@ -7,7 +7,9 @@ use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
 use r2d2_postgres::postgres::NoTls;
 
-use crate::{now_rfc3339, postgres_pool_client, postgres_unavailable, run_postgres_io};
+use crate::{
+    now_rfc3339, postgres_jsonb_payload, postgres_pool_client, postgres_unavailable, run_postgres_io,
+};
 
 pub type PostgresJournalPool = Pool<PostgresConnectionManager<NoTls>>;
 
@@ -98,6 +100,7 @@ impl OutboxStore for PostgresOutboxStore {
         run_postgres_io(move || {
             let mut client = postgres_pool_client(&pool, "enqueue")?;
             let attempt_count_i32 = event.attempt_count as i32;
+            let payload_json = postgres_jsonb_payload(event.payload_json.as_str())?;
             let params: &[&(dyn postgres::types::ToSql + Sync)] = &[
                 &event.tenant_id,
                 &event.organization_id,
@@ -106,7 +109,7 @@ impl OutboxStore for PostgresOutboxStore {
                 &event.aggregate_id,
                 &event.event_id,
                 &event.event_type,
-                &event.payload_json,
+                &payload_json,
                 &event.payload_hash,
                 &event.publish_status.as_str(),
                 &attempt_count_i32,

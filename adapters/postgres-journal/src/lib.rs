@@ -28,6 +28,7 @@
 
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use im_domain_events::{AggregateType, CommitEnvelope, EventActor};
 use im_domain_core::retention::retention_until_from_envelope;
 use im_platform_contracts::{CommitJournal, CommitPosition, ContractError};
@@ -242,6 +243,7 @@ insert into im_commit_journal (
     commit_offset,
     event_id,
     tenant_id,
+    organization_id,
     aggregate_type,
     aggregate_id,
     aggregate_seq,
@@ -252,7 +254,7 @@ insert into im_commit_journal (
     occurred_at,
     created_at,
     retention_until
-) values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14)
+) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14, $15)
 on conflict (event_id) do nothing
 returning partition_key, commit_offset
 "#;
@@ -283,6 +285,25 @@ order by partition_key asc, commit_offset asc
 // Blocking I/O helpers (executed off the async runtime by `run_postgres_io`).
 // ---------------------------------------------------------------------------
 
+pub(crate) fn postgres_jsonb_payload(payload: &str) -> Result<serde_json::Value, ContractError> {
+    serde_json::from_str(payload).map_err(|error| {
+        ContractError::Conflict(format!(
+            "postgres journal payload must be valid JSONB: {error}"
+        ))
+    })
+}
+
+fn postgres_timestamptz(value: &str, field: &'static str) -> Result<DateTime<Utc>, ContractError> {
+    DateTime::parse_from_rfc3339(value.trim())
+        .map(|instant| instant.with_timezone(&Utc))
+        .or_else(|_| value.trim().parse::<DateTime<Utc>>())
+        .map_err(|error| {
+            ContractError::Conflict(format!(
+                "postgres journal {field} must be RFC3339: {error}"
+            ))
+        })
+}
+
 fn append_one(
     pool: &PostgresJournalPool,
     prefix: &str,
@@ -291,14 +312,20 @@ fn append_one(
     let mut client = postgres_pool_client(pool, "journal append")?;
     let mut txn = client
         .transaction()
-        .map_err(|error| postgres_unavailable("journal append begin", error))?;
+        .map_err(|error| postgres_unavailable_db("journal append begin", error))?;
 
     let partition_key = compose_partition_key(prefix, &envelope.ordering_key);
+    let payload_json = postgres_jsonb_payload(envelope.payload.as_str())?;
     let payload_hash = sha256_hash(envelope.payload.as_bytes());
-    let created_at = now_rfc3339();
+    let created_at = Utc::now();
     let aggregate_seq = i64::try_from(envelope.ordering_seq).unwrap_or(0).max(1);
     let commit_offset = aggregate_seq;
-    let retention_until = journal_retention_until(envelope);
+    let organization_id = envelope.normalized_organization_id();
+    let occurred_at = postgres_timestamptz(envelope.occurred_at.as_str(), "occurred_at")?;
+    let retention_until = journal_retention_until(envelope)
+        .as_deref()
+        .map(|value| postgres_timestamptz(value, "retention_until"))
+        .transpose()?;
 
     let inserted = txn
         .query_opt(
@@ -308,19 +335,20 @@ fn append_one(
                 &commit_offset,
                 &envelope.event_id,
                 &envelope.tenant_id,
+                &organization_id,
                 &envelope.aggregate_type.as_wire_value(),
                 &envelope.aggregate_id,
                 &aggregate_seq,
                 &envelope.event_type,
-                &envelope.payload,
+                &payload_json,
                 &payload_hash,
                 &envelope.idempotency_key,
-                &envelope.occurred_at,
+                &occurred_at,
                 &created_at,
                 &retention_until,
             ],
         )
-        .map_err(|error| postgres_unavailable("journal append insert", error))?;
+        .map_err(|error| postgres_unavailable_db("journal append insert", error))?;
 
     let (final_partition, final_offset) = match inserted {
         Some(row) => {
@@ -332,7 +360,7 @@ fn append_one(
         None => {
             let row = txn
                 .query_one(LOAD_EVENT_BY_ID_SQL, &[&envelope.event_id])
-                .map_err(|error| postgres_unavailable("journal append conflict lookup", error))?;
+                .map_err(|error| postgres_unavailable_db("journal append conflict lookup", error))?;
             let partition: String = row.get(0);
             let offset: i64 = row.get(1);
             (partition, offset as u64)
@@ -340,7 +368,7 @@ fn append_one(
     };
 
     txn.commit()
-        .map_err(|error| postgres_unavailable("journal append commit", error))?;
+        .map_err(|error| postgres_unavailable_db("journal append commit", error))?;
 
     Ok(CommitPosition::new(final_partition, final_offset))
 }
@@ -358,11 +386,17 @@ fn append_many(
     let mut positions = Vec::with_capacity(envelopes.len());
     for envelope in &envelopes {
         let partition_key = compose_partition_key(prefix, &envelope.ordering_key);
+        let payload_json = postgres_jsonb_payload(envelope.payload.as_str())?;
         let payload_hash = sha256_hash(envelope.payload.as_bytes());
-        let created_at = now_rfc3339();
+        let created_at = Utc::now();
         let aggregate_seq = i64::try_from(envelope.ordering_seq).unwrap_or(0).max(1);
         let commit_offset = aggregate_seq;
-        let retention_until = journal_retention_until(envelope);
+        let organization_id = envelope.normalized_organization_id();
+        let occurred_at = postgres_timestamptz(envelope.occurred_at.as_str(), "occurred_at")?;
+        let retention_until = journal_retention_until(envelope)
+            .as_deref()
+            .map(|value| postgres_timestamptz(value, "retention_until"))
+            .transpose()?;
 
         let inserted = txn
             .query_opt(
@@ -372,14 +406,15 @@ fn append_many(
                     &commit_offset,
                     &envelope.event_id,
                     &envelope.tenant_id,
+                    &organization_id,
                     &envelope.aggregate_type.as_wire_value(),
                     &envelope.aggregate_id,
                     &aggregate_seq,
                     &envelope.event_type,
-                    &envelope.payload,
+                    &payload_json,
                     &payload_hash,
                     &envelope.idempotency_key,
-                    &envelope.occurred_at,
+                    &occurred_at,
                     &created_at,
                     &retention_until,
                 ],
@@ -495,12 +530,41 @@ fn postgres_io_thread_panic() -> ContractError {
     ContractError::Unavailable("postgres journal blocking IO worker panicked".into())
 }
 
+fn resolve_im_postgres_search_path_schema() -> Option<String> {
+    let schema = sdkwork_database_config::claw_database::resolve_unified_postgres_schema("IM");
+    (schema != "public").then_some(schema)
+}
+
+fn apply_postgres_search_path(
+    client: &mut r2d2::PooledConnection<PostgresJournalConnectionManager>,
+    schema: &str,
+) -> Result<(), ContractError> {
+    if !schema
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric() || character == '_')
+    {
+        return Err(ContractError::Unavailable(format!(
+            "invalid postgres search_path schema `{schema}`"
+        )));
+    }
+    let sql = format!("SET search_path TO \"{schema}\", public");
+    client
+        .batch_execute(&sql)
+        .map_err(|error| postgres_unavailable_db("set search_path", error))?;
+    Ok(())
+}
+
 pub(crate) fn postgres_pool_client(
     pool: &PostgresJournalPool,
     action: &'static str,
 ) -> Result<r2d2::PooledConnection<PostgresJournalConnectionManager>, ContractError> {
-    pool.get()
-        .map_err(|error| postgres_unavailable(action, error))
+    let mut client = pool
+        .get()
+        .map_err(|error| postgres_unavailable(action, error))?;
+    if let Some(schema) = resolve_im_postgres_search_path_schema() {
+        apply_postgres_search_path(&mut client, schema.as_str())?;
+    }
+    Ok(client)
 }
 
 pub(crate) fn compose_partition_key(prefix: &str, ordering_key: &str) -> String {
@@ -519,6 +583,31 @@ pub(crate) fn postgres_unavailable(
     error: impl std::fmt::Display,
 ) -> ContractError {
     ContractError::Unavailable(format!("postgres journal {action} failed: {error}"))
+}
+
+pub(crate) fn postgres_unavailable_db(
+    action: &'static str,
+    error: r2d2_postgres::postgres::Error,
+) -> ContractError {
+    ContractError::Unavailable(format!(
+        "postgres journal {action} failed: {}",
+        format_postgres_db_error(&error)
+    ))
+}
+
+fn format_postgres_db_error(error: &r2d2_postgres::postgres::Error) -> String {
+    if let Some(db_error) = error.as_db_error() {
+        let message = db_error.message().trim();
+        if let Some(detail) = db_error
+            .detail()
+            .map(str::trim)
+            .filter(|detail| !detail.is_empty())
+        {
+            return format!("{message}; {detail}");
+        }
+        return message.to_string();
+    }
+    error.to_string()
 }
 
 /// Best-effort mapping from the stored aggregate-type string back to the enum.

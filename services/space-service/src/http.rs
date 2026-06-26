@@ -3,10 +3,9 @@
 use std::sync::Arc;
 
 use axum::Router;
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
 use axum::routing::{delete, get, post};
 use im_platform_contracts::IdGenerator;
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 
 use crate::ban;
 use crate::channel;
@@ -30,11 +29,12 @@ pub fn build_embedded_app(state: AppState) -> Router {
     build_space_api_routes(state)
 }
 
+fn build_business_router(state: AppState) -> Router {
+    build_space_api_routes(state)
+}
+
 pub fn build_app(state: AppState) -> Router {
-    Router::new()
-        .route("/healthz", get(healthz))
-        .route("/readyz", get(readyz))
-        .merge(build_embedded_app(state))
+    mount_im_infra_routes(build_business_router(state), im_service_router_config())
 }
 
 fn build_space_api_routes(state: AppState) -> Router {
@@ -127,20 +127,6 @@ fn build_space_api_routes(state: AppState) -> Router {
             get(ban::get_ban).delete(ban::unban_user),
         )
         .with_state(state)
-}
-
-async fn healthz() -> &'static str {
-    "ok"
-}
-
-async fn readyz() -> impl IntoResponse {
-    let status = sdkwork_im_service_readiness::im_service_readiness_status_label();
-    let code = if status == "ok" {
-        StatusCode::OK
-    } else {
-        StatusCode::SERVICE_UNAVAILABLE
-    };
-    (code, status)
 }
 
 pub fn build_public_app(state: AppState) -> Router {

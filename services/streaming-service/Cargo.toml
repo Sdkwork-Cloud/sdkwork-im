@@ -20,9 +20,10 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 sdkwork_im_service_readiness = { workspace = true }
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 
 [dev-dependencies]
 http-body-util.workspace = true
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 tower.workspace = true
-sdkwork-router-im-stream-app-api = { path = "../../crates/sdkwork-router-im-stream-app-api" }
+sdkwork-routes-im-stream-app-api = { path = "../../crates/sdkwork-routes-im-stream-app-api" }

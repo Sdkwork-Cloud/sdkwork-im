@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 axum.workspace = true
 conversation_runtime = { path = "../sdkwork-comms-conversation-service", package = "sdkwork-comms-conversation-service" }
-sdkwork-router-im-chat-open-api = { path = "../../crates/sdkwork-router-im-chat-open-api" }
+sdkwork-routes-im-chat-open-api = { path = "../../crates/sdkwork-routes-im-chat-open-api" }
 sdkwork_im_service_readiness = { workspace = true }
 tokio.workspace = true
 tracing.workspace = true

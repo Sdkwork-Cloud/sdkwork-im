@@ -27,6 +27,7 @@ use sdkwork_im_ccp_registry::{
     ReleaseChannel, RolloutPolicy, SchemaDescriptor,
 };
 use sdkwork_im_openapi::{OpenApiServiceSpec, render_docs_html};
+use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use session_gateway::{
@@ -66,13 +67,6 @@ struct GovernanceLoop {
 
 const CONTROL_PLANE_MAX_ID_BYTES: usize = 256;
 static CONTROL_PLANE_AUDIT_RECORD_SEQUENCE: AtomicU64 = AtomicU64::new(0);
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct HealthResponse {
-    status: &'static str,
-    service: &'static str,
-}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1388,7 +1382,12 @@ pub fn build_app() -> Router {
 }
 
 pub fn build_public_app() -> Router {
-    apply_public_http_guardrails(build_app())
+    mount_im_infra_routes(
+        apply_public_http_guardrails(build_business_router_with_cluster(Arc::new(
+            RealtimeClusterBridge::default(),
+        ))),
+        im_service_router_config(),
+    )
 }
 
 pub fn default_control_state() -> AppState {
@@ -1535,9 +1534,8 @@ pub fn build_app_with_cluster_runtime_provider_registry_and_governance_sinks(
     })
 }
 
-fn build_app_with_state(state: AppState) -> Router {
+fn build_business_router_with_state(state: AppState) -> Router {
     Router::new()
-        .route("/healthz", get(healthz))
         .route("/openapi.json", get(openapi_document))
         .route(
             "/backend/v3/api/control/openapi.json",
@@ -1545,6 +1543,24 @@ fn build_app_with_state(state: AppState) -> Router {
         )
         .route("/docs", get(docs))
         .merge(build_control_surface_with_state(state))
+}
+
+fn build_business_router_with_cluster(realtime_cluster: Arc<RealtimeClusterBridge>) -> Router {
+    let provider_registry = Arc::new(RuntimeProviderRegistry::platform_default());
+    build_business_router_with_state(AppState {
+        realtime_cluster,
+        protocol_registry: Arc::new(CcpRegistry::control_plane_v1()),
+        provider_registry: provider_registry.clone(),
+        provider_registry_runtime: Some(provider_registry),
+        governance_loop: None,
+    })
+}
+
+fn build_app_with_state(state: AppState) -> Router {
+    mount_im_infra_routes(
+        build_business_router_with_state(state),
+        im_service_router_config(),
+    )
 }
 
 fn build_control_surface_with_state(state: AppState) -> Router {
@@ -1602,7 +1618,8 @@ async fn enforce_in_flight_gate(
     next: Next,
 ) -> Response {
     match request.uri().path() {
-        "/healthz" | "/openapi.json" | "/backend/v3/api/control/openapi.json" | "/docs" => {
+        "/healthz" | "/readyz" | "/livez" | "/metrics" | "/openapi.json"
+            | "/backend/v3/api/control/openapi.json" | "/docs" => {
             next.run(request).await
         }
         _ => {
@@ -1621,13 +1638,6 @@ async fn enforce_in_flight_gate(
             response
         }
     }
-}
-
-async fn healthz() -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "ok",
-        service: "governance-service",
-    })
 }
 
 async fn openapi_document() -> Json<JsonValue> {

@@ -16,6 +16,7 @@ getrandom = "0.3.4"
 im-adapters-local-disk = { path = "../../adapters/local-disk" }
 im-adapters-local-memory = { path = "../../adapters/local-memory" }
 im-adapters-social-postgres = { path = "../../adapters/social-postgres" }
+sdkwork_database_config.workspace = true
 im-domain-core = { path = "../../crates/im-domain-core" }
 im-domain-events = { path = "../../crates/im-domain-events" }
 im-platform-contracts = { path = "../../crates/im-platform-contracts" }
@@ -30,6 +31,7 @@ im-adapters-redis-cache = { path = "../../adapters/redis-cache" }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 hmac = "0.12"
 sdkwork_im_service_readiness = { workspace = true }
+sdkwork-im-web-bootstrap = { path = "../../crates/sdkwork-im-web-bootstrap" }
 
 [dev-dependencies]
 http-body-util.workspace = true

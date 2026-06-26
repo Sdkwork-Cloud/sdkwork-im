@@ -2,8 +2,9 @@
 
 use r2d2::Pool;
 use r2d2_postgres::PostgresConnectionManager;
+use tokio::runtime::Handle;
 
-use crate::{NoTls, SocialPostgresPool};
+use crate::{build_social_pool, run_postgres_io, NoTls, SocialPostgresPool};
 
 const DEFAULT_POOL_MAX_SIZE: u32 = 16;
 const DEFAULT_POOL_MIN_IDLE: u32 = 0;
@@ -61,21 +62,15 @@ impl SocialPostgresConfig {
 
     /// Create a connection pool from this configuration.
     pub fn connect_pool(&self) -> Result<SocialPostgresPool, im_platform_contracts::ContractError> {
-        let pg_config = self.database_url.parse().map_err(|error| {
-            im_platform_contracts::ContractError::Unavailable(format!(
-                "invalid postgres url: {error}"
-            ))
-        })?;
-        let manager = PostgresConnectionManager::new(pg_config, NoTls);
-        let pool = Pool::builder()
-            .max_size(self.pool_max_size)
-            .min_idle(self.pool_min_idle)
-            .build(manager)
-            .map_err(|error| {
-                im_platform_contracts::ContractError::Unavailable(format!(
-                    "postgres pool build failed: {error}"
-                ))
-            })?;
-        Ok(SocialPostgresPool::new(pool))
+        if Handle::try_current().is_ok() {
+            return self.connect_pool_bridged();
+        }
+        build_social_pool(self)
+    }
+
+    /// Creates a pool on a dedicated OS thread when called from a Tokio runtime.
+    pub fn connect_pool_bridged(&self) -> Result<SocialPostgresPool, im_platform_contracts::ContractError> {
+        let config = self.clone();
+        run_postgres_io(move || build_social_pool(&config))
     }
 }

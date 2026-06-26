@@ -210,6 +210,12 @@ assert.match(
 );
 
 assert.match(
+  drivePcIntegrationSource,
+  /subscribeHostLanguage/u,
+  'IM core must bridge host language changes into sdkwork-drive-pc runtime.',
+);
+
+assert.match(
   functionBody(appAuthRuntimeSource, 'createSdkworkChatIamRuntime'),
   /rebootstrapDrivePcRuntimeForIm\(\)/u,
   'IM auth runtime must re-bootstrap drive PC runtime after session changes.',
@@ -237,6 +243,27 @@ assert.match(
   driveViewSource,
   /driveSurface\.css/u,
   'Drive embed package must import the drive application stylesheet for host-managed UI fidelity.',
+);
+
+assert.match(
+  fs.readFileSync(
+    path.join(drivePcRoot, 'packages', 'sdkwork-drive-pc-drive', 'src', 'driveSurface.css'),
+    'utf8',
+  ),
+  /driveWorkspaceChrome\.css/u,
+  'Drive embed stylesheet must include workspace chrome layout rules for host embedding.',
+);
+
+assert.match(
+  driveViewSource,
+  /<DrivePcPreferencesProvider/u,
+  'Drive embed package must provide DrivePcPreferencesProvider for host-managed embedding.',
+);
+
+assert.match(
+  driveViewSource,
+  /subscribeHostLanguage/u,
+  'Drive embed package must subscribe to host-managed language changes.',
 );
 
 assert.match(
