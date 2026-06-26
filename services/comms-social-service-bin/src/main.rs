@@ -41,7 +41,7 @@ async fn run() -> Result<(), String> {
     app = app.merge(sdkwork_routes_im_social_open_api::build_runtime_public_app(
         social_runtime.clone(),
     ));
-    app = app.merge(social_service::http::build_app(social_runtime));
+    app = app.merge(social_service::build_app(social_runtime));
     if let Some(state) = postgres_state {
         app = app.merge(sdkwork_routes_im_social_open_api::build_supplemental_public_app(state));
     }
