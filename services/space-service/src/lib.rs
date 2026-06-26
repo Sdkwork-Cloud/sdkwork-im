@@ -1,4 +1,4 @@
-﻿//! Space Service - 绌洪棿銆佺兢缁勩€侀閬撱€佹垚鍛樸€侀個璇枫€佸皝绂?
+//! Space Service — space, group, channel, member, invitation, and ban handlers.
 #![allow(dead_code, unused_imports)]
 
 pub mod ban;

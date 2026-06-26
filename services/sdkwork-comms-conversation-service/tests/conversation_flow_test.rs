@@ -91,7 +91,7 @@ fn test_message_history_window_rejects_invalid_limit_at_runtime_boundary() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_history_limit_guard".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -174,7 +174,7 @@ fn test_create_conversation_does_not_leak_state_when_batch_commit_fails() {
 
     let create_attempt = runtime.create_conversation(CreateConversationCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_create_batch_fail".into(),
         creator_id: "u_owner".into(),
         conversation_type: "group".into(),
@@ -197,7 +197,7 @@ fn test_create_conversation_does_not_leak_state_when_batch_commit_fails() {
     let created = runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_create_batch_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -221,7 +221,7 @@ fn test_bind_direct_chat_does_not_leak_state_when_batch_commit_fails() {
     let bind_attempt = runtime.bind_direct_chat_conversation_with_binder_kind(
         BindDirectChatConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_batch_fail".into(),
             direct_chat_id: "dc_batch_fail".into(),
             left_actor_id: "actor_a".into(),
@@ -256,7 +256,7 @@ fn test_bind_direct_chat_does_not_leak_state_when_batch_commit_fails() {
         .bind_direct_chat_conversation_with_binder_kind(
             BindDirectChatConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_direct_batch_fail".into(),
                 direct_chat_id: "dc_batch_fail".into(),
                 left_actor_id: "actor_a".into(),
@@ -290,7 +290,7 @@ fn test_create_thread_does_not_leak_state_when_batch_commit_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread_batch_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -299,7 +299,7 @@ fn test_create_thread_does_not_leak_state_when_batch_commit_fails() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread_batch_fail".into(),
             principal_id: "u_root_author".into(),
             principal_kind: "user".into(),
@@ -310,7 +310,7 @@ fn test_create_thread_does_not_leak_state_when_batch_commit_fails() {
     let root_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_parent_thread_batch_fail".into(),
             sender: Sender {
                 id: "u_root_author".into(),
@@ -336,7 +336,7 @@ fn test_create_thread_does_not_leak_state_when_batch_commit_fails() {
     let create_attempt = runtime.create_thread_conversation_with_creator_kind(
         CreateThreadConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_thread_batch_fail".into(),
             parent_conversation_id: "c_parent_thread_batch_fail".into(),
             root_message_id: root_message.message_id.clone(),
@@ -369,7 +369,7 @@ fn test_create_thread_does_not_leak_state_when_batch_commit_fails() {
         .create_thread_conversation_with_creator_kind(
             CreateThreadConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_thread_batch_fail".into(),
                 parent_conversation_id: "c_parent_thread_batch_fail".into(),
                 root_message_id: root_message.message_id.clone(),
@@ -400,7 +400,7 @@ fn test_create_conversation_and_post_message_emits_commit_events_in_order() {
     let conversation = runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_demo".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -412,7 +412,7 @@ fn test_create_conversation_and_post_message_emits_commit_events_in_order() {
     let message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_demo".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -452,7 +452,7 @@ fn test_duplicate_create_conversation_is_idempotent_and_conflicting_retry_is_rej
     let first = runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_create_retry".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -472,7 +472,7 @@ fn test_duplicate_create_conversation_is_idempotent_and_conflicting_retry_is_rej
     let duplicate = runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_create_retry".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -496,7 +496,7 @@ fn test_duplicate_create_conversation_is_idempotent_and_conflicting_retry_is_rej
 
     let conflicting_retry = runtime.create_conversation(CreateConversationCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_create_retry".into(),
         creator_id: "u_demo".into(),
         conversation_type: "direct".into(),
@@ -518,7 +518,7 @@ fn test_conversation_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
     let first = runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "tenant:a".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "b".into(),
             creator_id: "u_first".into(),
             conversation_type: "group".into(),
@@ -527,7 +527,7 @@ fn test_conversation_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
     let second = runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "tenant".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "a:b".into(),
             creator_id: "u_second".into(),
             conversation_type: "group".into(),
@@ -565,7 +565,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_post_retry".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -575,7 +575,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
     let first = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_post_retry".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -599,7 +599,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
     let duplicate = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_post_retry".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -644,7 +644,7 @@ fn test_duplicate_post_message_is_idempotent_and_conflicting_retry_is_rejected()
 
     let conflicting_retry = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
-       organization_id: "default".into(),
+       organization_id: "0".into(),
         conversation_id: "c_post_retry".into(),
         sender: Sender {
             id: "u_demo".into(),
@@ -681,7 +681,7 @@ fn test_rtc_signal_message_backfills_top_level_rtc_session_id_from_signal_payloa
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_rtc_signal_backfill".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -691,7 +691,7 @@ fn test_rtc_signal_message_backfills_top_level_rtc_session_id_from_signal_payloa
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_rtc_signal_backfill".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -733,7 +733,7 @@ fn test_runtime_replays_recorded_conversation_events_after_rebuild() {
     source_runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_replay".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -743,7 +743,7 @@ fn test_runtime_replays_recorded_conversation_events_after_rebuild() {
     source_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_replay".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -781,7 +781,7 @@ fn test_runtime_replays_recorded_conversation_events_after_rebuild() {
     let posted = replay_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_replay".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -813,7 +813,7 @@ fn test_same_conversation_id_is_isolated_per_tenant() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_alpha".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_shared".into(),
             creator_id: "u_alpha".into(),
             conversation_type: "group".into(),
@@ -823,7 +823,7 @@ fn test_same_conversation_id_is_isolated_per_tenant() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_beta".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_shared".into(),
             creator_id: "u_beta".into(),
             conversation_type: "group".into(),
@@ -833,7 +833,7 @@ fn test_same_conversation_id_is_isolated_per_tenant() {
     let alpha_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_alpha".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_shared".into(),
             sender: Sender {
                 id: "u_alpha".into(),
@@ -857,7 +857,7 @@ fn test_same_conversation_id_is_isolated_per_tenant() {
     let beta_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_beta".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_shared".into(),
             sender: Sender {
                 id: "u_beta".into(),
@@ -890,7 +890,7 @@ fn test_post_message_rejects_sender_kind_mismatch_against_member_principal_kind(
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_kind_guard".into(),
             conversation_type: "group".into(),
             creator_id: "u_demo".into(),
@@ -899,7 +899,7 @@ fn test_post_message_rejects_sender_kind_mismatch_against_member_principal_kind(
 
     let post = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
-       organization_id: "default".into(),
+       organization_id: "0".into(),
         conversation_id: "c_kind_guard".into(),
         sender: Sender {
             id: "u_demo".into(),
@@ -930,7 +930,7 @@ fn test_edit_message_rejects_editor_kind_mismatch_against_member_principal_kind(
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_edit_kind_guard".into(),
             conversation_type: "group".into(),
             creator_id: "u_demo".into(),
@@ -940,7 +940,7 @@ fn test_edit_message_rejects_editor_kind_mismatch_against_member_principal_kind(
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_edit_kind_guard".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -963,7 +963,7 @@ fn test_edit_message_rejects_editor_kind_mismatch_against_member_principal_kind(
 
     let edit = runtime.edit_message(EditMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id,
         editor: Sender {
             id: "u_demo".into(),
@@ -992,7 +992,7 @@ fn test_recall_message_rejects_actor_kind_mismatch_against_member_principal_kind
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_recall_kind_guard".into(),
             conversation_type: "group".into(),
             creator_id: "u_demo".into(),
@@ -1002,7 +1002,7 @@ fn test_recall_message_rejects_actor_kind_mismatch_against_member_principal_kind
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_recall_kind_guard".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -1025,7 +1025,7 @@ fn test_recall_message_rejects_actor_kind_mismatch_against_member_principal_kind
 
     let recall = runtime.recall_message(RecallMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id,
         recalled_by: Sender {
             id: "u_demo".into(),
@@ -1053,7 +1053,7 @@ fn test_generic_create_rejects_unknown_and_reserved_special_conversation_types()
     ] {
         let create = runtime.create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: conversation_id.into(),
             creator_id: "u_demo".into(),
             conversation_type: conversation_type.into(),
@@ -1075,7 +1075,7 @@ fn test_create_agent_dialog_rejects_non_standard_agent_id() {
     let create = runtime.create_agent_dialog_with_requester_kind(
         CreateAgentDialogCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_agent_dialog_invalid_agent_id".into(),
             requester_id: "u_demo".into(),
             agent_id: "ag_demo".into(),
@@ -1100,7 +1100,7 @@ fn test_create_agent_dialog_creates_requester_and_agent_members() {
         .create_agent_dialog_with_requester_kind(
             CreateAgentDialogCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_dialog".into(),
                 requester_id: "u_demo".into(),
                 agent_id: "agent.demo".into(),
@@ -1149,7 +1149,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
         .create_agent_dialog_with_requester_kind(
             CreateAgentDialogCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_dialog_retry".into(),
                 requester_id: "u_demo".into(),
                 agent_id: "agent.demo".into(),
@@ -1172,7 +1172,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
         .create_agent_dialog_with_requester_kind(
             CreateAgentDialogCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_dialog_retry".into(),
                 requester_id: "u_demo".into(),
                 agent_id: "agent.demo".into(),
@@ -1193,7 +1193,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
     let conflicting_retry = source_runtime.create_agent_dialog_with_requester_kind(
         CreateAgentDialogCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_agent_dialog_retry".into(),
             requester_id: "u_demo".into(),
             agent_id: "agent.other".into(),
@@ -1213,7 +1213,7 @@ fn test_duplicate_create_agent_dialog_is_idempotent_and_conflicting_retry_is_rej
         .create_agent_dialog_with_requester_kind(
             CreateAgentDialogCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_dialog_retry".into(),
                 requester_id: "u_demo".into(),
                 agent_id: "agent.demo".into(),
@@ -1248,7 +1248,7 @@ fn test_create_agent_dialog_rejects_non_user_requester_kind() {
     let create = runtime.create_agent_dialog_with_requester_kind(
         CreateAgentDialogCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_agent_dialog_invalid".into(),
             requester_id: "svc_ops".into(),
             agent_id: "agent.demo".into(),
@@ -1269,7 +1269,7 @@ fn test_create_system_channel_creates_system_and_subscriber_members() {
         .create_system_channel_with_requester_kind(
             CreateSystemChannelCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_system_channel".into(),
                 requester_id: "svc_ops".into(),
                 subscriber_id: "u_demo".into(),
@@ -1332,7 +1332,7 @@ fn test_create_system_channel_rejects_non_system_requester_kind() {
     let create = runtime.create_system_channel_with_requester_kind(
         CreateSystemChannelCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_system_channel_invalid".into(),
             requester_id: "u_demo".into(),
             subscriber_id: "u_subscriber".into(),
@@ -1353,7 +1353,7 @@ fn test_duplicate_create_system_channel_is_idempotent_and_conflicting_retry_is_r
         .create_system_channel_with_requester_kind(
             CreateSystemChannelCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_system_channel_retry".into(),
                 requester_id: "svc_ops".into(),
                 subscriber_id: "u_demo".into(),
@@ -1376,7 +1376,7 @@ fn test_duplicate_create_system_channel_is_idempotent_and_conflicting_retry_is_r
         .create_system_channel_with_requester_kind(
             CreateSystemChannelCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_system_channel_retry".into(),
                 requester_id: "svc_ops".into(),
                 subscriber_id: "u_demo".into(),
@@ -1397,7 +1397,7 @@ fn test_duplicate_create_system_channel_is_idempotent_and_conflicting_retry_is_r
     let conflicting_retry = source_runtime.create_system_channel_with_requester_kind(
         CreateSystemChannelCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_system_channel_retry".into(),
             requester_id: "svc_ops".into(),
             subscriber_id: "u_other".into(),
@@ -1417,7 +1417,7 @@ fn test_duplicate_create_system_channel_is_idempotent_and_conflicting_retry_is_r
         .create_system_channel_with_requester_kind(
             CreateSystemChannelCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_system_channel_retry".into(),
                 requester_id: "svc_ops".into(),
                 subscriber_id: "u_demo".into(),
@@ -1453,7 +1453,7 @@ fn test_create_agent_handoff_creates_source_agent_and_target_members() {
         .create_agent_handoff_with_source_kind(
             CreateAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff".into(),
                 source_id: "ag_source".into(),
                 target_id: "u_demo".into(),
@@ -1534,7 +1534,7 @@ fn test_create_agent_handoff_rejects_non_agent_source_kind() {
     let create = runtime.create_agent_handoff_with_source_kind(
         CreateAgentHandoffCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_agent_handoff_invalid".into(),
             source_id: "svc_ops".into(),
             target_id: "u_demo".into(),
@@ -1558,7 +1558,7 @@ fn test_duplicate_create_agent_handoff_is_idempotent_and_conflicting_retry_is_re
         .create_agent_handoff_with_source_kind(
             CreateAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff_retry".into(),
                 source_id: "ag_source".into(),
                 target_id: "u_demo".into(),
@@ -1584,7 +1584,7 @@ fn test_duplicate_create_agent_handoff_is_idempotent_and_conflicting_retry_is_re
         .create_agent_handoff_with_source_kind(
             CreateAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff_retry".into(),
                 source_id: "ag_source".into(),
                 target_id: "u_demo".into(),
@@ -1608,7 +1608,7 @@ fn test_duplicate_create_agent_handoff_is_idempotent_and_conflicting_retry_is_re
     let conflicting_retry = source_runtime.create_agent_handoff_with_source_kind(
         CreateAgentHandoffCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_agent_handoff_retry".into(),
             source_id: "ag_source".into(),
             target_id: "u_other".into(),
@@ -1631,7 +1631,7 @@ fn test_duplicate_create_agent_handoff_is_idempotent_and_conflicting_retry_is_re
         .create_agent_handoff_with_source_kind(
             CreateAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff_retry".into(),
                 source_id: "ag_source".into(),
                 target_id: "u_demo".into(),
@@ -1670,7 +1670,7 @@ fn test_agent_handoff_allows_source_and_target_posts() {
         .create_agent_handoff_with_source_kind(
             CreateAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff_post".into(),
                 source_id: "ag_source".into(),
                 target_id: "u_demo".into(),
@@ -1685,7 +1685,7 @@ fn test_agent_handoff_allows_source_and_target_posts() {
     let source_post = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_agent_handoff_post".into(),
             sender: Sender {
                 id: "ag_source".into(),
@@ -1710,7 +1710,7 @@ fn test_agent_handoff_allows_source_and_target_posts() {
     let target_post = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_agent_handoff_post".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -1751,7 +1751,7 @@ fn test_agent_handoff_accept_resolve_close_state_machine_and_closed_handoff_reje
         .create_agent_handoff_with_source_kind(
             CreateAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff_state".into(),
                 source_id: "ag_source".into(),
                 target_id: "u_demo".into(),
@@ -1775,7 +1775,7 @@ fn test_agent_handoff_accept_resolve_close_state_machine_and_closed_handoff_reje
         .accept_agent_handoff_with_actor_kind(
             AcceptAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff_state".into(),
                 accepted_by: "u_demo".into(),
             },
@@ -1796,7 +1796,7 @@ fn test_agent_handoff_accept_resolve_close_state_machine_and_closed_handoff_reje
         .resolve_agent_handoff_with_actor_kind(
             ResolveAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff_state".into(),
                 resolved_by: "u_demo".into(),
             },
@@ -1817,7 +1817,7 @@ fn test_agent_handoff_accept_resolve_close_state_machine_and_closed_handoff_reje
         .close_agent_handoff_with_actor_kind(
             CloseAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff_state".into(),
                 closed_by: "ag_source".into(),
             },
@@ -1836,7 +1836,7 @@ fn test_agent_handoff_accept_resolve_close_state_machine_and_closed_handoff_reje
 
     let post_after_close = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
-       organization_id: "default".into(),
+       organization_id: "0".into(),
         conversation_id: "c_agent_handoff_state".into(),
         sender: Sender {
             id: "u_demo".into(),
@@ -1874,7 +1874,7 @@ fn test_agent_handoff_accept_requires_target_and_resolve_requires_accepted_state
         .create_agent_handoff_with_source_kind(
             CreateAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff_policy".into(),
                 source_id: "ag_source".into(),
                 target_id: "u_demo".into(),
@@ -1889,7 +1889,7 @@ fn test_agent_handoff_accept_requires_target_and_resolve_requires_accepted_state
     let source_accept = runtime.accept_agent_handoff_with_actor_kind(
         AcceptAgentHandoffCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_agent_handoff_policy".into(),
             accepted_by: "ag_source".into(),
         },
@@ -1903,7 +1903,7 @@ fn test_agent_handoff_accept_requires_target_and_resolve_requires_accepted_state
     let resolve_before_accept = runtime.resolve_agent_handoff_with_actor_kind(
         ResolveAgentHandoffCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_agent_handoff_policy".into(),
             resolved_by: "u_demo".into(),
         },
@@ -1918,7 +1918,7 @@ fn test_agent_handoff_accept_requires_target_and_resolve_requires_accepted_state
         .close_agent_handoff_with_actor_kind(
             CloseAgentHandoffCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_handoff_policy".into(),
                 closed_by: "u_demo".into(),
             },
@@ -1937,7 +1937,7 @@ fn test_create_group_member_joined_event_preserves_system_actor_kind() {
         .create_conversation_with_creator_kind(
             CreateConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_group_actor_kind".into(),
                 creator_id: "svc_ops".into(),
                 conversation_type: "group".into(),
@@ -1966,7 +1966,7 @@ fn test_conversation_membership_lifecycle_tracks_creator_and_member_changes() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_members".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -1985,7 +1985,7 @@ fn test_conversation_membership_lifecycle_tracks_creator_and_member_changes() {
     let added_member = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_members".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -2008,7 +2008,7 @@ fn test_conversation_membership_lifecycle_tracks_creator_and_member_changes() {
     let removed_member = runtime
         .remove_member(RemoveConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_members".into(),
             member_id: added_member.member_id.clone(),
             removed_by: "u_owner".into(),
@@ -2043,7 +2043,7 @@ fn test_conversation_membership_allows_same_actor_id_with_different_principal_ki
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_members_typed_principal".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -2053,7 +2053,7 @@ fn test_conversation_membership_allows_same_actor_id_with_different_principal_ki
     let added_agent = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_members_typed_principal".into(),
             principal_id: "u_owner".into(),
             principal_kind: "agent".into(),
@@ -2095,7 +2095,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -2105,7 +2105,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2129,7 +2129,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2153,7 +2153,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
     let cursor = runtime
         .update_read_cursor(UpdateReadCursorCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             principal_id: "u_owner".into(),
             read_seq: 1,
@@ -2171,7 +2171,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
     let regressed = runtime
         .update_read_cursor(UpdateReadCursorCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             principal_id: "u_owner".into(),
             read_seq: 0,
@@ -2188,7 +2188,7 @@ fn test_read_cursor_advances_monotonically_for_active_member() {
     let advanced = runtime
         .update_read_cursor(UpdateReadCursorCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor".into(),
             principal_id: "u_owner".into(),
             read_seq: 2,
@@ -2220,7 +2220,7 @@ fn test_read_cursor_unread_count_excludes_messages_sent_by_current_principal() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_received_unread_only".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -2229,7 +2229,7 @@ fn test_read_cursor_unread_count_excludes_messages_sent_by_current_principal() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_received_unread_only".into(),
             principal_id: "u_friend".into(),
             principal_kind: "user".into(),
@@ -2241,7 +2241,7 @@ fn test_read_cursor_unread_count_excludes_messages_sent_by_current_principal() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_received_unread_only".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2280,7 +2280,7 @@ fn test_read_cursor_unread_count_excludes_messages_sent_by_current_principal() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_received_unread_only".into(),
             sender: Sender {
                 id: "u_friend".into(),
@@ -2325,7 +2325,7 @@ fn test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind() 
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor_actor_kind_guard".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -2335,7 +2335,7 @@ fn test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind() 
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_cursor_actor_kind_guard".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2359,7 +2359,7 @@ fn test_read_cursor_rejects_actor_kind_mismatch_against_member_principal_kind() 
     let update_attempt = runtime.update_read_cursor_with_actor_kind(
         UpdateReadCursorCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor_actor_kind_guard".into(),
             principal_id: "u_owner".into(),
             read_seq: 1,
@@ -2382,7 +2382,7 @@ fn test_conversation_bound_write_capability_gate_rejects_actor_kind_mismatch() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_write_capability_actor_kind_guard".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -2409,7 +2409,7 @@ fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay(
     source_runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_policy_replay".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -2419,7 +2419,7 @@ fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay(
     let posted = source_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_policy_replay".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2445,7 +2445,7 @@ fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay(
     let policy_event = CommitEnvelope {
         event_id: "evt_c_policy_replay_policy_1".into(),
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         event_type: "conversation.policy_applied".into(),
         event_version: 1,
         aggregate_type: AggregateType::Conversation,
@@ -2489,7 +2489,7 @@ fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay(
     let reaction = replay_runtime
         .add_message_reaction(AddMessageReactionCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             reaction_key: "thumbs_up".into(),
             reacted_by: Sender {
@@ -2506,7 +2506,7 @@ fn test_recovered_conversation_policy_capability_flags_disable_pin_after_replay(
 
     let denied_pin = replay_runtime.pin_message(PinMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id,
         pinned_by: Sender {
             id: "u_owner".into(),
@@ -2528,7 +2528,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_retention_policy".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -2539,7 +2539,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
         .apply_conversation_policy_with_actor_kind(
             ApplyConversationPolicyCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_retention_policy".into(),
                 applied_by: "u_owner".into(),
                 policy: ConversationPolicy {
@@ -2556,7 +2556,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_retention_policy".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2603,7 +2603,7 @@ fn test_applied_retention_policy_ref_propagates_to_subsequent_message_commit_env
     replay_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_retention_policy".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -2641,7 +2641,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
         .create_system_channel_with_requester_kind(
             CreateSystemChannelCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_system_channel_post".into(),
                 requester_id: "svc_ops".into(),
                 subscriber_id: "u_demo".into(),
@@ -2652,7 +2652,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
 
     let subscriber_post = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
-       organization_id: "default".into(),
+       organization_id: "0".into(),
         conversation_id: "c_system_channel_post".into(),
         sender: Sender {
             id: "u_demo".into(),
@@ -2678,7 +2678,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
 
     let system_post = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
-       organization_id: "default".into(),
+       organization_id: "0".into(),
         conversation_id: "c_system_channel_post".into(),
         sender: Sender {
             id: "svc_ops".into(),
@@ -2705,7 +2705,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
     let subscriber_publish =
         runtime.publish_system_channel_message(PublishSystemChannelMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_system_channel_post".into(),
             publisher: Sender {
                 id: "u_demo".into(),
@@ -2731,7 +2731,7 @@ fn test_system_channel_requires_dedicated_publish_command_and_allows_only_publis
     let system_publish = runtime
         .publish_system_channel_message(PublishSystemChannelMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_system_channel_post".into(),
             publisher: Sender {
                 id: "svc_ops".into(),
@@ -2771,7 +2771,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
         .create_agent_dialog_with_requester_kind(
             CreateAgentDialogCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_agent_cursor".into(),
                 requester_id: "u_requester".into(),
                 agent_id: "agent.demo".into(),
@@ -2783,7 +2783,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_agent_cursor".into(),
             sender: Sender {
                 id: "u_requester".into(),
@@ -2807,7 +2807,7 @@ fn test_read_cursor_event_preserves_agent_actor_kind() {
     runtime
         .update_read_cursor(UpdateReadCursorCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_agent_cursor".into(),
             principal_id: "agent.demo".into(),
             read_seq: 1,
@@ -2836,7 +2836,7 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_mutation".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -2846,7 +2846,7 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_mutation".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -2870,7 +2870,7 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
     let edited = runtime
         .edit_message(EditMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             editor: Sender {
                 id: "u_demo".into(),
@@ -2892,7 +2892,7 @@ fn test_edit_and_recall_message_emit_mutation_events_without_changing_sequence()
     let recalled = runtime
         .recall_message(RecallMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             recalled_by: Sender {
                 id: "u_demo".into(),
@@ -2928,7 +2928,7 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: conversation_id.clone(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -2938,7 +2938,7 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: conversation_id.clone(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -2968,7 +2968,7 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
     let edited = runtime
         .edit_message(EditMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             editor: Sender {
                 id: "u_demo".into(),
@@ -2990,7 +2990,7 @@ fn test_generated_message_id_stays_within_runtime_contract_for_max_length_conver
     let recalled = runtime
         .recall_message(RecallMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             recalled_by: Sender {
                 id: "u_demo".into(),
@@ -3015,7 +3015,7 @@ fn test_non_member_cannot_post_message_to_conversation() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_private".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3024,7 +3024,7 @@ fn test_non_member_cannot_post_message_to_conversation() {
 
     let result = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
-       organization_id: "default".into(),
+       organization_id: "0".into(),
         conversation_id: "c_private".into(),
         sender: Sender {
             id: "u_intruder".into(),
@@ -3055,7 +3055,7 @@ fn test_non_member_cannot_edit_or_recall_message() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_private_mutation".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3065,7 +3065,7 @@ fn test_non_member_cannot_edit_or_recall_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_private_mutation".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -3088,7 +3088,7 @@ fn test_non_member_cannot_edit_or_recall_message() {
 
     let edit = runtime.edit_message(EditMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id.clone(),
         editor: Sender {
             id: "u_intruder".into(),
@@ -3109,7 +3109,7 @@ fn test_non_member_cannot_edit_or_recall_message() {
 
     let recall = runtime.recall_message(RecallMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id,
         recalled_by: Sender {
             id: "u_intruder".into(),
@@ -3131,7 +3131,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_mutation".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3141,7 +3141,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_mutation".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -3153,7 +3153,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_group_mutation".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -3176,7 +3176,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
 
     let edit = runtime.edit_message(EditMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id.clone(),
         editor: Sender {
             id: "u_member".into(),
@@ -3197,7 +3197,7 @@ fn test_member_cannot_edit_or_recall_other_members_message() {
 
     let recall = runtime.recall_message(RecallMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id,
         recalled_by: Sender {
             id: "u_member".into(),
@@ -3219,7 +3219,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_owner_override".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3229,7 +3229,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_owner_override".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -3241,7 +3241,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_group_owner_override".into(),
             sender: Sender {
                 id: "u_member".into(),
@@ -3264,7 +3264,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
 
     let edit = runtime.edit_message(EditMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id.clone(),
         editor: Sender {
             id: "u_owner".into(),
@@ -3286,7 +3286,7 @@ fn test_group_owner_can_recall_but_not_edit_other_members_message() {
     let recall = runtime
         .recall_message(RecallMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id,
             recalled_by: Sender {
                 id: "u_owner".into(),
@@ -3310,7 +3310,7 @@ fn test_direct_conversation_owner_cannot_recall_other_members_message() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_mutation".into(),
             creator_id: "u_owner".into(),
             conversation_type: "direct".into(),
@@ -3320,7 +3320,7 @@ fn test_direct_conversation_owner_cannot_recall_other_members_message() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_mutation".into(),
             principal_id: "u_peer".into(),
             principal_kind: "user".into(),
@@ -3332,7 +3332,7 @@ fn test_direct_conversation_owner_cannot_recall_other_members_message() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_direct_mutation".into(),
             sender: Sender {
                 id: "u_peer".into(),
@@ -3355,7 +3355,7 @@ fn test_direct_conversation_owner_cannot_recall_other_members_message() {
 
     let recall = runtime.recall_message(RecallMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id,
         recalled_by: Sender {
             id: "u_owner".into(),
@@ -3377,7 +3377,7 @@ fn test_group_member_cannot_manage_other_members() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_member_governance".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3387,7 +3387,7 @@ fn test_group_member_cannot_manage_other_members() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_member_governance".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -3399,7 +3399,7 @@ fn test_group_member_cannot_manage_other_members() {
     let target = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_member_governance".into(),
             principal_id: "u_target".into(),
             principal_kind: "user".into(),
@@ -3410,7 +3410,7 @@ fn test_group_member_cannot_manage_other_members() {
 
     let add_attempt = runtime.add_member(AddConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_member_governance".into(),
         principal_id: "u_extra".into(),
         principal_kind: "user".into(),
@@ -3424,7 +3424,7 @@ fn test_group_member_cannot_manage_other_members() {
 
     let remove_attempt = runtime.remove_member(RemoveConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_member_governance".into(),
         member_id: target.member_id,
         removed_by: "u_member".into(),
@@ -3443,7 +3443,7 @@ fn test_governance_writes_reject_actor_kind_mismatch() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_actor_kind_governance".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3453,7 +3453,7 @@ fn test_governance_writes_reject_actor_kind_mismatch() {
     let member = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_actor_kind_governance".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -3465,7 +3465,7 @@ fn test_governance_writes_reject_actor_kind_mismatch() {
     let target = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_actor_kind_governance".into(),
             principal_id: "u_target".into(),
             principal_kind: "user".into(),
@@ -3477,7 +3477,7 @@ fn test_governance_writes_reject_actor_kind_mismatch() {
     let add_attempt = runtime.add_member_with_actor_kind(
         AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_actor_kind_governance".into(),
             principal_id: "u_extra".into(),
             principal_kind: "user".into(),
@@ -3494,7 +3494,7 @@ fn test_governance_writes_reject_actor_kind_mismatch() {
     let remove_attempt = runtime.remove_member_with_actor_kind(
         RemoveConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_actor_kind_governance".into(),
             member_id: target.member_id.clone(),
             removed_by: "u_owner".into(),
@@ -3509,7 +3509,7 @@ fn test_governance_writes_reject_actor_kind_mismatch() {
     let leave_attempt = runtime.leave_conversation_with_actor_kind(
         LeaveConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_actor_kind_governance".into(),
             principal_id: "u_member".into(),
         },
@@ -3523,7 +3523,7 @@ fn test_governance_writes_reject_actor_kind_mismatch() {
     let transfer_attempt = runtime.transfer_conversation_owner_with_actor_kind(
         TransferConversationOwnerCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_actor_kind_governance".into(),
             target_member_id: target.member_id.clone(),
             transferred_by: "u_owner".into(),
@@ -3538,7 +3538,7 @@ fn test_governance_writes_reject_actor_kind_mismatch() {
     let role_change_attempt = runtime.change_conversation_member_role_with_actor_kind(
         ChangeConversationMemberRoleCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_actor_kind_governance".into(),
             target_member_id: member.member_id.clone(),
             new_role: MembershipRole::Admin,
@@ -3580,7 +3580,7 @@ fn test_add_member_does_not_leak_membership_when_journal_append_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_add_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3589,7 +3589,7 @@ fn test_add_member_does_not_leak_membership_when_journal_append_fails() {
 
     let add_attempt = runtime.add_member(AddConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_add_commit_fail".into(),
         principal_id: "u_member".into(),
         principal_kind: "user".into(),
@@ -3618,7 +3618,7 @@ fn test_remove_member_does_not_leak_removed_state_when_journal_append_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_remove_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3627,7 +3627,7 @@ fn test_remove_member_does_not_leak_removed_state_when_journal_append_fails() {
     let joined = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_remove_commit_fail".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -3638,7 +3638,7 @@ fn test_remove_member_does_not_leak_removed_state_when_journal_append_fails() {
 
     let remove_attempt = runtime.remove_member(RemoveConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_remove_commit_fail".into(),
         member_id: joined.member_id.clone(),
         removed_by: "u_owner".into(),
@@ -3669,7 +3669,7 @@ fn test_leave_conversation_does_not_leak_left_state_when_journal_append_fails() 
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_leave_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3678,7 +3678,7 @@ fn test_leave_conversation_does_not_leak_left_state_when_journal_append_fails() 
     let joined = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_leave_commit_fail".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -3689,7 +3689,7 @@ fn test_leave_conversation_does_not_leak_left_state_when_journal_append_fails() 
 
     let leave_attempt = runtime.leave_conversation(LeaveConversationCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_leave_commit_fail".into(),
         principal_id: "u_member".into(),
     });
@@ -3719,7 +3719,7 @@ fn test_transfer_owner_does_not_leak_role_swap_when_journal_append_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_transfer_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3728,7 +3728,7 @@ fn test_transfer_owner_does_not_leak_role_swap_when_journal_append_fails() {
     let target = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_transfer_commit_fail".into(),
             principal_id: "u_target".into(),
             principal_kind: "user".into(),
@@ -3739,7 +3739,7 @@ fn test_transfer_owner_does_not_leak_role_swap_when_journal_append_fails() {
 
     let transfer_attempt = runtime.transfer_conversation_owner(TransferConversationOwnerCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_transfer_commit_fail".into(),
         target_member_id: target.member_id.clone(),
         transferred_by: "u_owner".into(),
@@ -3782,7 +3782,7 @@ fn test_role_change_does_not_leak_updated_role_when_journal_append_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3791,7 +3791,7 @@ fn test_role_change_does_not_leak_updated_role_when_journal_append_fails() {
     let member = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_commit_fail".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -3803,7 +3803,7 @@ fn test_role_change_does_not_leak_updated_role_when_journal_append_fails() {
     let role_change_attempt =
         runtime.change_conversation_member_role(ChangeConversationMemberRoleCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_commit_fail".into(),
             target_member_id: member.member_id.clone(),
             new_role: MembershipRole::Admin,
@@ -3838,7 +3838,7 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_cursor_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3847,7 +3847,7 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_cursor_commit_fail".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -3858,7 +3858,7 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_group_cursor_commit_fail".into(),
             sender: Sender {
                 id: "u_member".into(),
@@ -3881,7 +3881,7 @@ fn test_read_cursor_does_not_advance_when_journal_append_fails() {
 
     let update_attempt = runtime.update_read_cursor(UpdateReadCursorCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_cursor_commit_fail".into(),
         principal_id: "u_owner".into(),
         read_seq: 1,
@@ -3915,7 +3915,7 @@ fn test_post_message_does_not_leak_message_when_journal_append_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_post_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3924,7 +3924,7 @@ fn test_post_message_does_not_leak_message_when_journal_append_fails() {
 
     let post_attempt = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
-       organization_id: "default".into(),
+       organization_id: "0".into(),
         conversation_id: "c_group_post_commit_fail".into(),
         sender: Sender {
             id: "u_owner".into(),
@@ -3967,7 +3967,7 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_edit_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -3976,7 +3976,7 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_group_edit_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -3999,7 +3999,7 @@ fn test_edit_message_does_not_leak_body_change_when_journal_append_fails() {
 
     let edit_attempt = runtime.edit_message(EditMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id.clone(),
         editor: Sender {
             id: "u_owner".into(),
@@ -4044,7 +4044,7 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_recall_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4053,7 +4053,7 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_group_recall_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -4076,7 +4076,7 @@ fn test_recall_message_does_not_leak_recalled_state_when_journal_append_fails() 
 
     let recall_attempt = runtime.recall_message(RecallMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id,
         recalled_by: Sender {
             id: "u_owner".into(),
@@ -4112,7 +4112,7 @@ fn test_add_reaction_does_not_leak_reaction_when_journal_append_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_reaction_add_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4121,7 +4121,7 @@ fn test_add_reaction_does_not_leak_reaction_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_group_reaction_add_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -4144,7 +4144,7 @@ fn test_add_reaction_does_not_leak_reaction_when_journal_append_fails() {
 
     let reaction_attempt = runtime.add_message_reaction(AddMessageReactionCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id.clone(),
         reaction_key: "thumbs_up".into(),
         reacted_by: Sender {
@@ -4185,7 +4185,7 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_reaction_remove_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4194,7 +4194,7 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_group_reaction_remove_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -4217,7 +4217,7 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
     runtime
         .add_message_reaction(AddMessageReactionCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             reaction_key: "thumbs_up".into(),
             reacted_by: Sender {
@@ -4233,7 +4233,7 @@ fn test_remove_reaction_does_not_leak_reaction_removal_when_journal_append_fails
 
     let remove_attempt = runtime.remove_message_reaction(RemoveMessageReactionCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id,
         reaction_key: "thumbs_up".into(),
         removed_by: Sender {
@@ -4278,7 +4278,7 @@ fn test_pin_message_does_not_leak_pin_state_when_journal_append_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_pin_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4287,7 +4287,7 @@ fn test_pin_message_does_not_leak_pin_state_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_group_pin_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -4310,7 +4310,7 @@ fn test_pin_message_does_not_leak_pin_state_when_journal_append_fails() {
 
     let pin_attempt = runtime.pin_message(PinMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id,
         pinned_by: Sender {
             id: "u_owner".into(),
@@ -4342,7 +4342,7 @@ fn test_unpin_message_does_not_leak_pin_removal_when_journal_append_fails() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_unpin_commit_fail".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4351,7 +4351,7 @@ fn test_unpin_message_does_not_leak_pin_removal_when_journal_append_fails() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_group_unpin_commit_fail".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -4374,7 +4374,7 @@ fn test_unpin_message_does_not_leak_pin_removal_when_journal_append_fails() {
     runtime
         .pin_message(PinMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             pinned_by: Sender {
                 id: "u_owner".into(),
@@ -4389,7 +4389,7 @@ fn test_unpin_message_does_not_leak_pin_removal_when_journal_append_fails() {
 
     let unpin_attempt = runtime.unpin_message(UnpinMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id,
         unpinned_by: Sender {
             id: "u_owner".into(),
@@ -4424,7 +4424,7 @@ fn test_group_admin_can_manage_regular_members_but_cannot_escalate_roles() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_admin_governance".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4434,7 +4434,7 @@ fn test_group_admin_can_manage_regular_members_but_cannot_escalate_roles() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_admin_governance".into(),
             principal_id: "u_admin".into(),
             principal_kind: "user".into(),
@@ -4446,7 +4446,7 @@ fn test_group_admin_can_manage_regular_members_but_cannot_escalate_roles() {
     let admin_peer = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_admin_governance".into(),
             principal_id: "u_admin_2".into(),
             principal_kind: "user".into(),
@@ -4458,7 +4458,7 @@ fn test_group_admin_can_manage_regular_members_but_cannot_escalate_roles() {
     let joined = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_admin_governance".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -4470,7 +4470,7 @@ fn test_group_admin_can_manage_regular_members_but_cannot_escalate_roles() {
 
     let admin_escalation = runtime.add_member(AddConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_admin_governance".into(),
         principal_id: "u_admin_3".into(),
         principal_kind: "user".into(),
@@ -4484,7 +4484,7 @@ fn test_group_admin_can_manage_regular_members_but_cannot_escalate_roles() {
 
     let owner_escalation = runtime.add_member(AddConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_admin_governance".into(),
         principal_id: "u_owner_2".into(),
         principal_kind: "user".into(),
@@ -4498,7 +4498,7 @@ fn test_group_admin_can_manage_regular_members_but_cannot_escalate_roles() {
 
     let admin_remove_admin = runtime.remove_member(RemoveConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_admin_governance".into(),
         member_id: admin_peer.member_id,
         removed_by: "u_admin".into(),
@@ -4511,7 +4511,7 @@ fn test_group_admin_can_manage_regular_members_but_cannot_escalate_roles() {
     let removed = runtime
         .remove_member(RemoveConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_admin_governance".into(),
             member_id: joined.member_id,
             removed_by: "u_admin".into(),
@@ -4528,7 +4528,7 @@ fn test_group_owner_cannot_create_second_owner() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_owner_governance".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4537,7 +4537,7 @@ fn test_group_owner_cannot_create_second_owner() {
 
     let second_owner = runtime.add_member(AddConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_owner_governance".into(),
         principal_id: "u_owner_2".into(),
         principal_kind: "user".into(),
@@ -4558,7 +4558,7 @@ fn test_direct_conversation_owner_can_add_only_single_non_elevated_peer() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_member_governance".into(),
             creator_id: "u_owner".into(),
             conversation_type: "direct".into(),
@@ -4568,7 +4568,7 @@ fn test_direct_conversation_owner_can_add_only_single_non_elevated_peer() {
     let peer = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_member_governance".into(),
             principal_id: "u_peer".into(),
             principal_kind: "user".into(),
@@ -4580,7 +4580,7 @@ fn test_direct_conversation_owner_can_add_only_single_non_elevated_peer() {
 
     let third_participant = runtime.add_member(AddConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_direct_member_governance".into(),
         principal_id: "u_third".into(),
         principal_kind: "user".into(),
@@ -4594,7 +4594,7 @@ fn test_direct_conversation_owner_can_add_only_single_non_elevated_peer() {
 
     let elevated_peer = runtime.add_member(AddConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_direct_member_governance".into(),
         principal_id: "u_peer_admin".into(),
         principal_kind: "user".into(),
@@ -4615,7 +4615,7 @@ fn test_direct_conversation_rejects_member_removal() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_remove_governance".into(),
             creator_id: "u_owner".into(),
             conversation_type: "direct".into(),
@@ -4625,7 +4625,7 @@ fn test_direct_conversation_rejects_member_removal() {
     let peer = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_remove_governance".into(),
             principal_id: "u_peer".into(),
             principal_kind: "user".into(),
@@ -4636,7 +4636,7 @@ fn test_direct_conversation_rejects_member_removal() {
 
     let remove_attempt = runtime.remove_member(RemoveConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_direct_remove_governance".into(),
         member_id: peer.member_id,
         removed_by: "u_owner".into(),
@@ -4655,7 +4655,7 @@ fn test_group_member_can_leave_and_loses_access() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_leave".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4665,7 +4665,7 @@ fn test_group_member_can_leave_and_loses_access() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_leave".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -4677,7 +4677,7 @@ fn test_group_member_can_leave_and_loses_access() {
     let left_member = runtime
         .leave_conversation(LeaveConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_leave".into(),
             principal_id: "u_member".into(),
         })
@@ -4693,7 +4693,7 @@ fn test_group_member_can_leave_and_loses_access() {
 
     let post_after_leave = runtime.post_message(PostMessageCommand {
         tenant_id: "t_demo".into(),
-       organization_id: "default".into(),
+       organization_id: "0".into(),
         conversation_id: "c_group_leave".into(),
         sender: Sender {
             id: "u_member".into(),
@@ -4726,7 +4726,7 @@ fn test_group_owner_cannot_leave_without_transfer() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_owner_leave".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4735,7 +4735,7 @@ fn test_group_owner_cannot_leave_without_transfer() {
 
     let leave = runtime.leave_conversation(LeaveConversationCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_owner_leave".into(),
         principal_id: "u_owner".into(),
     });
@@ -4750,7 +4750,7 @@ fn test_direct_conversation_rejects_leave_for_now() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_leave".into(),
             creator_id: "u_owner".into(),
             conversation_type: "direct".into(),
@@ -4760,7 +4760,7 @@ fn test_direct_conversation_rejects_leave_for_now() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_leave".into(),
             principal_id: "u_peer".into(),
             principal_kind: "user".into(),
@@ -4771,7 +4771,7 @@ fn test_direct_conversation_rejects_leave_for_now() {
 
     let leave = runtime.leave_conversation(LeaveConversationCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_direct_leave".into(),
         principal_id: "u_peer".into(),
     });
@@ -4786,7 +4786,7 @@ fn test_group_owner_can_transfer_ownership_and_then_leave() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_transfer_owner".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4796,7 +4796,7 @@ fn test_group_owner_can_transfer_ownership_and_then_leave() {
     let promoted_member = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_transfer_owner".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -4808,7 +4808,7 @@ fn test_group_owner_can_transfer_ownership_and_then_leave() {
     let transfer = runtime
         .transfer_conversation_owner(TransferConversationOwnerCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_transfer_owner".into(),
             target_member_id: promoted_member.member_id,
             transferred_by: "u_owner".into(),
@@ -4820,7 +4820,7 @@ fn test_group_owner_can_transfer_ownership_and_then_leave() {
     let leave = runtime
         .leave_conversation(LeaveConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_transfer_owner".into(),
             principal_id: "u_owner".into(),
         })
@@ -4844,7 +4844,7 @@ fn test_owner_transfer_event_preserves_system_actor_kind() {
         .create_conversation_with_creator_kind(
             CreateConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_group_owner_system".into(),
                 creator_id: "svc_ops".into(),
                 conversation_type: "group".into(),
@@ -4856,7 +4856,7 @@ fn test_owner_transfer_event_preserves_system_actor_kind() {
     let member = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_owner_system".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -4868,7 +4868,7 @@ fn test_owner_transfer_event_preserves_system_actor_kind() {
     runtime
         .transfer_conversation_owner(TransferConversationOwnerCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_owner_system".into(),
             target_member_id: member.member_id,
             transferred_by: "svc_ops".into(),
@@ -4895,7 +4895,7 @@ fn test_group_admin_cannot_transfer_ownership() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_transfer_owner_forbidden".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4905,7 +4905,7 @@ fn test_group_admin_cannot_transfer_ownership() {
     let admin = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_transfer_owner_forbidden".into(),
             principal_id: "u_admin".into(),
             principal_kind: "user".into(),
@@ -4917,7 +4917,7 @@ fn test_group_admin_cannot_transfer_ownership() {
     let member = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_transfer_owner_forbidden".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -4928,7 +4928,7 @@ fn test_group_admin_cannot_transfer_ownership() {
 
     let transfer = runtime.transfer_conversation_owner(TransferConversationOwnerCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_transfer_owner_forbidden".into(),
         target_member_id: member.member_id,
         transferred_by: admin.principal_id,
@@ -4944,7 +4944,7 @@ fn test_direct_conversation_rejects_owner_transfer() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_transfer_owner".into(),
             creator_id: "u_owner".into(),
             conversation_type: "direct".into(),
@@ -4954,7 +4954,7 @@ fn test_direct_conversation_rejects_owner_transfer() {
     let peer = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_transfer_owner".into(),
             principal_id: "u_peer".into(),
             principal_kind: "user".into(),
@@ -4965,7 +4965,7 @@ fn test_direct_conversation_rejects_owner_transfer() {
 
     let transfer = runtime.transfer_conversation_owner(TransferConversationOwnerCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_direct_transfer_owner".into(),
         target_member_id: peer.member_id,
         transferred_by: "u_owner".into(),
@@ -4981,7 +4981,7 @@ fn test_group_owner_can_change_non_owner_member_roles() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -4991,7 +4991,7 @@ fn test_group_owner_can_change_non_owner_member_roles() {
     let member = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -5003,7 +5003,7 @@ fn test_group_owner_can_change_non_owner_member_roles() {
     let promote = runtime
         .change_conversation_member_role(ChangeConversationMemberRoleCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change".into(),
             target_member_id: member.member_id.clone(),
             new_role: MembershipRole::Admin,
@@ -5016,7 +5016,7 @@ fn test_group_owner_can_change_non_owner_member_roles() {
     let demote = runtime
         .change_conversation_member_role(ChangeConversationMemberRoleCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change".into(),
             target_member_id: member.member_id.clone(),
             new_role: MembershipRole::Guest,
@@ -5055,7 +5055,7 @@ fn test_member_role_changed_event_preserves_system_actor_kind() {
         .create_conversation_with_creator_kind(
             CreateConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_group_role_system".into(),
                 creator_id: "svc_ops".into(),
                 conversation_type: "group".into(),
@@ -5067,7 +5067,7 @@ fn test_member_role_changed_event_preserves_system_actor_kind() {
     let member = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_system".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -5079,7 +5079,7 @@ fn test_member_role_changed_event_preserves_system_actor_kind() {
     runtime
         .change_conversation_member_role(ChangeConversationMemberRoleCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_system".into(),
             target_member_id: member.member_id,
             new_role: MembershipRole::Admin,
@@ -5107,7 +5107,7 @@ fn test_group_admin_cannot_change_member_roles() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change_forbidden".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -5117,7 +5117,7 @@ fn test_group_admin_cannot_change_member_roles() {
     let admin = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change_forbidden".into(),
             principal_id: "u_admin".into(),
             principal_kind: "user".into(),
@@ -5129,7 +5129,7 @@ fn test_group_admin_cannot_change_member_roles() {
     let member = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change_forbidden".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -5140,7 +5140,7 @@ fn test_group_admin_cannot_change_member_roles() {
 
     let change = runtime.change_conversation_member_role(ChangeConversationMemberRoleCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_role_change_forbidden".into(),
         target_member_id: member.member_id,
         new_role: MembershipRole::Guest,
@@ -5157,7 +5157,7 @@ fn test_group_role_change_rejects_owner_target_and_direct_conversation() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change_owner_target".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -5167,7 +5167,7 @@ fn test_group_role_change_rejects_owner_target_and_direct_conversation() {
     let owner_target =
         runtime.change_conversation_member_role(ChangeConversationMemberRoleCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change_owner_target".into(),
             target_member_id: "cm_c_group_role_change_owner_target_user_u_owner".into(),
             new_role: MembershipRole::Admin,
@@ -5181,7 +5181,7 @@ fn test_group_role_change_rejects_owner_target_and_direct_conversation() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_role_change".into(),
             creator_id: "u_owner".into(),
             conversation_type: "direct".into(),
@@ -5191,7 +5191,7 @@ fn test_group_role_change_rejects_owner_target_and_direct_conversation() {
     let peer = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_role_change".into(),
             principal_id: "u_peer".into(),
             principal_kind: "user".into(),
@@ -5203,7 +5203,7 @@ fn test_group_role_change_rejects_owner_target_and_direct_conversation() {
     let direct_change =
         runtime.change_conversation_member_role(ChangeConversationMemberRoleCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_role_change".into(),
             target_member_id: peer.member_id,
             new_role: MembershipRole::Guest,
@@ -5223,7 +5223,7 @@ fn test_stale_member_id_cannot_change_rejoined_member_role() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change_rejoin_guard".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -5233,7 +5233,7 @@ fn test_stale_member_id_cannot_change_rejoined_member_role() {
     let first_join = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change_rejoin_guard".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -5245,7 +5245,7 @@ fn test_stale_member_id_cannot_change_rejoined_member_role() {
     runtime
         .leave_conversation(LeaveConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change_rejoin_guard".into(),
             principal_id: "u_member".into(),
         })
@@ -5254,7 +5254,7 @@ fn test_stale_member_id_cannot_change_rejoined_member_role() {
     let rejoined = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change_rejoin_guard".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -5267,7 +5267,7 @@ fn test_stale_member_id_cannot_change_rejoined_member_role() {
     let change_stale =
         runtime.change_conversation_member_role(ChangeConversationMemberRoleCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_role_change_rejoin_guard".into(),
             target_member_id: first_join.member_id.clone(),
             new_role: MembershipRole::Admin,
@@ -5297,7 +5297,7 @@ fn test_left_member_rejoin_creates_new_membership_episode() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_rejoin".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -5307,7 +5307,7 @@ fn test_left_member_rejoin_creates_new_membership_episode() {
     let first_join = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_rejoin".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -5319,7 +5319,7 @@ fn test_left_member_rejoin_creates_new_membership_episode() {
     let left_member = runtime
         .leave_conversation(LeaveConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_rejoin".into(),
             principal_id: "u_member".into(),
         })
@@ -5330,7 +5330,7 @@ fn test_left_member_rejoin_creates_new_membership_episode() {
     let rejoined = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_rejoin".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -5358,7 +5358,7 @@ fn test_stale_member_id_cannot_remove_rejoined_active_member() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_rejoin_remove_guard".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -5368,7 +5368,7 @@ fn test_stale_member_id_cannot_remove_rejoined_active_member() {
     let first_join = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_rejoin_remove_guard".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -5380,7 +5380,7 @@ fn test_stale_member_id_cannot_remove_rejoined_active_member() {
     runtime
         .leave_conversation(LeaveConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_rejoin_remove_guard".into(),
             principal_id: "u_member".into(),
         })
@@ -5389,7 +5389,7 @@ fn test_stale_member_id_cannot_remove_rejoined_active_member() {
     let rejoined = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_group_rejoin_remove_guard".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -5401,7 +5401,7 @@ fn test_stale_member_id_cannot_remove_rejoined_active_member() {
 
     let remove_stale = runtime.remove_member(RemoveConversationMemberCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         conversation_id: "c_group_rejoin_remove_guard".into(),
         member_id: first_join.member_id.clone(),
         removed_by: "u_owner".into(),
@@ -5431,7 +5431,7 @@ fn test_posted_message_timestamps_advance_between_distinct_messages() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_posted_time".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -5441,7 +5441,7 @@ fn test_posted_message_timestamps_advance_between_distinct_messages() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_posted_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5467,7 +5467,7 @@ fn test_posted_message_timestamps_advance_between_distinct_messages() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_posted_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5512,7 +5512,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor_time".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -5522,7 +5522,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_cursor_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5545,7 +5545,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
     runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_cursor_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5569,7 +5569,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
     let first = runtime
         .update_read_cursor(UpdateReadCursorCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor_time".into(),
             principal_id: "u_demo".into(),
             read_seq: 1,
@@ -5582,7 +5582,7 @@ fn test_read_cursor_timestamps_advance_between_distinct_updates() {
     let second = runtime
         .update_read_cursor(UpdateReadCursorCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_cursor_time".into(),
             principal_id: "u_demo".into(),
             read_seq: 2,
@@ -5615,7 +5615,7 @@ fn test_membership_timestamps_advance_between_distinct_join_and_remove_mutations
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_member_time".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -5625,7 +5625,7 @@ fn test_membership_timestamps_advance_between_distinct_join_and_remove_mutations
     let first = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_member_time".into(),
             principal_id: "u_member_1".into(),
             principal_kind: "user".into(),
@@ -5639,7 +5639,7 @@ fn test_membership_timestamps_advance_between_distinct_join_and_remove_mutations
     let second = runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_member_time".into(),
             principal_id: "u_member_2".into(),
             principal_kind: "user".into(),
@@ -5656,7 +5656,7 @@ fn test_membership_timestamps_advance_between_distinct_join_and_remove_mutations
     let removed_first = runtime
         .remove_member(RemoveConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_member_time".into(),
             member_id: first.member_id.clone(),
             removed_by: "u_owner".into(),
@@ -5668,7 +5668,7 @@ fn test_membership_timestamps_advance_between_distinct_join_and_remove_mutations
     let removed_second = runtime
         .remove_member(RemoveConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_member_time".into(),
             member_id: second.member_id.clone(),
             removed_by: "u_owner".into(),
@@ -5689,7 +5689,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_mutation_time".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -5699,7 +5699,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     let first = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_mutation_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5722,7 +5722,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     let second = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_mutation_time".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -5746,7 +5746,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     runtime
         .edit_message(EditMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: first.message_id.clone(),
             editor: Sender {
                 id: "u_demo".into(),
@@ -5770,7 +5770,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     runtime
         .edit_message(EditMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: second.message_id.clone(),
             editor: Sender {
                 id: "u_demo".into(),
@@ -5792,7 +5792,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     runtime
         .recall_message(RecallMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: first.message_id.clone(),
             recalled_by: Sender {
                 id: "u_demo".into(),
@@ -5810,7 +5810,7 @@ fn test_message_edit_and_recall_timestamps_advance_between_distinct_mutations() 
     runtime
         .recall_message(RecallMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: second.message_id.clone(),
             recalled_by: Sender {
                 id: "u_demo".into(),
@@ -5853,7 +5853,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_reaction_flow".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -5863,7 +5863,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_reaction_flow".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -5887,7 +5887,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
     let added = runtime
         .add_message_reaction(AddMessageReactionCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             reaction_key: "thumbs_up".into(),
             reacted_by: Sender {
@@ -5908,7 +5908,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
     let duplicate_add = runtime
         .add_message_reaction(AddMessageReactionCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             reaction_key: "thumbs_up".into(),
             reacted_by: Sender {
@@ -5926,7 +5926,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
     let removed = runtime
         .remove_message_reaction(RemoveMessageReactionCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             reaction_key: "thumbs_up".into(),
             removed_by: Sender {
@@ -5947,7 +5947,7 @@ fn test_add_and_remove_message_reaction_emit_events_and_are_idempotent() {
     let duplicate_remove = runtime
         .remove_message_reaction(RemoveMessageReactionCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             reaction_key: "thumbs_up".into(),
             removed_by: Sender {
@@ -5987,7 +5987,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_pin_flow".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -5997,7 +5997,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_pin_flow".into(),
             principal_id: "u_member".into(),
             principal_kind: "user".into(),
@@ -6009,7 +6009,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_pin_flow".into(),
             sender: Sender {
                 id: "u_member".into(),
@@ -6032,7 +6032,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
 
     let denied_pin = runtime.pin_message(PinMessageCommand {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         message_id: posted.message_id.clone(),
         pinned_by: Sender {
             id: "u_member".into(),
@@ -6048,7 +6048,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
     let pinned = runtime
         .pin_message(PinMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             pinned_by: Sender {
                 id: "u_owner".into(),
@@ -6067,7 +6067,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
     let duplicate_pin = runtime
         .pin_message(PinMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             pinned_by: Sender {
                 id: "u_owner".into(),
@@ -6084,7 +6084,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
     let unpinned = runtime
         .unpin_message(UnpinMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             unpinned_by: Sender {
                 id: "u_owner".into(),
@@ -6101,7 +6101,7 @@ fn test_pin_and_unpin_message_emit_events_and_require_privileged_member() {
     let duplicate_unpin = runtime
         .unpin_message(UnpinMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             unpinned_by: Sender {
                 id: "u_owner".into(),
@@ -6140,7 +6140,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
     source_runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_reaction_pin_replay".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -6150,7 +6150,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
     let posted = source_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_reaction_pin_replay".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6174,7 +6174,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
     source_runtime
         .add_message_reaction(AddMessageReactionCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             reaction_key: "thumbs_up".into(),
             reacted_by: Sender {
@@ -6190,7 +6190,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
     source_runtime
         .pin_message(PinMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             pinned_by: Sender {
                 id: "u_owner".into(),
@@ -6214,7 +6214,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
     let duplicate_reaction = replay_runtime
         .add_message_reaction(AddMessageReactionCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             reaction_key: "thumbs_up".into(),
             reacted_by: Sender {
@@ -6232,7 +6232,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
     let duplicate_pin = replay_runtime
         .pin_message(PinMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             pinned_by: Sender {
                 id: "u_owner".into(),
@@ -6249,7 +6249,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
     let removed = replay_runtime
         .remove_message_reaction(RemoveMessageReactionCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             reaction_key: "thumbs_up".into(),
             removed_by: Sender {
@@ -6267,7 +6267,7 @@ fn test_reaction_and_pin_state_survive_recovery_replay() {
     let unpinned = replay_runtime
         .unpin_message(UnpinMessageCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             message_id: posted.message_id.clone(),
             unpinned_by: Sender {
                 id: "u_owner".into(),
@@ -6321,7 +6321,7 @@ fn test_bind_direct_chat_conversation_creates_business_bound_direct_runtime() {
         .bind_direct_chat_conversation_with_binder_kind(
             BindDirectChatConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_direct_binding".into(),
                 direct_chat_id: "dc_001".into(),
                 left_actor_id: "actor_a".into(),
@@ -6386,7 +6386,7 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -6396,7 +6396,7 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
     let root_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_parent_thread".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6421,7 +6421,7 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
         .create_thread_conversation_with_creator_kind(
             CreateThreadConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_thread_runtime".into(),
                 parent_conversation_id: "c_parent_thread".into(),
                 root_message_id: root_message.message_id.clone(),
@@ -6470,7 +6470,7 @@ fn test_create_thread_conversation_binds_parent_message_runtime_and_survives_rec
     let reply = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_thread_runtime".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6544,7 +6544,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread_retry".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -6554,7 +6554,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     let first_root = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_parent_thread_retry".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6578,7 +6578,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     let second_root = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_parent_thread_retry".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6603,7 +6603,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
         .create_thread_conversation_with_creator_kind(
             CreateThreadConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_thread_retry".into(),
                 parent_conversation_id: "c_parent_thread_retry".into(),
                 root_message_id: first_root.message_id.clone(),
@@ -6627,7 +6627,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
         .create_thread_conversation_with_creator_kind(
             CreateThreadConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_thread_retry".into(),
                 parent_conversation_id: "c_parent_thread_retry".into(),
                 root_message_id: first_root.message_id.clone(),
@@ -6649,7 +6649,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
     let conflicting_retry = runtime.create_thread_conversation_with_creator_kind(
         CreateThreadConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_thread_retry".into(),
             parent_conversation_id: "c_parent_thread_retry".into(),
             root_message_id: second_root.message_id.clone(),
@@ -6670,7 +6670,7 @@ fn test_duplicate_create_thread_conversation_is_idempotent_and_conflicting_retry
         .create_thread_conversation_with_creator_kind(
             CreateThreadConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_thread_retry".into(),
                 parent_conversation_id: "c_parent_thread_retry".into(),
                 root_message_id: first_root.message_id.clone(),
@@ -6709,7 +6709,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread_notify".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -6719,7 +6719,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
     runtime
         .add_member(AddConversationMemberCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_parent_thread_notify".into(),
             principal_id: "u_root_author".into(),
             principal_kind: "user".into(),
@@ -6731,7 +6731,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
     let root_message = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_parent_thread_notify".into(),
             sender: Sender {
                 id: "u_root_author".into(),
@@ -6756,7 +6756,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
         .create_thread_conversation_with_creator_kind(
             CreateThreadConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_thread_notify".into(),
                 parent_conversation_id: "c_parent_thread_notify".into(),
                 root_message_id: root_message.message_id.clone(),
@@ -6847,7 +6847,7 @@ fn test_create_thread_conversation_auto_subscribes_root_message_author_for_notif
     let reply = replay_runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_thread_notify".into(),
             sender: Sender {
                 id: "u_root_author".into(),
@@ -6879,7 +6879,7 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_shared_sync_runtime".into(),
             creator_id: "u_owner".into(),
             conversation_type: "group".into(),
@@ -6889,7 +6889,7 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
     runtime
         .apply_conversation_policy(ApplyConversationPolicyCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_shared_sync_runtime".into(),
             applied_by: "u_owner".into(),
             policy: ConversationPolicy {
@@ -6904,7 +6904,7 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
     let posted = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_shared_sync_runtime".into(),
             sender: Sender {
                 id: "u_owner".into(),
@@ -6930,7 +6930,7 @@ fn test_sync_shared_channel_linked_member_materializes_runtime_truth_and_survive
         .sync_shared_channel_linked_member_with_requester_kind(
             SyncSharedChannelLinkedMemberCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_shared_sync_runtime".into(),
                 shared_channel_policy_id: "scp_runtime".into(),
                 external_connection_id: "ec_runtime".into(),
@@ -7038,7 +7038,7 @@ fn test_bind_direct_chat_conversation_rejects_duplicate_business_binding() {
         .bind_direct_chat_conversation_with_binder_kind(
             BindDirectChatConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_direct_binding_first".into(),
                 direct_chat_id: "dc_dup".into(),
                 left_actor_id: "actor_a".into(),
@@ -7054,7 +7054,7 @@ fn test_bind_direct_chat_conversation_rejects_duplicate_business_binding() {
     let duplicate = runtime.bind_direct_chat_conversation_with_binder_kind(
         BindDirectChatConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_binding_second".into(),
             direct_chat_id: "dc_dup".into(),
             left_actor_id: "actor_a".into(),
@@ -7078,7 +7078,7 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
         .bind_direct_chat_conversation_with_binder_kind(
             BindDirectChatConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_direct_retry".into(),
                 direct_chat_id: "dc_retry".into(),
                 left_actor_id: "actor_a".into(),
@@ -7105,7 +7105,7 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
         .bind_direct_chat_conversation_with_binder_kind(
             BindDirectChatConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_direct_retry".into(),
                 direct_chat_id: "dc_retry".into(),
                 left_actor_id: "actor_a".into(),
@@ -7130,7 +7130,7 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
     let conflicting_retry = source_runtime.bind_direct_chat_conversation_with_binder_kind(
         BindDirectChatConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_retry".into(),
             direct_chat_id: "dc_other".into(),
             left_actor_id: "actor_a".into(),
@@ -7154,7 +7154,7 @@ fn test_duplicate_bind_direct_chat_conversation_is_idempotent_and_conflicting_re
         .bind_direct_chat_conversation_with_binder_kind(
             BindDirectChatConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_direct_retry".into(),
                 direct_chat_id: "dc_retry".into(),
                 left_actor_id: "actor_a".into(),
@@ -7196,7 +7196,7 @@ fn test_direct_chat_business_scope_key_is_segment_safe_for_delimiter_bearing_ids
         .bind_direct_chat_conversation_with_binder_kind(
             BindDirectChatConversationCommand {
                 tenant_id: "tenant:a".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_direct_first".into(),
                 direct_chat_id: "b".into(),
                 left_actor_id: "u_first".into(),
@@ -7212,7 +7212,7 @@ fn test_direct_chat_business_scope_key_is_segment_safe_for_delimiter_bearing_ids
         .bind_direct_chat_conversation_with_binder_kind(
             BindDirectChatConversationCommand {
                 tenant_id: "tenant".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_direct_second".into(),
                 direct_chat_id: "a:b".into(),
                 left_actor_id: "u_second".into(),
@@ -7255,7 +7255,7 @@ fn test_direct_chat_business_binding_survives_recovery_replay() {
         .bind_direct_chat_conversation_with_binder_kind(
             BindDirectChatConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_direct_replay".into(),
                 direct_chat_id: "dc_replay".into(),
                 left_actor_id: "actor_a".into(),
@@ -7285,7 +7285,7 @@ fn test_direct_chat_business_binding_survives_recovery_replay() {
     let duplicate_after_replay = replay_runtime.bind_direct_chat_conversation_with_binder_kind(
         BindDirectChatConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_direct_replay_dup".into(),
             direct_chat_id: "dc_replay".into(),
             left_actor_id: "actor_a".into(),
@@ -7310,7 +7310,7 @@ fn test_post_message_rejects_oversized_sender_session_id() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_sender_session_oversized".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -7320,7 +7320,7 @@ fn test_post_message_rejects_oversized_sender_session_id() {
     let error = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_sender_session_oversized".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -7357,7 +7357,7 @@ fn test_create_conversation_rejects_oversized_creator_attributes() {
         .create_conversation_with_creator_kind_and_attributes(
             CreateConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: "c_creator_attributes_oversized".into(),
                 creator_id: "u_demo".into(),
                 conversation_type: "group".into(),
@@ -7382,7 +7382,7 @@ fn test_post_message_rejects_oversized_sender_metadata() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_sender_metadata_oversized".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -7392,7 +7392,7 @@ fn test_post_message_rejects_oversized_sender_metadata() {
     let error = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_sender_metadata_oversized".into(),
             sender: Sender {
                 id: "u_demo".into(),
@@ -7428,7 +7428,7 @@ fn test_post_message_rejects_oversized_render_hints() {
     runtime
         .create_conversation(CreateConversationCommand {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             conversation_id: "c_render_hints_oversized".into(),
             creator_id: "u_demo".into(),
             conversation_type: "group".into(),
@@ -7438,7 +7438,7 @@ fn test_post_message_rejects_oversized_render_hints() {
     let error = runtime
         .post_message(PostMessageCommand {
             tenant_id: "t_demo".into(),
-           organization_id: "default".into(),
+           organization_id: "0".into(),
             conversation_id: "c_render_hints_oversized".into(),
             sender: Sender {
                 id: "u_demo".into(),

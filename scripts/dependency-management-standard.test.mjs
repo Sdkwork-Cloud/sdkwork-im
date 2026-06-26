@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { COMMERCE_T1_REPOSITORY_IDS } from './dev/commerce-t1-capabilities.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const expectedDependencyIds = [
@@ -14,7 +15,8 @@ const expectedDependencyIds = [
   'sdkwork-utils',
   'sdkwork-drive',
   'sdkwork-iam',
-  'sdkwork-commerce',
+  ...COMMERCE_T1_REPOSITORY_IDS,
+  'sdkwork-agents',
   'sdkwork-mail',
   'sdkwork-community',
   'sdkwork-course',
@@ -325,7 +327,16 @@ function assertSharedGatewayFoundationIntegration() {
       'sdkwork-iam-app-api',
       'sdkwork-drive-app-api',
       'sdkwork-notary-app-api',
-      'sdkwork-commerce-app-api',
+      'sdkwork-account-app-api',
+      'sdkwork-catalog-app-api',
+      'sdkwork-inventory-app-api',
+      'sdkwork-invoice-app-api',
+      'sdkwork-membership-app-api',
+      'sdkwork-merchandise-app-api',
+      'sdkwork-order-app-api',
+      'sdkwork-payment-app-api',
+      'sdkwork-promotion-app-api',
+      'sdkwork-shop-app-api',
       'sdkwork-mail-app-api',
       'sdkwork-community-app-api',
       'sdkwork-course-app-api',
@@ -375,7 +386,9 @@ function assertSharedGatewayFoundationIntegration() {
     'sdkwork-aiot-backend-api',
     'sdkwork-drive-app-api',
     'sdkwork-notary-app-api',
-    'sdkwork-commerce-app-api',
+    'sdkwork-catalog-app-api',
+    'sdkwork-shop-app-api',
+    'sdkwork-order-app-api',
     'sdkwork-mail-app-api',
     'sdkwork-community-app-api',
     'sdkwork-course-app-api',

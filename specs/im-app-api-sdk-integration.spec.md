@@ -92,17 +92,20 @@ Rules:
 - Local `apps/sdkwork-im-pc/package.json` dependencies for SDKWork packages use relative `link:` specifiers.
 - Vite and TypeScript aliases resolve generated IM app/backend SDKs, `@sdkwork/im-sdk`, `@sdkwork/drive-app-sdk`, appbase IAM packages, core PC React, and UI PC React to source entries, not prebuilt `dist`.
 - Vite `optimizeDeps.exclude` must include linked SDKWork source packages so live source edits are not hidden by dependency pre-bundling.
-- Local PC development exposes one public backend entrypoint, `http://127.0.0.1:18079`, through the unified Sdkwork IM gateway. Appbase IAM App API defaults route through `sdkwork-api-cloud-gateway`; explicit split-deployment overrides may still point to an internal appbase upstream on the platform gateway bind, but the renderer must not depend on that port directly.
+- Local PC development exposes one public backend entrypoint, `http://127.0.0.1:18079`, through the unified Sdkwork IM standalone gateway. Embedded IAM, Drive, Knowledgebase, Commerce, Mail, Notary, and Course app APIs are served in-process on that bind. Community still requires split-service overrides or a future embedded gateway assembly.
 - The chat-pc `pnpm-workspace.yaml` must not register sibling `sdkwork-appbase`, `sdkwork-core`, or `sdkwork-ui` packages as workspace importers. They remain source-linked dependencies; otherwise pnpm install rewrites sibling `node_modules` and breaks isolated local builds.
-- Release builds set `SDKWORK_SHARED_SDK_MODE=git`, run `sdk:shared:prepare`, materialize `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `sdkwork-im-sdk`, `sdkwork-drive-app-sdk`, `sdkwork-appbase`, `sdkwork-core`, `sdkwork-ui`, `sdkwork-claw-router`, and `sdkwork-birdcoder` from git-backed source checkouts, then build Sdkwork IM PC from those source links.
+- Release builds set `SDKWORK_SHARED_SDK_MODE=git`, run `sdk:shared:prepare`, materialize `sdkwork-im-app-sdk`, `sdkwork-im-backend-sdk`, `sdkwork-im-sdk`, `sdkwork-drive-app-sdk`, `sdkwork-appbase`, `sdkwork-core`, `sdkwork-ui`, `sdkwork-clawrouter`, and `sdkwork-birdcoder` from git-backed source checkouts, then build Sdkwork IM PC from those source links.
 
 ## 5.1 Shared Gateway Foundation Composition
 
 Sdkwork IM product APIs remain Sdkwork IM owned: IM open API stays under `/im/v3/api`, IM app API stays
 under `/app/v3/api`, and IM backend API stays under `/backend/v3/api` with their own SDK families.
-Shared foundation APIs are different: appbase, Drive, Notary, RTC provider/runtime bridges, AIoT,
-and SDKWork kernel/agent-business runtime dependencies target `sdkwork-api-cloud-gateway` as the shared
-composition point.
+Foundation API integration depends on topology profile:
+
+| Topology profile | Foundation API integration |
+| --- | --- |
+| `standalone.unified-process.*` (default local PC) | `sdkwork-im-standalone-gateway` collapses application and platform ingress on one bind. Drive, Knowledgebase, Commerce, Mail, Notary, and Course app APIs mount in-process through Cargo-linked sibling route crates. Community remains split-only until its sibling repository ships an executable gateway assembly with production port adapters. |
+| `standalone.split-services.*` and cloud profiles | Foundation APIs route through `sdkwork-api-cloud-gateway` or explicit `SDKWORK_IM_*_APP_API_UPSTREAM` overrides documented in `specs/component.spec.json`. |
 
 Rules:
 
@@ -114,24 +117,22 @@ Rules:
   `VITE_SDKWORK_IM_APPLICATION_PUBLIC_WEBSOCKET_URL`; these are resolved by
   `apps/sdkwork-im-pc/scripts/sdkwork-im-iam-env.mjs` and topology profile env files.
 - Local PC development starts through `scripts/im-dev.mjs`, which loads topology profiles and
-  starts the sibling `sdkwork-api-cloud-gateway` Cargo service. Platform upstream defaults for Appbase,
-  Drive, and Notary point at that gateway root by default. Direct dependency-owned service URLs
-  are allowed only through explicit split-deployment override env keys such as
-  `SDKWORK_IM_APPBASE_APP_API_UPSTREAM`, `SDKWORK_IM_DRIVE_APP_API_UPSTREAM`, and
-  `SDKWORK_IM_NOTARY_APP_API_UPSTREAM`.
+  starts `sdkwork-im-standalone-gateway` for the default unified-process profile. It must not spawn
+  additional loopback HTTP servers for embedded dependency app APIs.
+- In unified-process mode, `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` collapses to the standalone
+  gateway bind. Split-service overrides such as `SDKWORK_IM_APPBASE_APP_API_UPSTREAM`,
+  `SDKWORK_IM_DRIVE_APP_API_UPSTREAM`, and `SDKWORK_IM_NOTARY_APP_API_UPSTREAM` remain valid for
+  explicit split deployments.
 - `services/sdkwork-im-cloud-gateway`, `crates/sdkwork-im-cloud-gateway-config`, and split internal services behind `application.public-ingress`
-  remain product-owned IM routing, config, and local/private runtime layers. Foundation API
-  aggregation is owned by `sdkwork-api-cloud-gateway`, not by Sdkwork IM product servers.
-- Executable foundation API integration evidence is owned by the `sdkwork-api-cloud-gateway` Cargo
-  workspace metadata. `specs/component.spec.json` records Sdkwork IM's shared-gateway target and
-  split override env keys; it must not duplicate gateway dependencies into a standalone catalog.
-- Appbase, Drive, Notary, RTC, Agent/Kernel, and AIoT dependency surfaces are declared in
-  `specs/component.spec.json` as shared-gateway targets. Add new foundation surfaces there only
-  when an existing SDKWork spec or runtime contract proves the surface, prefix, SDK family, and
-  shared-gateway migration target.
-- No new product server code may directly mount foundation API runtime crates when the required
-  surface is already served by `sdkwork-api-cloud-gateway`. Embed `sdkwork-api-cloud-gateway-runtime` through
-  its public router builders or consume the gateway as an external service.
+  remain product-owned IM routing, config, and local/private runtime layers. Split-service foundation API
+  aggregation is owned by `sdkwork-api-cloud-gateway`, not by merging sibling route crates into
+  `sdkwork-im-gateway-assembly`.
+- Executable foundation API integration evidence is owned by sibling workspace metadata and
+  `specs/component.spec.json` dependency surfaces. Add new foundation surfaces there only when an
+  existing SDKWork spec or runtime contract proves the surface, prefix, SDK family, and gateway target.
+- No new product server code may HTTP-proxy a foundation API to the same collapsed ingress bind when
+  the required surface is already embedded in-process. Link sibling gateway assemblies or route crates
+  through Cargo per `APPLICATION_GATEWAY_SPEC.md` §5.7 and `DEPENDENCY_MANAGEMENT_SPEC.md` §5.
 
 ## 6. IM Media Upload And Drive Attribution
 

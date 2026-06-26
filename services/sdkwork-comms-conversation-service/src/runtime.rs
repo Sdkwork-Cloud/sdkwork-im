@@ -742,7 +742,7 @@ pub(super) fn organization_id_from_auth_context(auth: &AppContext) -> String {
 }
 
 pub(super) fn default_organization_id() -> String {
-    "default".to_owned()
+    "0".to_owned()
 }
 
 pub fn default_post_message_organization_id() -> String {

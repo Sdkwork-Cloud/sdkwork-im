@@ -2057,7 +2057,7 @@ mod tests {
     ) -> String {
         let owner_auth = AppContext {
             tenant_id: "t_demo".into(),
-            organization_id: "default".to_owned(),
+            organization_id: "0".to_owned(),
             user_id: "u_owner".into(),
             actor_id: "u_owner".into(),
             actor_kind: "user".into(),
@@ -2073,7 +2073,7 @@ mod tests {
         runtime
             .create_conversation(CreateConversationCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: conversation_id.into(),
                 creator_id: "u_owner".into(),
                 conversation_type: "group".into(),
@@ -2082,7 +2082,7 @@ mod tests {
         runtime
             .add_member(AddConversationMemberCommand {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 conversation_id: conversation_id.into(),
                 principal_id: "u_missing".into(),
                 principal_kind: "user".into(),

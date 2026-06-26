@@ -63,6 +63,9 @@ apps/control-plane/dist-portal/
 apps/control-plane/src-tauri/target/
 apps/control-plane/src-tauri/target-local/
 apps/sdkwork-im-pc.zip
+# Prevent stale pnpm donor directories from being tracked
+**/node_modules.__stale__donor/
+**/node_modules.__stale__donor_*/
 
 # SDKWork local environment and runtime config overrides
 .env.local

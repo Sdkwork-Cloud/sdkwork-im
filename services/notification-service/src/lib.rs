@@ -703,7 +703,7 @@ impl NotificationRuntime {
                 event_type.replace('.', "_")
             ),
             tenant_id: auth.tenant_id.clone(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             event_type: event_type.into(),
             event_version: 1,
             aggregate_type: AggregateType::Notification,
@@ -1385,7 +1385,7 @@ mod tests {
     fn demo_auth_context() -> AppContext {
         AppContext {
             tenant_id: "t_demo".into(),
-            organization_id: "default".to_owned(),
+            organization_id: "0".to_owned(),
             user_id: "u_demo".into(),
             actor_id: "u_demo".into(),
             actor_kind: "user".into(),

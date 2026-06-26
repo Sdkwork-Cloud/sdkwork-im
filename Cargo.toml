@@ -160,6 +160,7 @@ sdkwork_utils_rust = { path = "../sdkwork-utils/packages/sdkwork-utils-rust", pa
 # sdkwork-discovery is deferred until hosted gRPC RPC service processes ship (ADR-20260619).
 sdkwork_iam_web_adapter = { path = "../sdkwork-iam/crates/sdkwork-iam-web-adapter", package = "sdkwork-iam-web-adapter" }
 sdkwork_iam_bootstrap = { path = "../sdkwork-iam/crates/sdkwork-iam-bootstrap", package = "sdkwork-iam-bootstrap" }
+sdkwork_iam_database_host = { path = "../sdkwork-iam/crates/sdkwork-iam-database-host", package = "sdkwork-iam-database-host" }
 sdkwork_im_iam_application_bootstrap = { path = "crates/sdkwork-im-iam-application-bootstrap", package = "sdkwork-im-iam-application-bootstrap" }
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "tls-rustls"] }
 # IM consumes RTC media/provider runtime from the canonical `sdkwork-rtc`

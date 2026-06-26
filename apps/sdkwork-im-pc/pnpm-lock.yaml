@@ -154,7 +154,7 @@ catalogs:
 overrides:
   '@sdkwork-internal/im-app-api-generated': workspace:*
   '@sdkwork-internal/im-backend-api-generated': workspace:*
-  '@sdkwork/agent-app-sdk': workspace:*
+  '@sdkwork/agents-app-sdk': workspace:*
   '@sdkwork/aiot-app-sdk': workspace:*
   '@sdkwork/aiot-backend-sdk': workspace:*
   '@sdkwork/iam-app-sdk': workspace:*
@@ -175,9 +175,9 @@ importers:
       '@sdkwork-internal/im-backend-api-generated':
         specifier: workspace:*
         version: link:../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi
-      '@sdkwork/agent-app-sdk':
+      '@sdkwork/agents-app-sdk':
         specifier: workspace:*
-        version: link:../../../sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi
+        version: link:../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi
       '@sdkwork/aiot-app-sdk':
         specifier: workspace:*
         version: link:../../../sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript
@@ -613,7 +613,7 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
-  ../../../sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi:
+  ../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi:
     dependencies:
       '@sdkwork/sdk-common':
         specifier: ^1.0.2

@@ -18,8 +18,32 @@ use crate::friendship::{self, AppState, SocialServiceError};
 static CONTACT_OPEN_API_ID_GENERATOR: OnceLock<RuntimeSnowflakeIdGenerator> = OnceLock::new();
 static CONTACT_OPEN_API_STORE: OnceLock<RwLock<ContactOpenApiStore>> = OnceLock::new();
 
+/// Initialize the contact open-api ID generator from the database.
+///
+/// Must be called during async service startup before any request is served.
+/// If not called, the generator falls back to lazy env-based initialization.
+pub async fn init_contact_open_api_id_generator() {
+    if CONTACT_OPEN_API_ID_GENERATOR.get().is_some() {
+        return;
+    }
+    let generator = RuntimeSnowflakeIdGenerator::from_database_env("social-service")
+        .await
+        .unwrap_or_else(|error| {
+            tracing::warn!(
+                ?error,
+                "database node_id allocation failed; falling back to env for social contact open-api"
+            );
+            RuntimeSnowflakeIdGenerator::from_env().unwrap_or_else(|_| {
+                RuntimeSnowflakeIdGenerator::with_node_id(0)
+                    .expect("snowflake node 0 must initialize")
+            })
+        });
+    let _ = CONTACT_OPEN_API_ID_GENERATOR.set(generator);
+}
+
 fn id_generator() -> &'static RuntimeSnowflakeIdGenerator {
     CONTACT_OPEN_API_ID_GENERATOR.get_or_init(|| {
+        // Fallback for lazy init (e.g., in tests without database)
         RuntimeSnowflakeIdGenerator::from_env().unwrap_or_else(|_| {
             RuntimeSnowflakeIdGenerator::with_node_id(0).expect("snowflake node 0 must initialize")
         })
@@ -216,6 +240,7 @@ async fn list_contact_tags(
         .tags
         .values()
         .filter(|tag| tag.tenant_id == auth.tenant_id && tag.owner_user_id == auth.user_id)
+        .cloned()
         .map(ContactTagView::from)
         .collect::<Vec<_>>();
     items.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));

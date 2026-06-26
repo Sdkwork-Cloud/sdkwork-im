@@ -16,10 +16,6 @@
       "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-drive.git",
       "ref": "5ee91f5162d114edf2a10165916436aa03f97b4a"
     },
-    "sdkwork-commerce": {
-      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-commerce.git",
-      "ref": "cbc0e0b829a8d60fb8a7249567db1cb521199448"
-    },
     "sdkwork-mail": {
       "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-mail.git",
       "ref": "55296ee2738c1665f8228c6c00c99f2d8d681251"
@@ -52,8 +48,8 @@
       "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-knowledgebase.git",
       "ref": "2f092afa9cd713cd920bd2a7fdea59bc3d956ce8"
     },
-    "sdkwork-claw-router": {
-      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-claw-router.git",
+    "sdkwork-clawrouter": {
+      "repoUrl": "https://github.com/Sdkwork-Cloud/sdkwork-clawrouter.git",
       "ref": "main"
     },
     "sdkwork-birdcoder": {

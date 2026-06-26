@@ -34,7 +34,7 @@ function createMember(principalId: string, memberId = `member-${principalId}`): 
     principalKind: 'user',
     role: principalId === 'u_owner' ? 'owner' : 'member',
     state: 'joined',
-    tenantId: 'tenant-1',
+    tenantId: '100001',
   };
 }
 

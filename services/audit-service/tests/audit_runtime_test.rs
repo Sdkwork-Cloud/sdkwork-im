@@ -9,7 +9,7 @@ fn test_record_anchor_and_export_bundle() {
     let runtime = audit_service::AuditRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -51,7 +51,7 @@ fn test_recorded_at_advances_between_distinct_records() {
     let runtime = audit_service::AuditRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -104,7 +104,7 @@ fn test_export_bundle_includes_verifiable_chain_and_detects_tampering() {
     let runtime = audit_service::AuditRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),
@@ -172,7 +172,7 @@ fn test_runtime_record_anchor_rejects_oversized_payload_consistently_with_http_c
     let runtime = audit_service::AuditRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),

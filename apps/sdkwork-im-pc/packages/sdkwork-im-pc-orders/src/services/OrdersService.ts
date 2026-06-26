@@ -1,13 +1,15 @@
-import type { CommerceAppSdkClient } from '@sdkwork/commerce-app-sdk';
+import type { OrderAppSdkClient } from '@sdkwork/im-pc-core/sdk/orderAppSdkClient';
+import type { ShopAppSdkClient } from '@sdkwork/im-pc-core/sdk/shopAppSdkClient';
 import {
-  extractCommercePayload,
-  extractCommerceRecordsFromResult,
+  extractAppSdkPayload,
+  extractAppSdkRecordsFromResult,
   parseMoneyAmount,
   readNumber,
   readOptionalString,
   readString,
-} from '@sdkwork/im-pc-core/sdk/commerceApiHelpers';
-import { getCommerceAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/commerceAppSdkClient';
+} from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
+import { getOrderAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/orderAppSdkClient';
+import { getShopAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/shopAppSdkClient';
 
 export interface OrderItem {
   id: string;
@@ -47,7 +49,7 @@ export interface OrdersService {
   deleteOrder(id: string): Promise<void>;
 }
 
-const PC_ORDERS_WRITE_UNAVAILABLE = 'pc orders write contract requires commerce command headers';
+const PC_ORDERS_WRITE_UNAVAILABLE = 'pc orders write contract requires order command headers';
 
 const EMPTY_ORDER_STATS: OrderStats = {
   pendingPayAmount: 0,
@@ -61,7 +63,8 @@ const EMPTY_ORDER_STATS: OrderStats = {
 };
 
 interface OrdersServiceOptions {
-  client?: CommerceAppSdkClient;
+  orderClient?: OrderAppSdkClient;
+  shopClient?: ShopAppSdkClient;
 }
 
 function mapMerchantOrderStatus(rawStatus: string): Order['status'] {
@@ -144,18 +147,22 @@ function mapStatisticsToOrderStats(record: Record<string, unknown>): OrderStats 
 class SdkworkOrdersService implements OrdersService {
   constructor(private readonly options: OrdersServiceOptions = {}) {}
 
-  private client(): CommerceAppSdkClient {
-    return this.options.client ?? getCommerceAppSdkClientWithSession();
+  private orderClient(): OrderAppSdkClient {
+    return this.options.orderClient ?? getOrderAppSdkClientWithSession();
+  }
+
+  private shopClient(): ShopAppSdkClient {
+    return this.options.shopClient ?? getShopAppSdkClientWithSession();
   }
 
   private async listMerchantOrders(): Promise<Order[]> {
-    const result = await this.client().shops.current.orders.list({ pageSize: 100 });
-    return extractCommerceRecordsFromResult(result).map(mapMerchantOrder);
+    const result = await this.shopClient().shops.current.orders.list({ pageSize: 100 });
+    return extractAppSdkRecordsFromResult(result).map(mapMerchantOrder);
   }
 
   private async listConsumerOrders(): Promise<Order[]> {
-    const result = await this.client().orders.list({ pageSize: 100 });
-    return extractCommerceRecordsFromResult(result).map((record) => ({
+    const result = await this.orderClient().orders.list({ pageSize: 100 });
+    return extractAppSdkRecordsFromResult(result).map((record) => ({
       ...mapMerchantOrder(record),
       customerName: readString(record, 'ownerUserId', 'owner_user_id') || 'Me',
     }));
@@ -180,8 +187,8 @@ class SdkworkOrdersService implements OrdersService {
     }
 
     try {
-      const merchantResult = await this.client().shops.current.orders.retrieve(normalizedId);
-      const merchantRecord = extractCommercePayload(merchantResult);
+      const merchantResult = await this.shopClient().shops.current.orders.retrieve(normalizedId);
+      const merchantRecord = extractAppSdkPayload(merchantResult);
       if (merchantRecord && typeof merchantRecord === 'object' && !Array.isArray(merchantRecord)) {
         return mapMerchantOrder(merchantRecord as Record<string, unknown>);
       }
@@ -190,8 +197,8 @@ class SdkworkOrdersService implements OrdersService {
     }
 
     try {
-      const consumerResult = await this.client().orders.retrieve(normalizedId);
-      const consumerRecord = extractCommercePayload(consumerResult);
+      const consumerResult = await this.orderClient().orders.retrieve(normalizedId);
+      const consumerRecord = extractAppSdkPayload(consumerResult);
       if (consumerRecord && typeof consumerRecord === 'object' && !Array.isArray(consumerRecord)) {
         return mapMerchantOrder(consumerRecord as Record<string, unknown>);
       }
@@ -208,8 +215,8 @@ class SdkworkOrdersService implements OrdersService {
 
   async getStats(): Promise<OrderStats> {
     try {
-      const statisticsResult = await this.client().orders.statistics.retrieve();
-      const statisticsRecord = extractCommercePayload(statisticsResult);
+      const statisticsResult = await this.orderClient().orders.statistics.retrieve();
+      const statisticsRecord = extractAppSdkPayload(statisticsResult);
       if (statisticsRecord && typeof statisticsRecord === 'object' && !Array.isArray(statisticsRecord)) {
         return mapStatisticsToOrderStats(statisticsRecord as Record<string, unknown>);
       }
@@ -218,8 +225,8 @@ class SdkworkOrdersService implements OrdersService {
     }
 
     try {
-      const dashboardResult = await this.client().shops.current.dashboard.retrieve();
-      const dashboardRecord = extractCommercePayload(dashboardResult);
+      const dashboardResult = await this.shopClient().shops.current.dashboard.retrieve();
+      const dashboardRecord = extractAppSdkPayload(dashboardResult);
       if (dashboardRecord && typeof dashboardRecord === 'object' && !Array.isArray(dashboardRecord)) {
         return mapStatisticsToOrderStats(dashboardRecord as Record<string, unknown>);
       }

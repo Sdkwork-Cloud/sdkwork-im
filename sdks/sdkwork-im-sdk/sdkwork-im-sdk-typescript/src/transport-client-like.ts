@@ -18,6 +18,7 @@ import type {
   RoomView,
   DeleteContactTagResponse,
   DeleteMessageFavoriteResponse,
+  EditMessageRequest,
   FavoriteMessageRequest,
   FavoriteMessagesResponse,
   InboxResponse,
@@ -108,7 +109,8 @@ export interface ImTransportClientLike {
       };
     };
     messages: {
-      edit(messageId: string | number, body: unknown): Promise<PostedMessageResponse>;
+      edit(messageId: string | number, body: EditMessageRequest): Promise<PostedMessageResponse>;
+      recall(messageId: string | number): Promise<PostedMessageResponse>;
       reactions: {
         create(messageId: string | number, body: MessageReactionRequest): Promise<MessageReactionMutationResult>;
         delete(messageId: string | number, body: MessageReactionRequest): Promise<MessageReactionMutationResult>;

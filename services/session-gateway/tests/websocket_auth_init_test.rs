@@ -31,8 +31,8 @@ fn ensure_dev_environment() {
 
 fn test_app_context() -> AppContext {
     let mut context = local_service_app_context(
-        "tenant_real",
-        "user_real",
+        "100001",
+        "30",
         "user",
         Some("device_real"),
         ["*"],
@@ -106,8 +106,8 @@ async fn session_gateway_accepts_browser_auth_init_frame_before_ccp_handshake() 
         panic!("expected auth.ok frame, got: {auth_ok}");
     }
     assert_eq!(auth_ok["requestId"], "auth-1");
-    assert_eq!(auth_ok["tenantId"], "tenant_real");
-    assert_eq!(auth_ok["principalId"], "user_real");
+    assert_eq!(auth_ok["tenantId"], "100001");
+    assert_eq!(auth_ok["principalId"], "30");
     assert_eq!(auth_ok["sessionId"], "session_real");
     assert_eq!(auth_ok["deviceId"], "device_real");
 

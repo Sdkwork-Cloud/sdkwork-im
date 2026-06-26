@@ -20,7 +20,7 @@ function createMember(conversationId: string, principalId: string): Conversation
     principalKind: 'user',
     role: 'member',
     state: 'joined',
-    tenantId: 'tenant-1',
+    tenantId: '100001',
   };
 }
 
@@ -75,7 +75,7 @@ function createGroupProjectionClient(options: {
           isPinned: false,
           principalId: 'current-user',
           principalKind: 'user',
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           updatedAt: '2026-06-04T00:00:00.000Z',
         };
       },
@@ -86,7 +86,7 @@ function createGroupProjectionClient(options: {
           conversationId,
           displayName: options.getProfileName(),
           notice: '',
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           updatedAt: '2026-06-04T00:00:00.000Z',
         };
       },
@@ -101,7 +101,7 @@ function createGroupProjectionClient(options: {
               lastActivityAt: '2026-06-04T00:00:00.000Z',
               lastMessageSeq: 1,
               messageCount: 1,
-              tenantId: 'tenant-1',
+              tenantId: '100001',
               unreadCount: 0,
             },
           ],
@@ -122,7 +122,7 @@ function createGroupProjectionClient(options: {
         return {
           conversationId,
           displayName: String(body.displayName ?? ''),
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           updatedAt: '2026-06-04T00:00:00.000Z',
         };
       },
@@ -211,7 +211,7 @@ async function main(): Promise<void> {
       return {
         conversationId,
         displayName: backendGroupName,
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         updatedAt: '2026-06-04T00:00:00.000Z',
       };
     },

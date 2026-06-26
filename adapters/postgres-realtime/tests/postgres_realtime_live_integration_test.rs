@@ -44,7 +44,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
 
     let suffix = unique_suffix();
     let tenant_id = format!("t_live_{suffix}");
-    let organization_id = "default";
+    let organization_id = "0";
     let principal_kind = "user";
     let principal_id = format!("u_live_{suffix}");
     let checkpoint_device_id = format!("d_checkpoint_live_{suffix}");
@@ -62,7 +62,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
         .checkpoint
         .save_checkpoint(RealtimeCheckpointRecord {
             tenant_id: tenant_id.clone(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: principal_kind.into(),
             principal_id: principal_id.clone(),
             device_id: checkpoint_device_id.clone(),
@@ -93,7 +93,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
         .event_windows
         .save_windows(vec![RealtimeEventWindowRecord {
             tenant_id: tenant_id.clone(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: principal_kind.into(),
             principal_id: principal_id.clone(),
             device_id: realtime_device_id.clone(),
@@ -150,7 +150,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
         .subscriptions
         .save_subscriptions(RealtimeSubscriptionRecord {
             tenant_id: tenant_id.clone(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: principal_kind.into(),
             principal_id: principal_id.clone(),
             device_id: realtime_device_id.clone(),
@@ -168,7 +168,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
         .subscriptions
         .save_subscriptions(RealtimeSubscriptionRecord {
             tenant_id: tenant_id.clone(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: principal_kind.into(),
             principal_id: principal_id.clone(),
             device_id: checkpoint_device_id.clone(),
@@ -210,7 +210,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
         .subscriptions
         .save_subscriptions(RealtimeSubscriptionRecord {
             tenant_id: tenant_id.clone(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: principal_kind.into(),
             principal_id: principal_id.clone(),
             device_id: realtime_device_id.clone(),
@@ -273,7 +273,7 @@ fn test_postgres_realtime_live_core_store_roundtrip_when_database_is_configured(
 
     let fence = RealtimeDisconnectFenceRecord {
         tenant_id: tenant_id.clone(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
         principal_kind: principal_kind.into(),
         principal_id: principal_id.clone(),
         device_id: realtime_device_id.clone(),
@@ -445,7 +445,7 @@ fn presence_record(
 ) -> PresenceStateRecord {
     PresenceStateRecord {
         tenant_id: tenant_id.into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
         principal_kind: principal_kind.into(),
         principal_id: principal_id.into(),
         device_id: device_id.into(),

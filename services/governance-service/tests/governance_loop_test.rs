@@ -17,7 +17,7 @@ use tower::ServiceExt;
 fn audit_app_context() -> AppContext {
     AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_admin".into(),
         session_id: None,
         app_id: None,

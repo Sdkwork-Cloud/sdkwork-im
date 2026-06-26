@@ -82,7 +82,7 @@ fn test_request_execution_appends_requested_and_completed_events() {
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -140,7 +140,7 @@ fn test_get_execution_is_scoped_to_requesting_principal() {
     let runtime = automation_service::AutomationRuntime::default();
     let owner_auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -158,7 +158,7 @@ fn test_get_execution_is_scoped_to_requesting_principal() {
     };
     let other_auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -198,7 +198,7 @@ fn test_duplicate_request_execution_is_idempotent_when_payload_matches() {
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -252,7 +252,7 @@ fn test_duplicate_request_execution_rejects_conflicting_payload() {
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -303,7 +303,7 @@ fn test_execution_timestamps_advance_between_distinct_requests() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -360,7 +360,7 @@ fn test_request_execution_with_outcome_exposes_applied_then_replayed_delivery_st
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -423,7 +423,7 @@ fn test_request_execution_with_outcome_surfaces_accepted_during_inflight_apply()
     let runtime = Arc::new(automation_service::AutomationRuntime::with_journal(journal));
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -489,7 +489,7 @@ fn test_request_execution_rejects_oversized_input_payload() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -525,7 +525,7 @@ fn test_request_execution_rejects_oversized_execution_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -561,7 +561,7 @@ fn test_get_execution_rejects_oversized_execution_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -588,7 +588,7 @@ fn test_execution_requests_are_isolated_by_principal_kind_for_same_actor_id() {
     let runtime = automation_service::AutomationRuntime::default();
     let user_auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -664,7 +664,7 @@ fn test_execution_scope_key_is_segment_safe_for_delimiter_bearing_ids() {
     let runtime = automation_service::AutomationRuntime::default();
     let first_auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -735,7 +735,7 @@ fn test_execution_journal_metadata_is_isolated_by_principal_kind_for_same_actor_
     let runtime = automation_service::AutomationRuntime::with_journal(journal.clone());
     let user_auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,

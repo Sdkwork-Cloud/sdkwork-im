@@ -28,7 +28,7 @@ function createMember(conversationId: string, principalId: string): Conversation
     principalKind: 'user',
     role: principalId === 'current-user' ? 'owner' : 'member',
     state: 'joined',
-    tenantId: 'tenant-1',
+    tenantId: '100001',
   };
 }
 

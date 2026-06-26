@@ -309,7 +309,7 @@ mod tests {
     fn test_route_store_binding_key_is_segment_safe() {
         let binding = RouteBinding {
             tenant_id: "tenant".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_id: "principal:segment".into(),
             principal_kind: "user".into(),
             device_id: "device".into(),

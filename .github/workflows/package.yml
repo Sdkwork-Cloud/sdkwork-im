@@ -100,10 +100,50 @@ on:
         description: sdkwork-iam commit/ref.
         required: false
         default: main
-      sdkwork_commerce_ref:
-        description: sdkwork-commerce commit/ref.
+      sdkwork_account_ref:
+        description: sdkwork-account commit/ref.
         required: false
-        default: cbc0e0b829a8d60fb8a7249567db1cb521199448
+        default: main
+      sdkwork_catalog_ref:
+        description: sdkwork-catalog commit/ref.
+        required: false
+        default: main
+      sdkwork_inventory_ref:
+        description: sdkwork-inventory commit/ref.
+        required: false
+        default: main
+      sdkwork_invoice_ref:
+        description: sdkwork-invoice commit/ref.
+        required: false
+        default: main
+      sdkwork_membership_ref:
+        description: sdkwork-membership commit/ref.
+        required: false
+        default: main
+      sdkwork_merchandise_ref:
+        description: sdkwork-merchandise commit/ref.
+        required: false
+        default: main
+      sdkwork_order_ref:
+        description: sdkwork-order commit/ref.
+        required: false
+        default: main
+      sdkwork_payment_ref:
+        description: sdkwork-payment commit/ref.
+        required: false
+        default: main
+      sdkwork_promotion_ref:
+        description: sdkwork-promotion commit/ref.
+        required: false
+        default: main
+      sdkwork_shop_ref:
+        description: sdkwork-shop commit/ref.
+        required: false
+        default: main
+      sdkwork_agents_ref:
+        description: sdkwork-agents commit/ref.
+        required: false
+        default: main
       sdkwork_mail_ref:
         description: sdkwork-mail commit/ref.
         required: false
@@ -180,7 +220,17 @@ jobs:
           "SDKWORK_UI_REF": "${{ github.event.inputs.sdkwork_ui_ref || vars.SDKWORK_UI_REF }}",
           "SDKWORK_DRIVE_REF": "${{ github.event.inputs.sdkwork_drive_ref || vars.SDKWORK_DRIVE_REF }}",
           "SDKWORK_IAM_REF": "${{ github.event.inputs.sdkwork_iam_ref || vars.SDKWORK_IAM_REF }}",
-          "SDKWORK_COMMERCE_REF": "${{ github.event.inputs.sdkwork_commerce_ref || vars.SDKWORK_COMMERCE_REF }}",
+          "SDKWORK_ACCOUNT_REF": "${{ github.event.inputs.sdkwork_account_ref || vars.SDKWORK_ACCOUNT_REF }}",
+          "SDKWORK_CATALOG_REF": "${{ github.event.inputs.sdkwork_catalog_ref || vars.SDKWORK_CATALOG_REF }}",
+          "SDKWORK_INVENTORY_REF": "${{ github.event.inputs.sdkwork_inventory_ref || vars.SDKWORK_INVENTORY_REF }}",
+          "SDKWORK_INVOICE_REF": "${{ github.event.inputs.sdkwork_invoice_ref || vars.SDKWORK_INVOICE_REF }}",
+          "SDKWORK_MEMBERSHIP_REF": "${{ github.event.inputs.sdkwork_membership_ref || vars.SDKWORK_MEMBERSHIP_REF }}",
+          "SDKWORK_MERCHANDISE_REF": "${{ github.event.inputs.sdkwork_merchandise_ref || vars.SDKWORK_MERCHANDISE_REF }}",
+          "SDKWORK_ORDER_REF": "${{ github.event.inputs.sdkwork_order_ref || vars.SDKWORK_ORDER_REF }}",
+          "SDKWORK_PAYMENT_REF": "${{ github.event.inputs.sdkwork_payment_ref || vars.SDKWORK_PAYMENT_REF }}",
+          "SDKWORK_PROMOTION_REF": "${{ github.event.inputs.sdkwork_promotion_ref || vars.SDKWORK_PROMOTION_REF }}",
+          "SDKWORK_SHOP_REF": "${{ github.event.inputs.sdkwork_shop_ref || vars.SDKWORK_SHOP_REF }}",
+          "SDKWORK_AGENTS_REF": "${{ github.event.inputs.sdkwork_agents_ref || vars.SDKWORK_AGENTS_REF }}",
           "SDKWORK_MAIL_REF": "${{ github.event.inputs.sdkwork_mail_ref || vars.SDKWORK_MAIL_REF }}",
           "SDKWORK_COMMUNITY_REF": "${{ github.event.inputs.sdkwork_community_ref || vars.SDKWORK_COMMUNITY_REF }}",
           "SDKWORK_COURSE_REF": "${{ github.event.inputs.sdkwork_course_ref || vars.SDKWORK_COURSE_REF }}",

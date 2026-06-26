@@ -35,7 +35,10 @@ async fn run() -> Result<(), String> {
         social_service::spawn_shared_channel_sync_stale_reclaim_scheduler_from_env(
             social_runtime.clone(),
         );
-    let postgres_state = social_service::try_postgres_app_state_from_database_url_env();
+    // Initialize database-backed Snowflake node_id allocation for all
+    // social-service ID generators (open-api + contact open-api).
+    social_service::init_id_generators().await;
+    let postgres_state = social_service::try_postgres_app_state_from_database_url_env().await;
     let mut app =
         sdkwork_routes_im_social_backend_api::build_control_public_app(social_runtime.clone());
     app = app.merge(sdkwork_routes_im_social_open_api::build_runtime_public_app(

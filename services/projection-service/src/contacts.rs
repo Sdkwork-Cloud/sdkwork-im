@@ -611,7 +611,7 @@ mod tests {
     fn contact(target_user_id: &str, last_interaction_at: &str) -> ContactView {
         ContactView {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             owner_user_id: "u_owner".into(),
             target_user_id: target_user_id.into(),
             contact_type: "friendship".into(),

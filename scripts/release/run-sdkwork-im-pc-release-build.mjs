@@ -49,10 +49,6 @@ function resolveReleaseDependencyRefBridge(env = process.env) {
     env.SDKWORK_SHARED_NOTARY_GIT_REF,
     env.SDKWORK_NOTARY_REF,
   );
-  const commerceRef = resolveOptionalEnvValue(
-    env.SDKWORK_SHARED_COMMERCE_GIT_REF,
-    env.SDKWORK_COMMERCE_REF,
-  );
   const mailRef = resolveOptionalEnvValue(
     env.SDKWORK_SHARED_MAIL_GIT_REF,
     env.SDKWORK_MAIL_REF,
@@ -75,9 +71,6 @@ function resolveReleaseDependencyRefBridge(env = process.env) {
   }
   if (notaryRef) {
     bridge.SDKWORK_SHARED_NOTARY_GIT_REF = notaryRef;
-  }
-  if (commerceRef) {
-    bridge.SDKWORK_SHARED_COMMERCE_GIT_REF = commerceRef;
   }
   if (mailRef) {
     bridge.SDKWORK_SHARED_MAIL_GIT_REF = mailRef;

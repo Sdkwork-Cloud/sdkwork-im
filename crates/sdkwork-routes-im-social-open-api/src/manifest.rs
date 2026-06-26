@@ -7,6 +7,12 @@ pub const API_SURFACE: &str = "open-api";
 const SOCIAL_OPEN_API_ROUTES: &[HttpRoute] = &[
     HttpRoute::open_api_flexible(
         HttpMethod::Get,
+        "/im/v3/api/social/users",
+        "social",
+        "social.users.list",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
         "/im/v3/api/social/friend_requests",
         "social",
         "social.friendRequests.list",
@@ -34,6 +40,54 @@ const SOCIAL_OPEN_API_ROUTES: &[HttpRoute] = &[
         "/im/v3/api/social/friend_requests/{requestId}/cancel",
         "social",
         "social.friendRequests.cancel",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/friendships/{friendshipId}/remove",
+        "social",
+        "social.friendships.remove",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
+        "/im/v3/api/social/contacts/tags",
+        "social",
+        "social.contacts.tags.list",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/contacts/tags",
+        "social",
+        "social.contacts.tags.create",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Patch,
+        "/im/v3/api/social/contacts/tags/{tagId}",
+        "social",
+        "social.contacts.tags.update",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Delete,
+        "/im/v3/api/social/contacts/tags/{tagId}",
+        "social",
+        "social.contacts.tags.delete",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Get,
+        "/im/v3/api/social/contacts/{targetUserId}/preferences",
+        "social",
+        "social.contacts.preferences.retrieve",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Patch,
+        "/im/v3/api/social/contacts/{targetUserId}/preferences",
+        "social",
+        "social.contacts.preferences.update",
+    ),
+    HttpRoute::open_api_flexible(
+        HttpMethod::Post,
+        "/im/v3/api/social/contacts/{targetUserId}/recommendations",
+        "social",
+        "social.contacts.recommendations.create",
     ),
     HttpRoute::open_api_flexible(
         HttpMethod::Get,

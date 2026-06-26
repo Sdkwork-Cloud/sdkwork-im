@@ -913,7 +913,7 @@ fn test_postgres_realtime_disconnect_fence_sql_uses_latest_and_cas_clear() {
 fn test_postgres_realtime_checkpoint_upsert_binding_plan_matches_sql_contract_order() {
     let checkpoint = RealtimeCheckpointRecord {
         tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
         principal_id: "u_demo".into(),
         device_id: "d_pad".into(),
@@ -1074,7 +1074,7 @@ fn test_postgres_realtime_event_and_ack_binding_plans_match_sql_contract_order()
 fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_rows() {
     let record = RealtimeSubscriptionRecord {
         tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
         principal_id: "u_demo".into(),
         device_id: "d_pad".into(),
@@ -1217,7 +1217,7 @@ fn test_postgres_realtime_subscription_binding_plan_serializes_items_and_fanout_
 fn test_postgres_realtime_binding_plan_rejects_values_postgres_cannot_store() {
     let checkpoint = RealtimeCheckpointRecord {
         tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
         principal_id: "u_demo".into(),
         device_id: "d_pad".into(),
@@ -1287,7 +1287,7 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
     };
     let checkpoint = RealtimeCheckpointRecord {
         tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
         principal_id: "u_demo".into(),
         device_id: "d_pad".into(),
@@ -1303,7 +1303,7 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
     let publish = realtime_postgres_bind_publish_transaction(
         vec![RealtimePostgresClientRouteEventMutation {
             event: event.clone(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             client_route_scope_key: "6:t_demo|4:user|6:u_demo|5:d_pad".into(),
             payload_hash: "sha256:demo".into(),
@@ -1356,7 +1356,7 @@ fn test_postgres_realtime_publish_and_ack_transactions_preserve_atomic_statement
 fn test_postgres_realtime_subscription_save_transaction_preserves_replace_order() {
     let record = RealtimeSubscriptionRecord {
         tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
         principal_id: "u_demo".into(),
         device_id: "d_pad".into(),

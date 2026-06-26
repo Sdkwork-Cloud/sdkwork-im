@@ -3,11 +3,11 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 
 const indexText = readFileSync(
-  './packages/sdkwork-im-pc-chat/src/index.ts',
+  '../../../sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/index.ts',
   'utf8',
 );
 const defaultsText = readFileSync(
-  './packages/sdkwork-im-pc-chat/src/components/AgentDefaults.ts',
+  '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/components/AgentDefaults.ts',
   'utf8',
 );
 
@@ -28,7 +28,8 @@ function exportsDefaultAgentConfig(): boolean {
       ts.isNamedExports(node.exportClause) &&
       node.moduleSpecifier &&
       ts.isStringLiteral(node.moduleSpecifier) &&
-      node.moduleSpecifier.text === './components/AgentDefaults' &&
+      (node.moduleSpecifier.text === './components/AgentDefaults' ||
+        node.moduleSpecifier.text === '@sdkwork/agents-pc-agents') &&
       node.exportClause.elements.some((element) => element.name.text === 'DEFAULT_AGENT_CONFIG')
     ) {
       found = true;

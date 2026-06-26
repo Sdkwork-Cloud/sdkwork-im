@@ -32,13 +32,21 @@
       "types": "./src/sdk/driveAppSdkClient.ts",
       "default": "./src/sdk/driveAppSdkClient.ts"
     },
-    "./sdk/commerceAppSdkClient": {
-      "types": "./src/sdk/commerceAppSdkClient.ts",
-      "default": "./src/sdk/commerceAppSdkClient.ts"
+    "./sdk/catalogAppSdkClient": {
+      "types": "./src/sdk/catalogAppSdkClient.ts",
+      "default": "./src/sdk/catalogAppSdkClient.ts"
     },
-    "./sdk/commerceApiHelpers": {
-      "types": "./src/sdk/commerceApiHelpers.ts",
-      "default": "./src/sdk/commerceApiHelpers.ts"
+    "./sdk/shopAppSdkClient": {
+      "types": "./src/sdk/shopAppSdkClient.ts",
+      "default": "./src/sdk/shopAppSdkClient.ts"
+    },
+    "./sdk/orderAppSdkClient": {
+      "types": "./src/sdk/orderAppSdkClient.ts",
+      "default": "./src/sdk/orderAppSdkClient.ts"
+    },
+    "./sdk/appSdkResponseHelpers": {
+      "types": "./src/sdk/appSdkResponseHelpers.ts",
+      "default": "./src/sdk/appSdkResponseHelpers.ts"
     },
     "./sdk/mailAppSdkClient": {
       "types": "./src/sdk/mailAppSdkClient.ts",
@@ -59,10 +67,6 @@
     "./sdk/courseAppSdkClient": {
       "types": "./src/sdk/courseAppSdkClient.ts",
       "default": "./src/sdk/courseAppSdkClient.ts"
-    },
-    "./sdk/courseApiHelpers": {
-      "types": "./src/sdk/courseApiHelpers.ts",
-      "default": "./src/sdk/courseApiHelpers.ts"
     },
     "./sdk/imSdkClient": {
       "types": "./src/sdk/imSdkClient.ts",
@@ -105,10 +109,14 @@
   "dependencies": {
     "@sdkwork/aiot-app-sdk": "workspace:*",
     "@sdkwork/auth-runtime-pc-react": "workspace:*",
-    "@sdkwork/commerce-app-sdk": "workspace:*",
+    "@sdkwork/catalog-app-sdk": "workspace:*",
+    "@sdkwork/shop-app-sdk": "workspace:*",
+    "@sdkwork/order-app-sdk": "workspace:*",
     "@sdkwork/mail-app-sdk": "workspace:*",
     "@sdkwork/community-app-sdk": "workspace:*",
     "@sdkwork/course-app-sdk": "workspace:*",
+    "@sdkwork/course-backend-sdk": "workspace:*",
+    "@sdkwork/course-pc-course": "workspace:*",
     "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/drive-pc-drive": "workspace:*",
     "@sdkwork/knowledgebase-app-sdk": "workspace:*",

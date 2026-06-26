@@ -51,10 +51,26 @@ Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selec
 | --- | --- |
 | `SDKWORK_IM_REALTIME_NODE_ID` | Realtime node identity for cluster routing |
 | `SDKWORK_IM_REALTIME_CLUSTER_BUS_URL` | Redis pub/sub URL for cross-node route events |
-| `SDKWORK_IM_DATABASE_URL` | Postgres-backed realtime stores (when unset, in-memory dev stores) |
+| `SDKWORK_IM_DATABASE_URL` | Postgres-backed realtime stores (**required** when cluster bus is enabled — fail-closed) |
 | `SDKWORK_IM_REALTIME_MAX_WEBSOCKET_CONNECTIONS` | WebSocket connection ceiling |
 | `SDKWORK_IM_SESSION_GATEWAY_MAX_IN_FLIGHT_REQUESTS` | HTTP in-flight request gate |
 | `SDKWORK_IM_SESSION_GATEWAY_MAX_REQUEST_BODY_BYTES` | Max HTTP request body size |
+
+> **HA fail-closed**: When `SDKWORK_IM_REALTIME_CLUSTER_BUS_URL` is set (multi-node topology),
+> `SDKWORK_IM_DATABASE_URL` must also be set to a shared Postgres instance. The bootstrap
+> will reject startup if cluster bus is enabled without Postgres-backed disconnect fence
+> storage, because in-memory fallback is unsafe across nodes.
+
+### Gateway protection (rate limit + circuit breaker)
+
+| Env key | Default | Purpose |
+| --- | --- | --- |
+| `SDKWORK_IM_GATEWAY_RATE_LIMIT_RPM` | `600` | Max requests per minute per client IP |
+| `SDKWORK_IM_GATEWAY_RATE_LIMIT_BURST` | `50` | Token bucket burst capacity |
+| `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` | `5000` | Max tracked client IPs before eviction |
+| `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_THRESHOLD` | `10` | Consecutive 5xx failures before tripping |
+| `SDKWORK_IM_GATEWAY_CIRCUIT_BREAKER_RESET_SECS` | `30` | Seconds before half-open probe retry |
+| `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | _(empty)_ | Comma-separated trusted proxy IPs for X-Forwarded-For |
 
 ### session-gateway RPC Phase 1
 
@@ -68,12 +84,25 @@ Load order: `scripts/im-dev.mjs` and `scripts/im-server-dev.mjs` merge the selec
 | Env key | Purpose |
 | --- | --- |
 | `SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE` | Require HMAC-signed AppContext projection headers on internal services |
-| `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET` | Shared secret between gateway and internal services |
+| `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET` | Shared secret between gateway and internal services (literal value) |
+| `SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET_FILE` | Path to file containing the shared secret (Docker/K8s secrets pattern; takes precedence over direct env var) |
 | `SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID` | Bootstrap tenant id for tenant-bound JWT verification at realtime boundaries |
 | `SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID` | JWT header `kid` for bootstrap signing key (default `bootstrap`) |
-| `SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET` | HS256 secret when services validate dual tokens directly (IAM DB pool preferred when configured) |
+| `SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET` | HS256 secret when services validate dual tokens directly (literal value) |
+| `SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET_FILE` | Path to file containing the JWT signing secret (Docker/K8s secrets pattern; takes precedence over direct env var) |
+| `SDKWORK_IM_GATEWAY_ALLOW_WEBSOCKET_QUERY_TOKENS` | Opt-in WebSocket query-string token auth (default `false`; rejected in production regardless) |
+| `SDKWORK_IM_GATEWAY_TRUSTED_PROXIES` | Comma-separated trusted proxy IPs for X-Forwarded-For validation |
+| `SDKWORK_IM_GATEWAY_RATE_LIMIT_MAX_ENTRIES` | Max tracked client IPs before forced eviction (default `5000`) |
 
-IAM database pool (`SDKWORK_CLAW_DATABASE_*` / `SDKWORK_IM_DATABASE_URL`) enables `resolve_iam_auth_pool_from_env` for authoritative dual-token verification in session-gateway.
+IAM database pool (`SDKWORK_IM_DATABASE_*` / `SDKWORK_IM_DATABASE_URL`) enables `resolve_iam_auth_pool_from_env` for authoritative dual-token verification in session-gateway.
+
+## Service persistence backends
+
+| Service | Backend | Config switch | Production behavior |
+| --- | --- | --- | --- |
+| projection-service | Postgres (durable) + in-memory hot path | `SDKWORK_IM_DATABASE_URL` | Hard-fails without Postgres; snapshots restored on startup |
+| audit-service | In-memory (dev/test only) | `SDKWORK_IM_DATABASE_URL` (planned) | Logs `error` when running in production without durable storage; all records lost on restart |
+| ops-service | In-memory diagnostics (transient by design) | None needed | Diagnostic views are rebuilt from live services; no persistence required |
 
 ## Verification
 

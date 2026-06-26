@@ -84,7 +84,7 @@ const rtcMediaService: SdkworkRtcMediaService = {
 
 function createSession(rtcSessionId: string, state: 'accepted' | 'ended' | 'started') {
   return {
-    tenantId: 'tenant-1',
+    tenantId: '100001',
     rtcSessionId,
     conversationId: 'conversation-rtc-media-1',
     rtcMode: 'video',
@@ -128,7 +128,7 @@ async function main(): Promise<void> {
           rtcSessionId,
         });
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'provider-token-1',
@@ -153,7 +153,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -241,7 +241,7 @@ async function main(): Promise<void> {
       },
       async issueParticipantCredential(rtcSessionId: string, body: { participantId: string }) {
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'provider-token-mute-rollback',
@@ -278,7 +278,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -333,7 +333,7 @@ async function main(): Promise<void> {
       },
       async issueParticipantCredential(rtcSessionId: string, body: { participantId: string }) {
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'provider-token-hangup-signal-fail',
@@ -368,7 +368,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -425,7 +425,7 @@ async function main(): Promise<void> {
       },
       async issueParticipantCredential(rtcSessionId: string, body: { participantId: string }) {
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'provider-token-hangup-leave-fail',
@@ -461,7 +461,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -503,7 +503,7 @@ async function main(): Promise<void> {
       },
       async issueParticipantCredential(rtcSessionId: string, body: { participantId: string }) {
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'provider-token-fail',
@@ -535,7 +535,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -594,7 +594,7 @@ async function main(): Promise<void> {
       },
       async issueParticipantCredential(rtcSessionId: string, body: { participantId: string }) {
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'provider-token-join-fail-leave-fail',
@@ -625,7 +625,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -667,7 +667,7 @@ async function main(): Promise<void> {
       },
       async issueParticipantCredential(rtcSessionId: string, body: { participantId: string }) {
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'provider-token-publish-fail',
@@ -699,7 +699,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -741,7 +741,7 @@ async function main(): Promise<void> {
       },
       async issueParticipantCredential(rtcSessionId: string, body: { participantId: string }) {
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'provider-token-late-media',
@@ -773,7 +773,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -896,7 +896,7 @@ async function main(): Promise<void> {
   );
   await serviceBackedRtcMedia.join({
     credential: {
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       rtcSessionId: 'rtc-local-preview-1',
       participantId: 'u_alice',
       credential: 'provider-token-local-preview',
@@ -1025,7 +1025,7 @@ async function main(): Promise<void> {
   await previewFailureRtcMedia.bindLocalVideoElement({ nodeType: 1 } as HTMLElement);
   await previewFailureRtcMedia.join({
     credential: {
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       rtcSessionId: 'rtc-preview-failure-1',
       participantId: 'u_alice',
       credential: 'provider-token-preview-failure',
@@ -1100,7 +1100,7 @@ async function main(): Promise<void> {
   await previewExtensionFailureRtcMedia.bindLocalVideoElement({ nodeType: 1 } as HTMLElement);
   await previewExtensionFailureRtcMedia.join({
     credential: {
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       rtcSessionId: 'rtc-preview-extension-failure-1',
       participantId: 'u_alice',
       credential: 'provider-token-preview-extension-failure',
@@ -1169,7 +1169,7 @@ async function main(): Promise<void> {
   await assert.rejects(
     () => joinFailureCleanupRtcMedia.join({
       credential: {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         rtcSessionId: 'rtc-join-failure-cleanup-1',
         participantId: 'u_alice',
         credential: 'provider-token-join-failure-cleanup',
@@ -1253,7 +1253,7 @@ async function main(): Promise<void> {
   await leaveAfterPreviewUnbindFailureRtcMedia.bindLocalVideoElement({ nodeType: 1 } as HTMLElement);
   await leaveAfterPreviewUnbindFailureRtcMedia.join({
     credential: {
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       rtcSessionId: 'rtc-preview-unbind-failure-1',
       participantId: 'u_alice',
       credential: 'provider-token-preview-unbind-failure',
@@ -1338,7 +1338,7 @@ async function main(): Promise<void> {
   await leaveAfterPreviewPlayerUnbindFailureRtcMedia.bindLocalVideoElement({ nodeType: 1 } as HTMLElement);
   await leaveAfterPreviewPlayerUnbindFailureRtcMedia.join({
     credential: {
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       rtcSessionId: 'rtc-preview-player-unbind-failure-1',
       participantId: 'u_alice',
       credential: 'provider-token-preview-player-unbind-failure',

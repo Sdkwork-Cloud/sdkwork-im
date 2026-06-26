@@ -40,7 +40,7 @@ const contactItems: ContactView[] = [
     ownerUserId: 'current-user',
     relationshipState: 'active',
     targetUserId: 'u_alice',
-    tenantId: 'tenant-1',
+    tenantId: '100001',
   },
   {
     contactType: 'friendship',
@@ -50,7 +50,7 @@ const contactItems: ContactView[] = [
     ownerUserId: 'current-user',
     relationshipState: 'active',
     targetUserId: 'u_bob',
-    tenantId: 'tenant-1',
+    tenantId: '100001',
   },
 ];
 
@@ -63,7 +63,7 @@ const contactPreferences = new Map<string, ContactPreferencesView>([
       ownerUserId: 'current-user',
       remark: 'Alice Ops',
       targetUserId: 'u_alice',
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       updatedAt: '2026-06-04T00:00:00.000Z',
     },
   ],
@@ -75,7 +75,7 @@ const contactPreferences = new Map<string, ContactPreferencesView>([
       ownerUserId: 'current-user',
       remark: 'Blocked Bob',
       targetUserId: 'u_bob',
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       updatedAt: '2026-06-04T00:00:00.000Z',
     },
   ],
@@ -93,7 +93,7 @@ const contactTags = new Map<string, ContactTagView>([
       name: 'Family',
       ownerUserId: 'current-user',
       tagId: 'tag_family',
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       updatedAt: '2026-06-04T00:00:00.000Z',
     },
   ],
@@ -122,7 +122,7 @@ const fakeClient = {
                 avatarUrl: 'https://cdn.example.test/alice.png',
                 displayName: 'Alice Chen',
                 relationshipState: 'active',
-                tenantId: 'tenant-1',
+                tenantId: '100001',
                 userId: 'u_alice',
               },
             ],
@@ -136,7 +136,7 @@ const fakeClient = {
                 avatarUrl: 'https://cdn.example.test/bob.png',
                 displayName: 'Bob Stone',
                 relationshipState: 'active',
-                tenantId: 'tenant-1',
+                tenantId: '100001',
                 userId: 'u_bob',
               },
             ],
@@ -164,7 +164,7 @@ const fakeClient = {
             recommendationId: `rec_${targetUserId}`,
             targetConversationId: body.targetConversationId ?? '',
             targetUserId,
-            tenantId: 'tenant-1',
+            tenantId: '100001',
           } satisfies ContactRecommendationView;
         },
       },
@@ -177,7 +177,7 @@ const fakeClient = {
             ownerUserId: 'current-user',
             remark: '',
             targetUserId,
-            tenantId: 'tenant-1',
+            tenantId: '100001',
             updatedAt: '2026-06-04T00:00:00.000Z',
           };
         },
@@ -189,7 +189,7 @@ const fakeClient = {
             ownerUserId: 'current-user',
             remark: '',
             targetUserId,
-            tenantId: 'tenant-1',
+            tenantId: '100001',
             updatedAt: '2026-06-04T00:00:00.000Z',
           };
           const next = {
@@ -219,7 +219,7 @@ const fakeClient = {
             name: body.name,
             ownerUserId: 'current-user',
             tagId: 'tag_created',
-            tenantId: 'tenant-1',
+            tenantId: '100001',
             updatedAt: '2026-06-04T00:00:01.000Z',
           };
           contactTags.set(tag.tagId, tag);

@@ -11,7 +11,7 @@ use im_domain_core::presence::{PresenceClientView, PresenceStatus};
 fn presence_record(device_id: &str, last_seen_at: &str) -> PresenceStateRecord {
     PresenceStateRecord {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         principal_kind: "user".into(),
         principal_id: "u_demo".into(),
         device_id: device_id.into(),

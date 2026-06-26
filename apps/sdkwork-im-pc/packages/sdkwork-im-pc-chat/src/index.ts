@@ -20,7 +20,11 @@ export { imSyncCoordinatorService } from './services/ImSyncCoordinatorService';
 export type { ImStartupSyncResult, ImSyncCoordinatorService } from './services/ImSyncCoordinatorService';
 export { systemAssistantService } from './services/SystemAssistantService';
 export type { SystemAssistantService, SystemAssistantStartupResult } from './services/SystemAssistantService';
-export { agentService } from './services/AgentService';
-export type { AgentConfig, AgentService } from './services/AgentService';
-export { DEFAULT_AGENT_CONFIG } from './components/AgentDefaults';
-export { CreateAgentView } from './pages/CreateAgentView';
+export {
+  agentService,
+  configureAgentService,
+  CreateAgentView,
+  DEFAULT_AGENT_CONFIG,
+  type AgentConfig,
+  type AgentService,
+} from '@sdkwork/agents-pc-agents';

@@ -416,7 +416,7 @@ fn optional_string(value: String) -> Option<String> {
 
 fn optional_organization_id(value: String) -> String {
     if value.trim().is_empty() {
-        "default".to_owned()
+        "0".to_owned()
     } else {
         value
     }

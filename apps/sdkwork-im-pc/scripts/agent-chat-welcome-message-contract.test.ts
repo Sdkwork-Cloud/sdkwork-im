@@ -43,14 +43,14 @@ function sourceContainsAll(sourceText: string, snippets: string[]): boolean {
   return snippets.every((snippet) => sourceText.includes(snippet));
 }
 
-const chatTypeSource = parseSource('./packages/sdkwork-im-pc-types/src/chat.ts');
+const chatTypeSource = parseSource('../../../sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-types/src/chat.ts');
 assert.ok(
   interfaceHasProperty(chatTypeSource, 'Chat', 'welcomeMessage'),
   'Shared Chat view model must expose welcomeMessage for managed agent conversations',
 );
 
 const chatServiceText = readFileSync(
-  './packages/sdkwork-im-pc-chat/src/services/ChatService.ts',
+  '../../../sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/services/ChatService.ts',
   'utf8',
 );
 for (const snippet of [
@@ -65,7 +65,7 @@ for (const snippet of [
 }
 
 const chatWindowText = readFileSync(
-  './packages/sdkwork-im-pc-chat/src/components/ChatWindow.tsx',
+  '../../../sdkwork-im/apps/sdkwork-im-pc/packages/sdkwork-im-pc-chat/src/components/ChatWindow.tsx',
   'utf8',
 );
 assert.ok(

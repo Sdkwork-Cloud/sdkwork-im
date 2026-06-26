@@ -2,7 +2,7 @@
 
 Status: draft
 Owner: SDKWork maintainers
-Application: sdkwork-im-sdkwork-im-pc
+Application: sdkwork-im-pc
 Updated: 2026-06-24
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md
 

@@ -252,16 +252,23 @@ assert.match(
   'TypeScript must resolve generated RTC SDK from source for live development',
 );
 assert.match(viteConfig, /@sdkwork\/drive-app-sdk/u, 'Vite must alias generated Drive app SDK source for chat media upload');
-assert.match(viteConfig, /@sdkwork\/commerce-app-sdk/u, 'Vite must alias generated Commerce app SDK source for shop and orders modules');
+assert.match(viteConfig, /@sdkwork\/catalog-app-sdk/u, 'Vite must alias generated Catalog app SDK source for shop modules');
+assert.match(viteConfig, /@sdkwork\/shop-app-sdk/u, 'Vite must alias generated Shop app SDK source for merchant flows');
+assert.match(viteConfig, /@sdkwork\/order-app-sdk/u, 'Vite must alias generated Order app SDK source for checkout and orders');
 assert.match(
   viteConfig,
-  /dependencyRoot\('sdkwork-drive'\)[\s\S]*sdks[\\\/]sdkwork-drive-app-sdk[\\\/]sdkwork-drive-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
-  'Vite must resolve Drive app SDK through the sibling sdkwork-drive workspace for portable media upload development',
+  /dependencyRoot\('sdkwork-catalog'\)[\s\S]*sdkwork-catalog-app-sdk[\\\/]sdkwork-catalog-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve Catalog app SDK through the sibling sdkwork-catalog workspace',
 );
 assert.match(
   viteConfig,
-  /dependencyRoot\('sdkwork-commerce'\)[\s\S]*sdks[\\\/]sdkwork-commerce-app-sdk[\\\/]sdkwork-commerce-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
-  'Vite must resolve Commerce app SDK through the sibling sdkwork-commerce workspace for portable shop development',
+  /dependencyRoot\('sdkwork-shop'\)[\s\S]*sdkwork-shop-app-sdk[\\\/]sdkwork-shop-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve Shop app SDK through the sibling sdkwork-shop workspace',
+);
+assert.match(
+  viteConfig,
+  /dependencyRoot\('sdkwork-order'\)[\s\S]*sdkwork-order-app-sdk[\\\/]sdkwork-order-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve Order app SDK through the sibling sdkwork-order workspace',
 );
 assert.match(
   tsconfig,
@@ -270,8 +277,23 @@ assert.match(
 );
 assert.match(
   tsconfig,
-  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-commerce[\\\/]sdks[\\\/]sdkwork-commerce-app-sdk[\\\/]sdkwork-commerce-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
-  'TypeScript must resolve generated Commerce app SDK from sibling source for shop and orders modules',
+  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-catalog[\\\/]sdks[\\\/]sdkwork-catalog-app-sdk[\\\/]sdkwork-catalog-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
+  'TypeScript must resolve generated Catalog app SDK from sibling source',
+);
+assert.match(
+  tsconfig,
+  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-shop[\\\/]sdks[\\\/]sdkwork-shop-app-sdk[\\\/]sdkwork-shop-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
+  'TypeScript must resolve generated Shop app SDK from sibling source',
+);
+assert.match(
+  tsconfig,
+  /\.\.[\\\/]\.\.[\\\/]\.\.[\\\/]sdkwork-order[\\\/]sdks[\\\/]sdkwork-order-app-sdk[\\\/]sdkwork-order-app-sdk-typescript[\\\/]generated[\\\/]server-openapi[\\\/]src[\\\/]index\.ts/u,
+  'TypeScript must resolve generated Order app SDK from sibling source',
+);
+assert.match(
+  viteConfig,
+  /dependencyRoot\('sdkwork-drive'\)[\s\S]*sdks[\\\/]sdkwork-drive-app-sdk[\\\/]sdkwork-drive-app-sdk-typescript[\\\/]src[\\\/]index\.ts/u,
+  'Vite must resolve Drive app SDK through the sibling sdkwork-drive workspace for portable media upload development',
 );
 assert.match(viteConfig, /@sdkwork\/notary-app-sdk/u, 'Vite must alias generated Notary app SDK source for notary workflows');
 assert.match(
@@ -329,7 +351,9 @@ for (const localSdkPackageName of [
   '@sdkwork-internal/im-backend-api-generated',
   '@sdkwork/iam-app-sdk',
   '@sdkwork/drive-app-sdk',
-  '@sdkwork/commerce-app-sdk',
+  '@sdkwork/catalog-app-sdk',
+  '@sdkwork/shop-app-sdk',
+  '@sdkwork/order-app-sdk',
   '@sdkwork/im-sdk',
   '@sdkwork/notary-app-sdk',
   '@sdkwork/rtc-sdk',
@@ -704,30 +728,59 @@ assert.doesNotMatch(
   'IM Drive integration must not use raw fetch',
 );
 
-const commerceAppSdkClientSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/commerceAppSdkClient.ts',
+const catalogAppSdkClientSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/catalogAppSdkClient.ts',
+);
+const shopAppSdkClientSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/shopAppSdkClient.ts',
+);
+const orderAppSdkClientSource = read(
+  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-core/src/sdk/orderAppSdkClient.ts',
 );
 assert.match(
-  commerceAppSdkClientSource,
-  /from ['"]@sdkwork\/commerce-app-sdk['"]/u,
-  'Commerce app SDK wrapper must use the generated sdkwork-commerce app SDK client',
+  catalogAppSdkClientSource,
+  /from ['"]@sdkwork\/catalog-app-sdk['"]/u,
+  'Catalog app SDK wrapper must use the generated sdkwork-catalog app SDK client',
 );
 assert.match(
-  commerceAppSdkClientSource,
-  /createCommerceAppSdkClient/u,
-  'Commerce app SDK wrapper must expose createCommerceAppSdkClient',
+  catalogAppSdkClientSource,
+  /getCatalogAppSdkClientWithSession/u,
+  'Catalog app SDK wrapper must expose session-aware client access',
 );
 assert.match(
-  commerceAppSdkClientSource,
-  /getCommerceAppSdkClientWithSession/u,
-  'Commerce app SDK wrapper must expose session-aware client access',
+  shopAppSdkClientSource,
+  /from ['"]@sdkwork\/shop-app-sdk['"]/u,
+  'Shop app SDK wrapper must use the generated sdkwork-shop app SDK client',
 );
-assert.doesNotMatch(commerceAppSdkClientSource, /\bfetch\s*\(/u, 'Commerce app SDK wrapper must not use raw fetch');
+assert.match(
+  shopAppSdkClientSource,
+  /getShopAppSdkClientWithSession/u,
+  'Shop app SDK wrapper must expose session-aware client access',
+);
+assert.match(
+  orderAppSdkClientSource,
+  /from ['"]@sdkwork\/order-app-sdk['"]/u,
+  'Order app SDK wrapper must use the generated sdkwork-order app SDK client',
+);
+assert.match(
+  orderAppSdkClientSource,
+  /getOrderAppSdkClientWithSession/u,
+  'Order app SDK wrapper must expose session-aware client access',
+);
+assert.doesNotMatch(
+  `${catalogAppSdkClientSource}\n${shopAppSdkClientSource}\n${orderAppSdkClientSource}`,
+  /\bfetch\s*\(/u,
+  'Commerce T1 app SDK wrappers must not use raw fetch',
+);
 
 const shopPackageJson = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/package.json');
 assert.ok(
-  shopPackageJson.dependencies['@sdkwork/commerce-app-sdk'],
-  'Shop package must declare the generated sdkwork-commerce app SDK dependency',
+  shopPackageJson.dependencies['@sdkwork/catalog-app-sdk'],
+  'Shop package must declare the generated sdkwork-catalog app SDK dependency',
+);
+assert.ok(
+  shopPackageJson.dependencies['@sdkwork/order-app-sdk'],
+  'Shop package must declare the generated sdkwork-order app SDK dependency',
 );
 assert.ok(
   shopPackageJson.dependencies['@sdkwork/im-pc-core'],
@@ -736,8 +789,12 @@ assert.ok(
 
 const ordersPackageJson = readJson('apps/sdkwork-im-pc/packages/sdkwork-im-pc-orders/package.json');
 assert.ok(
-  ordersPackageJson.dependencies['@sdkwork/commerce-app-sdk'],
-  'Orders package must declare the generated sdkwork-commerce app SDK dependency',
+  ordersPackageJson.dependencies['@sdkwork/order-app-sdk'],
+  'Orders package must declare the generated sdkwork-order app SDK dependency',
+);
+assert.ok(
+  ordersPackageJson.dependencies['@sdkwork/shop-app-sdk'],
+  'Orders package must declare the generated sdkwork-shop app SDK dependency',
 );
 assert.ok(
   ordersPackageJson.dependencies['@sdkwork/im-pc-core'],
@@ -750,22 +807,22 @@ const commercePackageSource = `${shopServiceSource}\n${ordersServiceSource}`;
 
 assert.match(
   shopServiceSource,
-  /getCommerceAppSdkClientWithSession/u,
-  'Shop package service must consume the shared generated Commerce app SDK wrapper',
+  /getCatalogAppSdkClientWithSession[\s\S]*getOrderAppSdkClientWithSession/u,
+  'Shop package service must consume catalog and order T1 app SDK wrappers',
 );
-assert.match(shopServiceSource, /\.catalog\.categories\.list\s*\(/u, 'Shop package service must list categories through Commerce app SDK');
-assert.match(shopServiceSource, /\.catalog\.products\.list\s*\(/u, 'Shop package service must list products through Commerce app SDK');
-assert.match(shopServiceSource, /\.cart\.current\.retrieve\s*\(/u, 'Shop package service must read the cart through Commerce app SDK');
-assert.match(shopServiceSource, /\.checkout\.sessions\.create\s*\(/u, 'Shop package service must create checkout sessions through Commerce app SDK');
+assert.match(shopServiceSource, /\.catalog\.categories\.list\s*\(/u, 'Shop package service must list categories through catalog app SDK');
+assert.match(shopServiceSource, /\.catalog\.products\.list\s*\(/u, 'Shop package service must list products through catalog app SDK');
+assert.match(shopServiceSource, /\.cart\.current\.retrieve\s*\(/u, 'Shop package service must read the cart through catalog app SDK');
+assert.match(shopServiceSource, /\.checkout\.sessions\.create\s*\(/u, 'Shop package service must create checkout sessions through order app SDK');
 assert.match(
   ordersServiceSource,
-  /getCommerceAppSdkClientWithSession/u,
-  'Orders package service must consume the shared generated Commerce app SDK wrapper',
+  /getOrderAppSdkClientWithSession[\s\S]*getShopAppSdkClientWithSession/u,
+  'Orders package service must consume order and shop T1 app SDK wrappers',
 );
 assert.match(
   ordersServiceSource,
   /\.shops\.current\.orders\.list\s*\(/u,
-  'Orders package service must list merchant orders through Commerce app SDK',
+  'Orders package service must list merchant orders through shop app SDK',
 );
 assert.doesNotMatch(commercePackageSource, /\bfetch\s*\(/u, 'Commerce PC packages must not bypass generated SDKs with raw fetch');
 assert.doesNotMatch(
@@ -795,7 +852,7 @@ assert.match(
 
 assert.match(
   agentAppSdkClientSource,
-  /from ['"]@sdkwork\/agent-app-sdk['"]/u,
+  /from ['"]@sdkwork\/agents-app-sdk['"]/u,
   'agent app SDK wrapper must use the generated agent app SDK client',
 );
 assert.match(
@@ -2937,7 +2994,7 @@ assert.doesNotMatch(
 );
 assert.match(
   agentServiceSource,
-  /@sdkwork\/agent-app-sdk/u,
+  /@sdkwork\/agents-app-sdk/u,
   'agent service must type its standardized agent DTO mapping from sdkwork-agent-app-sdk',
 );
 assert.match(
@@ -3428,9 +3485,9 @@ const shopHomeSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/
 const checkoutViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/CheckoutView.tsx');
 const cashierViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/CashierView.tsx');
 const videoGenServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-video-gen/src/services/VideoGenService.ts');
-const videoPlayerViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-course/src/components/VideoPlayerView.tsx');
-const liveRoomViewSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-course/src/components/LiveRoomView.tsx');
-const courseServiceSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-pc-course/src/services/CourseService.ts');
+const videoPlayerViewSource = read('../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/components/VideoPlayerView.tsx');
+const liveRoomViewSource = read('../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/components/LiveRoomView.tsx');
+const courseServiceSource = read('../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/services/CourseService.ts');
 assert.doesNotMatch(
   `${communityViewSource}${communitySettingsSource}`,
   /pravatar|unsplash/u,
@@ -3476,7 +3533,7 @@ const consoleCoreFiles = fs
 assert.deepEqual(
   consoleCoreFiles.sort(),
   ['ConsoleCourse.tsx', 'ConsoleLayout.tsx'],
-  'console-core must only keep layout shell and course placeholder surfaces',
+  'console-core must keep layout shell and course management surface only',
 );
 assert.doesNotMatch(
   `${videoPlayerViewSource}${liveRoomViewSource}`,
@@ -3521,8 +3578,13 @@ assert.match(
 );
 assert.match(
   consoleCourseSource,
+  /courseConsoleService\.(listCourses|createCourse|publishCourse|listCategories|createCategory)/u,
+  'console course surface must load and mutate courses through the backend SDK service',
+);
+assert.match(
+  consoleCourseSource,
   /ConsoleContractEmptyState/u,
-  'console course surface must render contract-empty state until the course admin contract exists',
+  'console course surface must render contract-empty state when no courses exist',
 );
 const consoleLayoutSource = read('apps/sdkwork-im-pc/packages/sdkwork-im-console-core/src/ConsoleLayout.tsx');
 assert.match(

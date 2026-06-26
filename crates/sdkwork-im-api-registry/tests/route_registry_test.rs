@@ -79,7 +79,7 @@ fn registry_resolves_templated_paths_against_runtime_paths() {
     let registry = build_registry(vec![http_route(
         "projection-service",
         HttpMethod::Get,
-        "/im/v3/api/chat/conversations/{conversation_id}/messages",
+        "/im/v3/api/chat/conversations/{conversationId}/messages",
     )])
     .expect("templated path route should be valid");
 

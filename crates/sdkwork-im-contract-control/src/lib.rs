@@ -9,13 +9,13 @@ use serde::{Deserialize, Serialize};
 const REALTIME_EVENT_WINDOW_HIGH_RISK_LIMIT: usize = 5;
 
 fn default_organization_id() -> String {
-    "default".to_owned()
+    "0".to_owned()
 }
 
 pub fn normalize_realtime_organization_id(organization_id: &str) -> String {
     let trimmed = organization_id.trim();
-    if trimmed.is_empty() || trimmed == "0" {
-        "default".to_owned()
+    if trimmed.is_empty() || trimmed == "0" || trimmed == "default" {
+        "0".to_owned()
     } else {
         trimmed.to_owned()
     }
@@ -554,7 +554,7 @@ mod tests {
     fn test_disconnect_fence_record_merge_keeps_latest_disconnect() {
         let latest = RealtimeDisconnectFenceRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -565,7 +565,7 @@ mod tests {
         };
         let stale = RealtimeDisconnectFenceRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -590,7 +590,7 @@ mod tests {
     fn test_disconnect_fence_record_merge_compares_rfc3339_by_instant() {
         let latest = RealtimeDisconnectFenceRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -601,7 +601,7 @@ mod tests {
         };
         let stale = RealtimeDisconnectFenceRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -620,7 +620,7 @@ mod tests {
     fn test_realtime_checkpoint_merge_preserves_capacity_trim_metadata_monotonically() {
         let current = RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -634,7 +634,7 @@ mod tests {
         };
         let stale = RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -648,7 +648,7 @@ mod tests {
         };
         let advanced = RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -690,7 +690,7 @@ mod tests {
     fn test_realtime_checkpoint_merge_compares_rfc3339_timestamps_by_instant() {
         let current = RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -704,7 +704,7 @@ mod tests {
         };
         let later = RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -730,7 +730,7 @@ mod tests {
     fn test_presence_online_seen_at_or_before_compares_rfc3339_by_instant() {
         let presence = PresenceStateRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -855,7 +855,7 @@ mod tests {
     ) -> RealtimeEventWindowRecord {
         RealtimeEventWindowRecord {
             tenant_id: tenant_id.into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: principal_kind.into(),
             principal_id: principal_id.into(),
             device_id: device_id.into(),
@@ -894,7 +894,7 @@ mod tests {
     ) -> RealtimeEventWindowRecord {
         RealtimeEventWindowRecord {
             tenant_id: tenant_id.into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: principal_kind.into(),
             principal_id: principal_id.into(),
             device_id: device_id.into(),

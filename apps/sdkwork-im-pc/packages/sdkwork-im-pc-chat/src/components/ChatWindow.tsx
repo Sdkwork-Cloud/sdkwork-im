@@ -19,6 +19,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
   const { t } = useTranslation();
   const [refreshKey, setRefreshKey] = useState(0);
   const [replyingTo, setReplyingTo] = useState<Message['replyTo'] | undefined>();
+  const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const isSystemAssistantChat = systemAssistantService.isSystemAssistantChat(chat);
@@ -87,6 +88,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
     }
   };
 
+  const handleEditSubmit = async (messageId: string, text: string) => {
+    try {
+      await chatService.editMessage(chat.id, messageId, text);
+      setEditingMessage(null);
+      setRefreshKey(prev => prev + 1);
+    } catch (error) {
+      toast(t('chat.window.toast.editFailed'), 'error');
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[#1e1e1e] min-w-0 min-h-0 relative">
       {/* Messages */}
@@ -97,6 +108,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
         searchQuery={messageSearchQuery}
         senderProfiles={displaySenderProfiles}
         onReply={(msg, senderName) => setReplyingTo({ id: msg.id, senderName, content: msg.content })}
+        onEdit={(msg) => setEditingMessage({ id: msg.id, content: msg.content })}
         onOpenGroupInvite={onOpenGroupInvite}
       />
 
@@ -127,6 +139,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messageSearchQuery
         placeholder={isSystemAssistantChat ? t('chat.systemAssistant.inputPlaceholder') : t('chat.window.inputPlaceholder')}
         replyingTo={replyingTo}
         isTyping={isTyping}
+        editingMessage={editingMessage}
+        onEditSubmit={handleEditSubmit}
+        onCancelEdit={() => setEditingMessage(null)}
         onStop={() => {
            setIsTyping(false);
         }}

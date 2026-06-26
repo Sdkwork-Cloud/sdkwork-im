@@ -70,13 +70,35 @@ pub struct SocialSharedChannelSyncDeliveredInventoryResponse {
     pub items: Vec<SocialSharedChannelSyncDeliveredItem>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SocialSharedChannelSyncDeliveryProof {
+    pub delivered_at: String,
+    pub status: SharedChannelSyncDeliveryProofStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proof_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+}
+
+impl From<StoredSharedChannelSyncDeliveryProof> for SocialSharedChannelSyncDeliveryProof {
+    fn from(proof: StoredSharedChannelSyncDeliveryProof) -> Self {
+        Self {
+            delivered_at: proof.delivered_at,
+            status: proof.status,
+            proof_version: proof.proof_version,
+            target: proof.target,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SocialSharedChannelSyncDeliveredItem {
     pub request_key: String,
     pub delivered_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub proof: Option<StoredSharedChannelSyncDeliveryProof>,
+    pub proof: Option<SocialSharedChannelSyncDeliveryProof>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -403,7 +425,8 @@ impl SocialControlState {
                 proof: self
                     .delivered_shared_channel_sync_delivery_proofs
                     .get(request_key)
-                    .cloned(),
+                    .cloned()
+                    .map(Into::into),
             })
             .collect();
         SocialSharedChannelSyncDeliveredInventoryResponse {
@@ -759,7 +782,7 @@ mod tests {
 
     fn sample_request() -> SharedChannelLinkedMemberSyncRequest {
         SharedChannelLinkedMemberSyncRequest {
-            tenant_id: "tenant-a".into(),
+            tenant_id: "100001".into(),
             conversation_id: "conv-1".into(),
             shared_channel_policy_id: "policy-1".into(),
             external_connection_id: "conn-1".into(),

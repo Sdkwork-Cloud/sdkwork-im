@@ -9,11 +9,12 @@ import { VoiceMarketView } from "@sdkwork/im-pc-voice";
 import { WorkspaceView } from "@sdkwork/im-pc-workspace";
 import type { Chat, User } from "@sdkwork/im-pc-types";
 
-import { AgentView, type Agent } from "../pages/AgentView";
+import { AgentView, type Agent, CreateAgentView } from "@sdkwork/agents-pc-agents";
+import { resolveAgentsPcEmbedMode } from "../config/agentsEmbed";
 import { ContactsView } from "../pages/ContactsView";
-import { CreateAgentView } from "../pages/CreateAgentView";
 import { FavoritesView } from "../pages/FavoritesView";
 import type { CallType } from "../components/CallOverlay";
+import { AgentsPcEmbedSurface } from "./AgentsPcEmbedSurface";
 
 export interface CapabilityModuleSurfaceProps {
   activeTab: string;
@@ -111,6 +112,9 @@ export const CapabilityModuleSurface: React.FC<CapabilityModuleSurfaceProps> = (
 
   switch (activeTab) {
     case "agent":
+      if (resolveAgentsPcEmbedMode() === "iframe") {
+        return <AgentsPcEmbedSurface />;
+      }
       return (
         <AgentView
           onStartChat={onStartAgentChat}
@@ -125,6 +129,9 @@ export const CapabilityModuleSurface: React.FC<CapabilityModuleSurfaceProps> = (
         />
       );
     case "create-agent":
+      if (resolveAgentsPcEmbedMode() === "iframe") {
+        return <AgentsPcEmbedSurface title="SDKWork Agents — Create" />;
+      }
       return (
         <CreateAgentView
           onBack={() => {

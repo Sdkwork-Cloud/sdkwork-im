@@ -122,7 +122,7 @@ where
         cursor: Option<&str>,
     ) -> Result<ListMembersResult, RuntimeError> {
         self.require_active_member_from_auth_context(auth, conversation_id)?;
-        self.list_members_window(auth.tenant_id.as_str(), "default", conversation_id, limit, cursor)
+        self.list_members_window(auth.tenant_id.as_str(), organization_id_from_auth_context(auth).as_str(), conversation_id, limit, cursor)
     }
 
     pub fn list_messages_window_from_auth_context(
@@ -132,7 +132,7 @@ where
         after_seq: Option<u64>,
         limit: usize,
     ) -> Result<MessageHistoryResult, RuntimeError> {
-        self.list_messages_with_actor_kind(auth.tenant_id.as_str(), "default", conversation_id,
+        self.list_messages_with_actor_kind(auth.tenant_id.as_str(), organization_id_from_auth_context(auth).as_str(), conversation_id,
             auth.actor_id.as_str(),
             auth.actor_kind.as_str(),
             after_seq,

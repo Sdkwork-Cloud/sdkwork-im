@@ -1187,7 +1187,7 @@ impl AutomationRuntime {
         let envelope = CommitEnvelope {
             event_id: format!("evt_{event_identity}"),
             tenant_id: auth.tenant_id.clone(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             event_type: event_type.into(),
             event_version: 1,
             aggregate_type: AggregateType::AutomationExecution,
@@ -1241,7 +1241,7 @@ impl AutomationRuntime {
         let envelope = CommitEnvelope {
             event_id: format!("evt_{event_identity}"),
             tenant_id: auth.tenant_id.clone(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             event_type: event_type.into(),
             event_version: 1,
             aggregate_type: AggregateType::AutomationExecution,
@@ -2109,7 +2109,7 @@ mod tests {
     fn demo_auth_context() -> AppContext {
         AppContext {
             tenant_id: "t_demo".into(),
-            organization_id: "default".to_owned(),
+            organization_id: "0".to_owned(),
             user_id: "u_demo".into(),
             session_id: Some("s_demo".into()),
             app_id: None,

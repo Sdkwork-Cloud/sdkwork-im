@@ -147,7 +147,7 @@ fn test_file_realtime_checkpoint_store_does_not_collapse_delimiter_shaped_device
     store
         .save_checkpoint(RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u:demo".into(),
             device_id: "d_pad".into(),
@@ -163,7 +163,7 @@ fn test_file_realtime_checkpoint_store_does_not_collapse_delimiter_shaped_device
     store
         .save_checkpoint(RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u".into(),
             device_id: "demo:d_pad".into(),

@@ -101,7 +101,8 @@ async fn run() -> Result<(), String> {
             session_router,
             embedded_realtime_app_state,
         )
-        .await,
+        .await
+        .into_make_service_with_connect_info::<SocketAddr>(),
     )
     .with_graceful_shutdown(async move {
         tokio::signal::ctrl_c().await.ok();

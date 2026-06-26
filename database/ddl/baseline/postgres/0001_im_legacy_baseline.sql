@@ -942,26 +942,26 @@ CREATE INDEX IF NOT EXISTS idx_im_stream_frames_retention_until
 
 -- source: deployments/database/postgres/migrations/010_im_tenant_organization_isolation.sql
 -- Migration 010: Tenant + Organization Dual Isolation
--- 为所有 im_* 业务表引入 organization_id，实现租户+组织双重隔离
--- 新应用零用户，直接重建终态 schema，不保留 001 迁移的兼容性
+-- 为所�?im_* 业务表引�?organization_id，实现租�?组织双重隔离
+-- 新应用零用户，直接重建终�?schema，不保留 001 迁移的兼容�?
 
 -- ============================================================
--- 核心设计决策：
--- 1. organization_id 为 TEXT NOT NULL DEFAULT 'default'
+-- 核心设计决策�?
+-- 1. organization_id �?TEXT NOT NULL DEFAULT '0'
 -- 2. 主键与索引统一前置 (tenant_id, organization_id, ...)
--- 3. 所有查询强制携带 organization_id 过滤
+-- 3. 所有查询强制携�?organization_id 过滤
 -- ============================================================
 
 -- ============================================================
 -- 1. 消息真值层
 -- ============================================================
 
--- 重建 im_conversation_messages（消息真值表）
--- 主键改为 Snowflake message_id，但保留 message_seq 作为会话内序号
+-- 重建 im_conversation_messages（消息真值表�?
+-- 主键改为 Snowflake message_id，但保留 message_seq 作为会话内序�?
 DROP TABLE IF EXISTS im_conversation_messages CASCADE;
 CREATE TABLE im_conversation_messages (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     conversation_id     TEXT NOT NULL,
     message_id          BIGINT NOT NULL,           -- Snowflake ID，全局唯一
     message_seq         BIGINT NOT NULL,           -- 会话内严格递增
@@ -981,7 +981,7 @@ CREATE TABLE im_conversation_messages (
     CONSTRAINT chk_im_conversation_messages_seq CHECK (message_seq > 0)
 );
 
--- 客户端幂等键（会话 + 发送者 + client_msg_id 唯一）
+-- 客户端幂等键（会�?+ 发送�?+ client_msg_id 唯一�?
 CREATE UNIQUE INDEX IF NOT EXISTS uk_im_conversation_messages_client
     ON im_conversation_messages (tenant_id, organization_id, conversation_id, sender_principal_kind, sender_principal_id, client_msg_id)
     WHERE client_msg_id IS NOT NULL;
@@ -990,7 +990,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uk_im_conversation_messages_client
 CREATE INDEX IF NOT EXISTS idx_im_messages_tenant_conv_seq
     ON im_conversation_messages (tenant_id, organization_id, conversation_id, message_seq DESC);
 
--- 发送者消息索引
+-- 发送者消息索�?
 CREATE INDEX IF NOT EXISTS idx_im_messages_sender_created
     ON im_conversation_messages (tenant_id, organization_id, sender_principal_kind, sender_principal_id, created_at DESC);
 
@@ -1006,7 +1006,7 @@ CREATE INDEX IF NOT EXISTS idx_im_conversation_messages_retention_until
 DROP TABLE IF EXISTS im_conversation_seq_counters CASCADE;
 CREATE TABLE im_conversation_seq_counters (
     tenant_id       TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
     next_seq        BIGINT NOT NULL DEFAULT 1,
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -1021,7 +1021,7 @@ CREATE TABLE im_conversation_seq_counters (
 DROP TABLE IF EXISTS im_message_media_refs CASCADE;
 CREATE TABLE im_message_media_refs (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
     message_seq BIGINT NOT NULL,
     message_id BIGINT NOT NULL,
@@ -1070,13 +1070,13 @@ CREATE INDEX IF NOT EXISTS idx_im_message_media_refs_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 4. Outbox 事件表（重建，支持 FOR UPDATE SKIP LOCKED）
+-- 4. Outbox 事件表（重建，支�?FOR UPDATE SKIP LOCKED�?
 -- ============================================================
 
 DROP TABLE IF EXISTS im_outbox_events CASCADE;
 CREATE TABLE im_outbox_events (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     outbox_id TEXT NOT NULL,              -- Snowflake ID
     aggregate_type TEXT NOT NULL,
     aggregate_id TEXT NOT NULL,
@@ -1105,13 +1105,13 @@ CREATE INDEX IF NOT EXISTS idx_im_outbox_events_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 5. Inbox 事件表（消费幂等）
+-- 5. Inbox 事件表（消费幂等�?
 -- ============================================================
 
 DROP TABLE IF EXISTS im_inbox_events CASCADE;
 CREATE TABLE im_inbox_events (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     inbox_id TEXT NOT NULL,
     source_system TEXT NOT NULL,
     source_event_id TEXT NOT NULL,
@@ -1138,7 +1138,7 @@ CREATE INDEX IF NOT EXISTS idx_im_inbox_events_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 6. Commit Journal（重建，offset 独立于 aggregate_seq）
+-- 6. Commit Journal（重建，offset 独立�?aggregate_seq�?
 -- ============================================================
 
 DROP TABLE IF EXISTS im_commit_journal CASCADE;
@@ -1147,10 +1147,10 @@ CREATE TABLE im_commit_journal (
     commit_offset BIGINT NOT NULL,         -- Snowflake ID，全局唯一，非业务序号
     event_id TEXT NOT NULL,                -- Snowflake ID
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     aggregate_type TEXT NOT NULL,
     aggregate_id TEXT NOT NULL,
-    aggregate_seq BIGINT NOT NULL CHECK (aggregate_seq > 0),  -- 业务聚合版本号
+    aggregate_seq BIGINT NOT NULL CHECK (aggregate_seq > 0),  -- 业务聚合版本�?
     event_type TEXT NOT NULL,
     payload_json JSONB NOT NULL,
     payload_hash TEXT NOT NULL,
@@ -1179,7 +1179,7 @@ CREATE INDEX IF NOT EXISTS idx_im_commit_journal_retention_until
 DROP TABLE IF EXISTS im_idempotency_keys CASCADE;
 CREATE TABLE im_idempotency_keys (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     request_scope TEXT NOT NULL,
     idempotency_key TEXT NOT NULL,
     request_hash TEXT NOT NULL,
@@ -1202,7 +1202,7 @@ CREATE INDEX IF NOT EXISTS idx_im_idempotency_keys_expires
 DROP TABLE IF EXISTS im_realtime_device_events CASCADE;
 CREATE TABLE im_realtime_device_events (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     client_route_scope_key TEXT NOT NULL,
     realtime_seq BIGINT NOT NULL CHECK (realtime_seq > 0),
     principal_kind TEXT NOT NULL,
@@ -1237,7 +1237,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_device_events_retention_until
 DROP TABLE IF EXISTS im_realtime_checkpoints CASCADE;
 CREATE TABLE im_realtime_checkpoints (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     client_route_scope_key TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
@@ -1287,7 +1287,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_checkpoints_capacity_trimmed
 DROP TABLE IF EXISTS im_realtime_subscriptions CASCADE;
 CREATE TABLE im_realtime_subscriptions (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     client_route_scope_key TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
@@ -1321,7 +1321,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_subscriptions_retention_until
 DROP TABLE IF EXISTS im_realtime_subscription_scopes CASCADE;
 CREATE TABLE im_realtime_subscription_scopes (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     scope_type TEXT NOT NULL,
@@ -1364,13 +1364,13 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_subscription_scopes_device
     ON im_realtime_subscription_scopes (tenant_id, organization_id, client_route_scope_key, synced_at);
 
 -- ============================================================
--- 12. Presence 状态
+-- 12. Presence 状�?
 -- ============================================================
 
 DROP TABLE IF EXISTS im_presence_states CASCADE;
 CREATE TABLE im_presence_states (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
@@ -1414,7 +1414,7 @@ CREATE INDEX IF NOT EXISTS idx_im_presence_states_retention_until
 DROP TABLE IF EXISTS im_route_bindings CASCADE;
 CREATE TABLE im_route_bindings (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
@@ -1448,7 +1448,7 @@ CREATE INDEX IF NOT EXISTS idx_im_route_bindings_owner_node
 DROP TABLE IF EXISTS im_realtime_disconnect_fences CASCADE;
 CREATE TABLE im_realtime_disconnect_fences (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
@@ -1483,7 +1483,7 @@ CREATE INDEX IF NOT EXISTS idx_im_realtime_disconnect_fences_retention_until
 DROP TABLE IF EXISTS im_rtc_sessions CASCADE;
 CREATE TABLE im_rtc_sessions (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     rtc_session_id TEXT NOT NULL,
     conversation_id TEXT,
     rtc_mode TEXT NOT NULL,
@@ -1530,7 +1530,7 @@ CREATE INDEX IF NOT EXISTS idx_im_rtc_sessions_retention_until
 DROP TABLE IF EXISTS im_rtc_signals CASCADE;
 CREATE TABLE im_rtc_signals (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     rtc_session_id TEXT NOT NULL,
     signal_seq BIGINT NOT NULL CHECK (signal_seq > 0),
     sender_principal_kind TEXT NOT NULL,
@@ -1560,7 +1560,7 @@ CREATE INDEX IF NOT EXISTS idx_im_rtc_signals_retention_until
 DROP TABLE IF EXISTS im_audit_records CASCADE;
 CREATE TABLE im_audit_records (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     audit_seq BIGINT NOT NULL CHECK (audit_seq > 0),
     audit_id TEXT NOT NULL,
     actor_kind TEXT NOT NULL,
@@ -1597,7 +1597,7 @@ CREATE INDEX IF NOT EXISTS idx_im_audit_records_retention_until
 DROP TABLE IF EXISTS im_notification_tasks CASCADE;
 CREATE TABLE im_notification_tasks (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     notification_id TEXT NOT NULL,
     source_event_id TEXT NOT NULL,
     source_event_type TEXT NOT NULL,
@@ -1632,13 +1632,13 @@ CREATE INDEX IF NOT EXISTS idx_im_notification_tasks_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 19. 自动化执行
+-- 19. 自动化执�?
 -- ============================================================
 
 DROP TABLE IF EXISTS im_automation_executions CASCADE;
 CREATE TABLE im_automation_executions (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     execution_id TEXT NOT NULL,
@@ -1682,7 +1682,7 @@ CREATE INDEX IF NOT EXISTS idx_im_automation_executions_retention_until
 DROP TABLE IF EXISTS im_projection_timeline_entries CASCADE;
 CREATE TABLE im_projection_timeline_entries (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
     message_seq BIGINT NOT NULL CHECK (message_seq > 0),
     message_id BIGINT NOT NULL,
@@ -1704,13 +1704,13 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_timeline_entries_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 21. 投影：会话摘要
+-- 21. 投影：会话摘�?
 -- ============================================================
 
 DROP TABLE IF EXISTS im_projection_conversation_summaries CASCADE;
 CREATE TABLE im_projection_conversation_summaries (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
     conversation_type TEXT,
     message_count BIGINT NOT NULL DEFAULT 0 CHECK (message_count >= 0),
@@ -1738,13 +1738,13 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_summaries_retention_un
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 22. 投影：会话成员
+-- 22. 投影：会话成�?
 -- ============================================================
 
 DROP TABLE IF EXISTS im_projection_conversation_members CASCADE;
 CREATE TABLE im_projection_conversation_members (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
@@ -1777,13 +1777,13 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_conversation_members_retention_unti
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 23. 投影：已读游标
+-- 23. 投影：已读游�?
 -- ============================================================
 
 DROP TABLE IF EXISTS im_projection_read_cursors CASCADE;
 CREATE TABLE im_projection_read_cursors (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     conversation_id TEXT NOT NULL,
     member_id BIGINT NOT NULL,
     principal_kind TEXT NOT NULL,
@@ -1812,7 +1812,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_read_cursors_retention_until
 DROP TABLE IF EXISTS im_projection_registered_client_routes CASCADE;
 CREATE TABLE im_projection_registered_client_routes (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
@@ -1836,7 +1836,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_registered_client_routes_retention_
 DROP TABLE IF EXISTS im_projection_client_route_sync_feeds CASCADE;
 CREATE TABLE im_projection_client_route_sync_feeds (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
@@ -1879,7 +1879,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_feeds_retention_u
 DROP TABLE IF EXISTS im_projection_client_route_sync_checkpoints CASCADE;
 CREATE TABLE im_projection_client_route_sync_checkpoints (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     principal_kind TEXT NOT NULL,
     principal_id TEXT NOT NULL,
     device_id TEXT NOT NULL,
@@ -1905,7 +1905,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_client_route_sync_checkpoints_reten
 DROP TABLE IF EXISTS im_projection_contacts CASCADE;
 CREATE TABLE im_projection_contacts (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     owner_user_id TEXT NOT NULL,
     contact_type TEXT NOT NULL,
     target_user_id TEXT NOT NULL,
@@ -1931,13 +1931,13 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_contacts_retention_until
     WHERE retention_until IS NOT NULL;
 
 -- ============================================================
--- 28. 投影：直接聊天绑定
+-- 28. 投影：直接聊天绑�?
 -- ============================================================
 
 DROP TABLE IF EXISTS im_projection_direct_chat_bindings CASCADE;
 CREATE TABLE im_projection_direct_chat_bindings (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     direct_chat_id TEXT NOT NULL,
     conversation_id TEXT NOT NULL,
     direct_chat_status TEXT NOT NULL DEFAULT 'active',
@@ -1966,7 +1966,7 @@ CREATE INDEX IF NOT EXISTS idx_im_projection_direct_chat_bindings_retention_unti
 DROP TABLE IF EXISTS im_stream_sessions CASCADE;
 CREATE TABLE im_stream_sessions (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     stream_id TEXT NOT NULL,
     owner_principal_kind TEXT NOT NULL,
     owner_principal_id TEXT NOT NULL,
@@ -2017,7 +2017,7 @@ CREATE INDEX IF NOT EXISTS idx_im_stream_sessions_retention_until
 DROP TABLE IF EXISTS im_stream_frames CASCADE;
 CREATE TABLE im_stream_frames (
     tenant_id TEXT NOT NULL,
-    organization_id TEXT NOT NULL DEFAULT 'default',
+    organization_id TEXT NOT NULL DEFAULT '0',
     stream_id TEXT NOT NULL,
     frame_seq BIGINT NOT NULL CHECK (frame_seq > 0),
     producer_principal_kind TEXT NOT NULL,
@@ -2040,15 +2040,15 @@ CREATE INDEX IF NOT EXISTS idx_im_stream_frames_retention_until
 
 -- source: deployments/database/postgres/migrations/012_im_social_org_interactions.sql
 -- Migration 012: Social Relations, Organization Model, Message Interactions
--- 对齐行业最专业 IM（微信/Telegram/Discord/Slack）的数据库设计
--- 所有 ID 统一使用 Snowflake ID (BIGINT)
+-- 对齐行业最专业 IM（微�?Telegram/Discord/Slack）的数据库设�?
+-- 所�?ID 统一使用 Snowflake ID (BIGINT)
 
 -- ============================================================
--- 设计原则：
--- 1. 所有主键 ID 使用 Snowflake BIGINT
--- 2. 租户和用户引用 IAM 系统（iam_tenant, iam_user）
+-- 设计原则�?
+-- 1. 所有主�?ID 使用 Snowflake BIGINT
+-- 2. 租户和用户引�?IAM 系统（iam_tenant, iam_user�?
 -- 3. 组织模型（Space/Group/Channel）是 IM 专有
--- 4. 社交关系独立持久化，不依赖内存+事件溯源
+-- 4. 社交关系独立持久化，不依赖内�?事件溯源
 -- 5. 消息互动（Reaction/Pin/Thread）独立表
 -- ============================================================
 
@@ -2056,10 +2056,10 @@ CREATE INDEX IF NOT EXISTS idx_im_stream_frames_retention_until
 -- 第一部分：社交关系真值表
 -- ============================================================
 
--- 1. 好友请求表
+-- 1. 好友请求�?
 CREATE TABLE IF NOT EXISTS im_friend_requests (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     request_id          BIGINT NOT NULL,           -- Snowflake ID
     requester_user_id   TEXT NOT NULL,              -- 引用 iam_user.user_id
     target_user_id      TEXT NOT NULL,              -- 引用 iam_user.user_id
@@ -2084,14 +2084,14 @@ CREATE INDEX IF NOT EXISTS idx_im_friend_requests_expired
     ON im_friend_requests (tenant_id, organization_id, expired_at)
     WHERE expired_at IS NOT NULL AND status = 'pending';
 
--- 2. 好友关系表
+-- 2. 好友关系�?
 CREATE TABLE IF NOT EXISTS im_friendships (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     friendship_id       BIGINT NOT NULL,           -- Snowflake ID
-    user_low_id         TEXT NOT NULL,              -- 规范化：较小的 user_id
-    user_high_id        TEXT NOT NULL,              -- 规范化：较大的 user_id
-    initiator_user_id   TEXT NOT NULL,              -- 发起好友请求的用户
+    user_low_id         TEXT NOT NULL,              -- 规范化：较小�?user_id
+    user_high_id        TEXT NOT NULL,              -- 规范化：较大�?user_id
+    initiator_user_id   TEXT NOT NULL,              -- 发起好友请求的用�?
     status              TEXT NOT NULL DEFAULT 'active',
     established_at      TIMESTAMPTZ,
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -2107,15 +2107,15 @@ CREATE INDEX IF NOT EXISTS idx_im_friendships_user_low
 CREATE INDEX IF NOT EXISTS idx_im_friendships_user_high
     ON im_friendships (tenant_id, organization_id, user_high_id, status, established_at DESC);
 
--- 3. 用户屏蔽表
+-- 3. 用户屏蔽�?
 CREATE TABLE IF NOT EXISTS im_user_blocks (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     block_id            BIGINT NOT NULL,           -- Snowflake ID
-    blocker_user_id     TEXT NOT NULL,              -- 屏蔽者
-    blocked_user_id     TEXT NOT NULL,              -- 被屏蔽者
+    blocker_user_id     TEXT NOT NULL,              -- 屏蔽�?
+    blocked_user_id     TEXT NOT NULL,              -- 被屏蔽�?
     scope               TEXT NOT NULL DEFAULT 'all',
-    direct_chat_id      BIGINT,                    -- 仅 direct_chat 作用域
+    direct_chat_id      BIGINT,                    -- �?direct_chat 作用�?
     reason              TEXT,
     expires_at          TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -2136,18 +2136,18 @@ CREATE INDEX IF NOT EXISTS idx_im_user_blocks_expires
     ON im_user_blocks (tenant_id, organization_id, expires_at)
     WHERE expires_at IS NOT NULL;
 
--- 4. 单聊会话表
+-- 4. 单聊会话�?
 CREATE TABLE IF NOT EXISTS im_direct_chats (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     direct_chat_id      BIGINT NOT NULL,           -- Snowflake ID
     left_actor_kind     TEXT NOT NULL,
     left_actor_id       TEXT NOT NULL,
     right_actor_kind    TEXT NOT NULL,
     right_actor_id      TEXT NOT NULL,
-    pair_hash           TEXT NOT NULL,              -- 规范化后的哈希
+    pair_hash           TEXT NOT NULL,              -- 规范化后的哈�?
     status              TEXT NOT NULL DEFAULT 'active',
-    conversation_id     TEXT,                       -- 关联的会话 ID
+    conversation_id     TEXT,                       -- 关联的会�?ID
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT pk_im_direct_chats PRIMARY KEY (tenant_id, organization_id, direct_chat_id),
@@ -2165,10 +2165,10 @@ CREATE INDEX IF NOT EXISTS idx_im_direct_chats_conversation
     ON im_direct_chats (tenant_id, organization_id, conversation_id)
     WHERE conversation_id IS NOT NULL;
 
--- 5. 外部连接表
+-- 5. 外部连接�?
 CREATE TABLE IF NOT EXISTS im_external_connections (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     connection_id       BIGINT NOT NULL,           -- Snowflake ID
     external_tenant_id  TEXT NOT NULL,
     external_org_name   TEXT,
@@ -2183,10 +2183,10 @@ CREATE TABLE IF NOT EXISTS im_external_connections (
     CONSTRAINT chk_im_external_connections_not_self CHECK (tenant_id != external_tenant_id)
 );
 
--- 6. 外部成员链接表
+-- 6. 外部成员链接�?
 CREATE TABLE IF NOT EXISTS im_external_member_links (
     tenant_id               TEXT NOT NULL,
-    organization_id         TEXT NOT NULL DEFAULT 'default',
+    organization_id         TEXT NOT NULL DEFAULT '0',
     link_id                 BIGINT NOT NULL,           -- Snowflake ID
     connection_id           BIGINT NOT NULL,
     local_actor_kind        TEXT NOT NULL,
@@ -2207,10 +2207,10 @@ CREATE INDEX IF NOT EXISTS idx_im_external_member_links_connection
 CREATE INDEX IF NOT EXISTS idx_im_external_member_links_local_actor
     ON im_external_member_links (tenant_id, organization_id, local_actor_kind, local_actor_id, status);
 
--- 7. 共享频道策略表
+-- 7. 共享频道策略�?
 CREATE TABLE IF NOT EXISTS im_shared_channel_policies (
     tenant_id               TEXT NOT NULL,
-    organization_id         TEXT NOT NULL DEFAULT 'default',
+    organization_id         TEXT NOT NULL DEFAULT '0',
     policy_id               BIGINT NOT NULL,           -- Snowflake ID
     connection_id           BIGINT NOT NULL,
     channel_id              TEXT NOT NULL,
@@ -2230,13 +2230,13 @@ CREATE INDEX IF NOT EXISTS idx_im_shared_channel_policies_connection
     ON im_shared_channel_policies (tenant_id, organization_id, connection_id, status);
 
 -- ============================================================
--- 第二部分：组织模型（IM 专有）
+-- 第二部分：组织模型（IM 专有�?
 -- ============================================================
 
--- 8. 空间/组织表
+-- 8. 空间/组织�?
 CREATE TABLE IF NOT EXISTS im_spaces (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     space_id            BIGINT NOT NULL,           -- Snowflake ID
     space_name          TEXT NOT NULL,
     space_type          TEXT NOT NULL DEFAULT 'organization',
@@ -2257,10 +2257,10 @@ CREATE INDEX IF NOT EXISTS idx_im_spaces_owner
 CREATE INDEX IF NOT EXISTS idx_im_spaces_type
     ON im_spaces (tenant_id, organization_id, space_type, created_at DESC);
 
--- 9. 空间成员表
+-- 9. 空间成员�?
 CREATE TABLE IF NOT EXISTS im_space_members (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     space_id            BIGINT NOT NULL,
     user_id             TEXT NOT NULL,              -- 引用 iam_user.user_id
     role                TEXT NOT NULL DEFAULT 'member',
@@ -2274,20 +2274,20 @@ CREATE TABLE IF NOT EXISTS im_space_members (
 CREATE INDEX IF NOT EXISTS idx_im_space_members_user
     ON im_space_members (tenant_id, organization_id, user_id, role);
 
--- 10. 群组表
+-- 10. 群组�?
 CREATE TABLE IF NOT EXISTS im_chat_groups (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     group_id            BIGINT NOT NULL,           -- Snowflake ID
     space_id            BIGINT,                    -- 所属空间（可选）
     group_name          TEXT NOT NULL,
     group_type          TEXT NOT NULL DEFAULT 'normal',
     owner_user_id       TEXT NOT NULL,              -- 引用 iam_user.user_id
-    conversation_id     TEXT,                       -- 关联的会话 ID
+    conversation_id     TEXT,                       -- 关联的会�?ID
     max_members         INTEGER NOT NULL DEFAULT 500,
     description         TEXT,
     avatar_url          TEXT,
-    announcement        TEXT,                       -- 群公告
+    announcement        TEXT,                       -- 群公�?
     settings_json       JSONB NOT NULL DEFAULT '{}',
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -2306,10 +2306,10 @@ CREATE INDEX IF NOT EXISTS idx_im_chat_groups_conversation
     ON im_chat_groups (tenant_id, organization_id, conversation_id)
     WHERE conversation_id IS NOT NULL;
 
--- 11. 群组成员表
+-- 11. 群组成员�?
 CREATE TABLE IF NOT EXISTS im_group_members (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     group_id            BIGINT NOT NULL,
     user_id             TEXT NOT NULL,              -- 引用 iam_user.user_id
     role                TEXT NOT NULL DEFAULT 'member',
@@ -2327,16 +2327,16 @@ CREATE INDEX IF NOT EXISTS idx_im_group_members_user
 CREATE INDEX IF NOT EXISTS idx_im_group_members_role
     ON im_group_members (tenant_id, organization_id, group_id, role, joined_at);
 
--- 12. 频道表
+-- 12. 频道�?
 CREATE TABLE IF NOT EXISTS im_chat_channels (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     channel_id          BIGINT NOT NULL,           -- Snowflake ID
     space_id            BIGINT NOT NULL,
     channel_name        TEXT NOT NULL,
     channel_type        TEXT NOT NULL DEFAULT 'text',
     description         TEXT,
-    conversation_id     TEXT,                       -- 关联的会话 ID
+    conversation_id     TEXT,                       -- 关联的会�?ID
     position            INTEGER NOT NULL DEFAULT 0,
     is_nsfw             BOOLEAN NOT NULL DEFAULT FALSE,
     is_pinned           BOOLEAN NOT NULL DEFAULT FALSE,
@@ -2355,10 +2355,10 @@ CREATE INDEX IF NOT EXISTS idx_im_chat_channels_conversation
     ON im_chat_channels (tenant_id, organization_id, conversation_id)
     WHERE conversation_id IS NOT NULL;
 
--- 13. 频道访问规则表
+-- 13. 频道访问规则�?
 CREATE TABLE IF NOT EXISTS im_channel_access_rules (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     rule_id             BIGINT NOT NULL,           -- Snowflake ID
     channel_id          BIGINT NOT NULL,
     rule_type           TEXT NOT NULL,
@@ -2378,14 +2378,14 @@ CREATE INDEX IF NOT EXISTS idx_im_channel_access_rules_channel
 -- 第三部分：消息互动表
 -- ============================================================
 
--- 14. 消息 Reaction 表
+-- 14. 消息 Reaction �?
 CREATE TABLE IF NOT EXISTS im_message_reactions (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     conversation_id     TEXT NOT NULL,
     message_id          BIGINT NOT NULL,
     user_id             TEXT NOT NULL,              -- 引用 iam_user.user_id
-    reaction_type       TEXT NOT NULL,              -- emoji 类型（如 👍, ❤️, 😂）
+    reaction_type       TEXT NOT NULL,              -- emoji 类型（如 👍, ❤️, 😂�?
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT pk_im_message_reactions PRIMARY KEY (tenant_id, organization_id, conversation_id, message_id, user_id, reaction_type)
 );
@@ -2396,10 +2396,10 @@ CREATE INDEX IF NOT EXISTS idx_im_message_reactions_message
 CREATE INDEX IF NOT EXISTS idx_im_message_reactions_user
     ON im_message_reactions (tenant_id, organization_id, user_id, created_at DESC);
 
--- 15. 消息 Pin 表
+-- 15. 消息 Pin �?
 CREATE TABLE IF NOT EXISTS im_message_pins (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     conversation_id     TEXT NOT NULL,
     message_id          BIGINT NOT NULL,
     pinned_by_user_id   TEXT NOT NULL,              -- 引用 iam_user.user_id
@@ -2414,10 +2414,10 @@ CREATE INDEX IF NOT EXISTS idx_im_message_pins_conversation
 CREATE INDEX IF NOT EXISTS idx_im_message_pins_user
     ON im_message_pins (tenant_id, organization_id, pinned_by_user_id, pinned_at DESC);
 
--- 16. Thread 表
+-- 16. Thread �?
 CREATE TABLE IF NOT EXISTS im_threads (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     thread_id           BIGINT NOT NULL,           -- Snowflake ID
     conversation_id     TEXT NOT NULL,
     root_message_id     BIGINT NOT NULL,
@@ -2437,10 +2437,10 @@ CREATE INDEX IF NOT EXISTS idx_im_threads_conversation
 CREATE INDEX IF NOT EXISTS idx_im_threads_root_message
     ON im_threads (tenant_id, organization_id, root_message_id);
 
--- 17. Thread 订阅表
+-- 17. Thread 订阅�?
 CREATE TABLE IF NOT EXISTS im_thread_subscriptions (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     thread_id           BIGINT NOT NULL,
     user_id             TEXT NOT NULL,              -- 引用 iam_user.user_id
     last_read_seq       BIGINT NOT NULL DEFAULT 0,
@@ -2455,19 +2455,19 @@ CREATE INDEX IF NOT EXISTS idx_im_thread_subscriptions_user
     ON im_thread_subscriptions (tenant_id, organization_id, user_id, subscribed_at DESC);
 
 -- ============================================================
--- 第四部分：IM 用户扩展表
+-- 第四部分：IM 用户扩展�?
 -- ============================================================
 
--- 18. IM 用户资料扩展表
+-- 18. IM 用户资料扩展�?
 CREATE TABLE IF NOT EXISTS im_user_profiles (
     tenant_id               TEXT NOT NULL,
-    organization_id         TEXT NOT NULL DEFAULT 'default',
+    organization_id         TEXT NOT NULL DEFAULT '0',
     user_id                 TEXT NOT NULL,              -- 引用 iam_user.user_id
     im_nickname             TEXT,                       -- IM 专属昵称
     im_avatar_url           TEXT,                       -- IM 专属头像
-    im_status_message       TEXT,                       -- 状态消息
+    im_status_message       TEXT,                       -- 状态消�?
     im_notification_prefs   JSONB NOT NULL DEFAULT '{}', -- 通知偏好
-    im_mute_settings        JSONB NOT NULL DEFAULT '{}', -- 免打扰设置
+    im_mute_settings        JSONB NOT NULL DEFAULT '{}', -- 免打扰设�?
     im_privacy_settings     JSONB NOT NULL DEFAULT '{}', -- 隐私设置
     im_online_status        TEXT NOT NULL DEFAULT 'online',
     last_active_at          TIMESTAMPTZ,
@@ -2477,10 +2477,10 @@ CREATE TABLE IF NOT EXISTS im_user_profiles (
     CONSTRAINT chk_im_user_profiles_online_status CHECK (im_online_status IN ('online', 'away', 'busy', 'invisible', 'offline'))
 );
 
--- 19. 用户设置表
+-- 19. 用户设置�?
 CREATE TABLE IF NOT EXISTS im_user_settings (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     user_id             TEXT NOT NULL,
     setting_key         TEXT NOT NULL,
     setting_value       JSONB NOT NULL,
@@ -2488,10 +2488,10 @@ CREATE TABLE IF NOT EXISTS im_user_settings (
     CONSTRAINT pk_im_user_settings PRIMARY KEY (tenant_id, organization_id, user_id, setting_key)
 );
 
--- 20. 会话设置表（用户对特定会话的设置）
+-- 20. 会话设置表（用户对特定会话的设置�?
 CREATE TABLE IF NOT EXISTS im_conversation_settings (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     conversation_id     TEXT NOT NULL,
     user_id             TEXT NOT NULL,
     is_muted            BOOLEAN NOT NULL DEFAULT FALSE,
@@ -2500,7 +2500,7 @@ CREATE TABLE IF NOT EXISTS im_conversation_settings (
     is_archived         BOOLEAN NOT NULL DEFAULT FALSE,
     is_blocked          BOOLEAN NOT NULL DEFAULT FALSE,
     notification_level  TEXT NOT NULL DEFAULT 'all',
-    custom_name         TEXT,                       -- 用户自定义会话名称
+    custom_name         TEXT,                       -- 用户自定义会话名�?
     settings_json       JSONB NOT NULL DEFAULT '{}',
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT pk_im_conversation_settings PRIMARY KEY (tenant_id, organization_id, conversation_id, user_id),
@@ -2511,10 +2511,10 @@ CREATE INDEX IF NOT EXISTS idx_im_conversation_settings_user
     ON im_conversation_settings (tenant_id, organization_id, user_id, is_pinned DESC, updated_at DESC);
 
 -- ============================================================
--- 第五部分：消息搜索索引
+-- 第五部分：消息搜索索�?
 -- ============================================================
 
--- 21. 消息搜索向量列
+-- 21. 消息搜索向量�?
 ALTER TABLE im_conversation_messages ADD COLUMN IF NOT EXISTS search_vector tsvector;
 
 -- 22. 消息搜索索引
@@ -2522,7 +2522,7 @@ CREATE INDEX IF NOT EXISTS idx_im_messages_search
     ON im_conversation_messages USING GIN(search_vector)
     WHERE deleted_at IS NULL;
 
--- 23. 消息搜索触发器
+-- 23. 消息搜索触发�?
 CREATE OR REPLACE FUNCTION im_messages_search_trigger() RETURNS trigger AS $$
 BEGIN
     NEW.search_vector := to_tsvector('simple',
@@ -2546,7 +2546,7 @@ CREATE TRIGGER im_messages_search_update
 -- 24. 邀请表
 CREATE TABLE IF NOT EXISTS im_invitations (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     invitation_id       BIGINT NOT NULL,           -- Snowflake ID
     inviter_user_id     TEXT NOT NULL,
     invitee_user_id     TEXT,
@@ -2573,10 +2573,10 @@ CREATE INDEX IF NOT EXISTS idx_im_invitations_invitee
 CREATE INDEX IF NOT EXISTS idx_im_invitations_target
     ON im_invitations (tenant_id, organization_id, target_type, target_id, status);
 
--- 25. 封禁记录表
+-- 25. 封禁记录�?
 CREATE TABLE IF NOT EXISTS im_ban_records (
     tenant_id           TEXT NOT NULL,
-    organization_id     TEXT NOT NULL DEFAULT 'default',
+    organization_id     TEXT NOT NULL DEFAULT '0',
     ban_id              BIGINT NOT NULL,           -- Snowflake ID
     target_type         TEXT NOT NULL,              -- space/group/channel
     target_id           BIGINT NOT NULL,
@@ -2603,8 +2603,8 @@ CREATE INDEX IF NOT EXISTS idx_im_ban_records_user
 -- 完成
 -- ============================================================
 
--- 注册新表到 database-table-registry.json
--- 注册新表到 database-prefix-registry.json
+-- 注册新表�?database-table-registry.json
+-- 注册新表�?database-prefix-registry.json
 
 -- source: deployments/database/postgres/migrations/014_im_search_cjk.sql
 -- Migration 014: Chinese / CJK Full-Text Search
@@ -2613,11 +2613,11 @@ CREATE INDEX IF NOT EXISTS idx_im_ban_records_user
 -- proper CJK tokenization using zhparser or pg_bigm extensions.
 --
 -- Strategy:
---   1. If zhparser is installed → use 'chinese_zh' text search config
---   2. If pg_bigm is installed  → use bigram-based similarity + GIN trigram index
---   3. Otherwise                  → keep 'simple' config (no CJK support)
+--   1. If zhparser is installed �?use 'chinese_zh' text search config
+--   2. If pg_bigm is installed  �?use bigram-based similarity + GIN trigram index
+--   3. Otherwise                  �?keep 'simple' config (no CJK support)
 --
--- Risk: LOW (non-destructive — only modifies the search trigger function)
+-- Risk: LOW (non-destructive �?only modifies the search trigger function)
 -- ============================================================
 
 -- ============================================================
@@ -2699,16 +2699,16 @@ CREATE TRIGGER im_messages_search_update
 -- 搜索架构说明
 -- ============================================================
 -- 默认使用 PostgreSQL 原生全文搜索。后续可通过 Provider 模式
--- （参考 PushProvider / RTC adapter）扩展为可插拔的搜索后端：
+-- （参�?PushProvider / RTC adapter）扩展为可插拔的搜索后端�?
 --
 --   trait SearchProvider {
 --       fn index_message(&self, message: &StoredMessageRecord) -> Result;
 --       fn search(&self, tenant: &str, query: &str) -> Result<Vec<message_id>>;
 --   }
 --
--- PostgreSQL 实现即为本迁移的 search_vector + GIN 索引方案。
--- 如需切换到其他后端（如 Elasticsearch），实现 SearchProvider 并
--- 通过 ProviderRegistry 切换即可，无需修改消息写入/查询路径。
+-- PostgreSQL 实现即为本迁移的 search_vector + GIN 索引方案�?
+-- 如需切换到其他后端（�?Elasticsearch），实现 SearchProvider �?
+-- 通过 ProviderRegistry 切换即可，无需修改消息写入/查询路径�?
 
 -- ============================================================
 -- Migration checklist (MIGRATION_SPEC §2):

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 
 const sourceText = readFileSync(
-  './packages/sdkwork-im-pc-chat/src/pages/CreateAgentView.tsx',
+  '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/pages/CreateAgentView.tsx',
   'utf8',
 );
 const sourceFile = ts.createSourceFile(

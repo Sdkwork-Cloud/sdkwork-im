@@ -1422,7 +1422,7 @@ mod tests {
             CONTACT_DIRECT_CHAT_BINDINGS_KEY,
             &vec![crate::model::ContactDirectChatBindingView {
                 tenant_id: Some("t_demo".into()),
-                organization_id: Some("default".into()),
+                organization_id: Some("0".into()),
                 direct_chat_id: "dc_demo".into(),
                 conversation_id: "c_demo".into(),
                 bound_at: "2026-04-01T00:00:00.000Z".into(),
@@ -1454,7 +1454,7 @@ mod tests {
         let timeline_store = MemoryTimelineProjectionStore::default();
         let device_scope = ClientRouteSyncScopeCatalogEntry {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_id: "u_demo".into(),
             principal_kind: "user".into(),
             device_id: "d_demo".into(),

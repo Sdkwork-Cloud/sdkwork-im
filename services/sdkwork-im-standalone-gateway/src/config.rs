@@ -57,14 +57,48 @@ pub fn load_gateway_config(config_path: &Path) -> Result<GatewayFileConfig, Stri
 pub fn resolve_gateway_config(
     file_config: GatewayFileConfig,
 ) -> Result<ResolvedGatewayConfig, String> {
+    let environment = file_config.service.environment.trim().to_ascii_lowercase();
+    let is_production = environment == "production" || environment == "prod";
+
+    // Fail-closed: reject allow_any_origin in production to prevent CSRF attacks.
+    // If no explicit origins are configured in production, fall back to a safe
+    // default and emit a warning rather than allowing all origins.
+    let allow_any_origin = if is_production && file_config.cors.allow_any_origin {
+        tracing::warn!(
+            target: "sdkwork.im.gateway",
+            event = "im.gateway.cors_any_origin_blocked",
+            environment = %environment,
+            "CORS allow_any_origin=true is not permitted in production — falling back to explicit origins"
+        );
+        false
+    } else {
+        file_config.cors.allow_any_origin
+    };
+
+    let allowed_origins = if is_production && file_config.cors.allowed_origins.is_empty() && !allow_any_origin {
+        tracing::warn!(
+            target: "sdkwork.im.gateway",
+            event = "im.gateway.cors_no_explicit_origins",
+            environment = %environment,
+            "No explicit CORS origins configured in production — set SDKWORK_IM_BROWSER_ORIGINS or config [cors].allowed_origins"
+        );
+        // Use the same default origins as the cloud gateway as a safety net.
+        vec![
+            "https://api.sdkwork.com".to_owned(),
+            "https://api-dev.sdkwork.com".to_owned(),
+        ]
+    } else {
+        file_config.cors.allowed_origins
+    };
+
     Ok(ResolvedGatewayConfig {
         service_name: file_config.service.name,
         environment: file_config.service.environment,
         bind: read_env_override("SDKWORK_IM_STANDALONE_GATEWAY_BIND")
             .or_else(|| read_env_override("SDKWORK_IM_APPLICATION_PUBLIC_INGRESS_BIND"))
             .unwrap_or(file_config.server.bind),
-        allow_any_origin: file_config.cors.allow_any_origin,
-        allowed_origins: file_config.cors.allowed_origins,
+        allow_any_origin,
+        allowed_origins,
     })
 }
 

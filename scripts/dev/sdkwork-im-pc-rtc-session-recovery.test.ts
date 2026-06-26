@@ -23,7 +23,7 @@ const fakeClient = {
     async retrieve(rtcSessionId: string) {
       calls.push({ method: 'calls.retrieve', rtcSessionId });
       return {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         rtcSessionId,
         conversationId: 'conversation-rtc-1',
         rtcMode: 'voice',
@@ -49,7 +49,7 @@ const fakeClient = {
         rtcSessionId,
       });
       return {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         rtcSessionId,
         participantId: body.participantId,
         credential: 'secret-recovered-rtc-credential',
@@ -63,7 +63,7 @@ type CallSessionListener = Parameters<NonNullable<ImSdkClient['calls']['subscrib
 
 function createSession(rtcSessionId: string, state: 'accepted' | 'ended' | 'rejected' | 'started') {
   return {
-    tenantId: 'tenant-1',
+    tenantId: '100001',
     rtcSessionId,
     conversationId: 'conversation-rtc-1',
     rtcMode: 'video',
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -210,7 +210,7 @@ async function main(): Promise<void> {
           rtcSessionId,
         });
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'secret-watch-credential',
@@ -227,7 +227,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -286,7 +286,7 @@ async function main(): Promise<void> {
           rtcSessionId,
         });
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'secret-live-incoming-credential',
@@ -303,7 +303,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -397,7 +397,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -442,7 +442,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -491,7 +491,7 @@ async function main(): Promise<void> {
       async start(body: { conversationId?: string; rtcMode: string; rtcSessionId: string }) {
         outgoingCalls.push({ method: 'calls.start', rtcSessionId: body.rtcSessionId });
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId: body.rtcSessionId,
           conversationId: body.conversationId,
           rtcMode: body.rtcMode,
@@ -509,7 +509,7 @@ async function main(): Promise<void> {
       async invite(rtcSessionId: string) {
         outgoingCalls.push({ method: 'calls.invite', rtcSessionId });
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           conversationId: 'conversation-rtc-1',
           rtcMode: 'video',
@@ -531,7 +531,7 @@ async function main(): Promise<void> {
           rtcSessionId,
         });
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           rtcSessionId,
           participantId: body.participantId,
           credential: 'secret-outgoing-credential',
@@ -548,7 +548,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -579,7 +579,7 @@ async function main(): Promise<void> {
   const outgoingRtcSessionId = outgoingSnapshot.rtcSessionId;
   assert.equal(typeof outgoingRtcSessionId, 'string');
   outgoingSessionListeners.at(-1)?.({
-    tenantId: 'tenant-1',
+    tenantId: '100001',
     rtcSessionId: outgoingRtcSessionId,
     conversationId: 'conversation-rtc-1',
     rtcMode: 'video',
@@ -596,7 +596,7 @@ async function main(): Promise<void> {
   );
   assert.equal(outgoingService.getSnapshot().state, 'connected');
   outgoingSessionListeners.at(-1)?.({
-    tenantId: 'tenant-1',
+    tenantId: '100001',
     rtcSessionId: outgoingRtcSessionId,
     conversationId: 'conversation-rtc-1',
     rtcMode: 'video',
@@ -659,7 +659,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',
@@ -681,7 +681,7 @@ async function main(): Promise<void> {
   racingListeners.at(-1)?.(createSession('rtc-racing-credential-1', 'ended'));
   assert.equal(racingService.getSnapshot().state, 'ended');
   racingCredential.resolve({
-    tenantId: 'tenant-1',
+    tenantId: '100001',
     rtcSessionId: 'rtc-racing-credential-1',
     participantId: 'u_alice',
     credential: 'secret-late-credential',
@@ -725,7 +725,7 @@ async function main(): Promise<void> {
       sessionId: 'session-1',
       context: {
         appId: 'app-1',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'u_alice',
         sessionId: 'session-1',
         environment: 'dev',

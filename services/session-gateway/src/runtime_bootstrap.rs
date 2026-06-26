@@ -52,6 +52,20 @@ pub async fn bootstrap_realtime_plane_from_env() -> Result<RealtimePlaneBootstra
     let route_store = resolve_route_store_from_env(postgres_pool.clone())?;
     let shared_cluster_bus = cluster_bus.clone().map(|bus| bus as Arc<dyn ClusterEventBus>);
 
+    // HA fail-closed check: when cluster bus is enabled (multi-node HA topology),
+    // the disconnect fence MUST use a shared storage backend (Postgres or Redis).
+    // Falling back to in-memory storage in HA mode would allow stale session
+    // takeover across nodes, defeating the purpose of the disconnect fence.
+    if cluster_enabled && postgres_pool.is_none() {
+        return Err(
+            "HA topology detected (cluster bus enabled) but no PostgreSQL pool available \
+             for disconnect fence storage. In-memory fallback is unsafe for multi-node \
+             deployments. Set SDKWORK_IM_DATABASE_URL to a shared Postgres instance \
+             or disable cluster mode by unsetting SDKWORK_IM_REALTIME_CLUSTER_BUS_URL."
+                .to_owned(),
+        );
+    }
+
     let assembly = if let Some(pool) = postgres_pool {
         let disconnect_fence_store =
             Arc::new(PostgresRealtimeDisconnectFenceStore::from_pool(pool.clone()));

@@ -2,7 +2,7 @@ import {
   createClient,
   type SdkworkAppClient as GeneratedSdkworkAgentAppClient,
   type SdkworkAppConfig,
-} from '@sdkwork/agent-app-sdk';
+} from '@sdkwork/agents-app-sdk';
 import {
   createSdkworkChatRequestContextInterceptors,
   getSdkworkChatGlobalTokenManager,

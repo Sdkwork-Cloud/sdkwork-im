@@ -466,7 +466,7 @@ mod tests {
     fn test_route_binding_postgres_parameters_use_stable_types() {
         let binding = RouteBinding {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_id: "u_demo".into(),
             principal_kind: "user".into(),
             device_id: "d_demo".into(),

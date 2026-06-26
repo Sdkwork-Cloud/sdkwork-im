@@ -20,16 +20,20 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 - [component.spec.json](./component.spec.json) is the machine-readable component contract.
 - Shared foundation API composition targets `sdkwork-api-cloud-gateway` through
-  `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` and `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`.
-  Application HTTP/WebSocket traffic uses `SDKWORK_IM_APPLICATION_PUBLIC_*` and
+  `SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL` and `VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL`
+  for split-service and cloud deployments. In `standalone.unified-process.*`, the sibling
+  `sdkwork-im-standalone-gateway` collapses platform ingress on one bind and mounts Drive,
+  Knowledgebase, Commerce, Mail, and Notary dependency APIs in-process via Cargo-linked route crates.
+- Application HTTP/WebSocket traffic uses `SDKWORK_IM_APPLICATION_PUBLIC_*` and
   `VITE_SDKWORK_IM_APPLICATION_PUBLIC_*`. `services/sdkwork-im-cloud-gateway` and
-  `crates/sdkwork-im-cloud-gateway-config` keep product-owned IM routing only; platform API routing is
-  owned by the shared gateway boundary.
+  `crates/sdkwork-im-cloud-gateway-config` keep product-owned IM routing only; split-service
+  platform API routing is owned by the shared gateway boundary.
 - Local PC development starts through `scripts/im-dev.mjs` (`pnpm dev`), which loads topology
-  profiles from `configs/topology/` and starts the sibling `sdkwork-api-cloud-gateway` Cargo service as
-  the shared platform gateway.
-- `crates/sdkwork-im-cloud-gateway-config` defaults Appbase, Drive, and Notary service upstreams to the
-  shared gateway root. Direct module URLs remain explicit split-deployment overrides.
+  profiles from `configs/topology/` and starts `sdkwork-im-standalone-gateway` only. It does
+  not spawn a separate `sdkwork-api-cloud-gateway` process in the default unified-process profile.
+- `crates/sdkwork-im-cloud-gateway-config` omits HTTP upstream targets for standalone-embedded
+  dependency APIs in unified-process mode. Direct module URLs remain explicit split-deployment
+  overrides through `SDKWORK_IM_*_APP_API_UPSTREAM` keys documented in `component.spec.json`.
 - Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
 - Generated SDK language outputs are represented at their SDK family root instead of duplicating local specs in generated folders.
 

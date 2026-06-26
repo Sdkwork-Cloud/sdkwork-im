@@ -25,7 +25,7 @@ fn test_runtime_restores_automation_projection_on_rebuild_with_shared_store() {
     let execution_store = Arc::new(MemoryAutomationExecutionStore::default());
     let auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,
@@ -76,7 +76,7 @@ fn test_runtime_restores_principal_kind_isolated_executions_on_rebuild_with_shar
     let execution_store = Arc::new(MemoryAutomationExecutionStore::default());
     let user_auth = AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: "u_demo".into(),
         app_id: None,
         environment: None,

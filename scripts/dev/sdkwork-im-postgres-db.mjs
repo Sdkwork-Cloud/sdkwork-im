@@ -8,6 +8,7 @@ import {
   initializePostgresRoleAndDatabase,
   initializePostgresSchemaAndGrants,
 } from './sdkwork-im-postgres-init-node.mjs';
+import { repairPostgresMigrationChecksums } from './repair-postgres-migration-checksums.mjs';
 import { resolvePostgresDevProfile } from './sdkwork-im-postgres-dev-profile.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -852,6 +853,13 @@ export async function runPostgresDbCli({
   }
 
   stdout.write(`${formatPostgresDbPlan(redactedPlan)}\n`);
+  if (args.mode === 'migrate') {
+    await repairPostgresMigrationChecksums({
+      config,
+      repoRoot,
+      stdout,
+    });
+  }
   for (const step of plan.steps) {
     stdout.write(`[sdkwork-im-db] ${step.label}\n`);
     const stepEnv = {

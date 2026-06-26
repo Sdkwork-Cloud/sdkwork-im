@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Smile, Paperclip, Scissors, Clock, Mic, ArrowUp, StopCircle, X, Reply } from 'lucide-react';
+import { Smile, Paperclip, Scissors, Clock, Mic, ArrowUp, StopCircle, X, Reply, Pencil } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -24,6 +24,9 @@ export interface MessageInputProps {
   };
   onCancelReply?: () => void;
   onHistoryClick?: () => void;
+  editingMessage?: { id: string; content: string } | null;
+  onEditSubmit?: (messageId: string, text: string) => void;
+  onCancelEdit?: () => void;
 }
 
 function resolveFileMessageType(file: File): 'image' | 'file' | 'video' {
@@ -72,6 +75,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   replyingTo,
   onCancelReply,
   onHistoryClick,
+  editingMessage,
+  onEditSubmit,
+  onCancelEdit,
 }) => {
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder ?? t('chat.messageInput.defaultPlaceholder');
@@ -174,6 +180,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     },
   }, [placeholder, disabled, isTyping, resolvedPlaceholder, t]);
 
+  useEffect(() => {
+    if (!editor) return;
+    if (editingMessage) {
+      editor.commands.setContent(editingMessage.content || '');
+      editor.commands.focus('end');
+      setIsEmpty((editor.getText().trim().length === 0));
+    }
+  }, [editor, editingMessage]);
+
   const onEmojiClick = React.useCallback((emoji: string) => {
     if (editor && !disabled && !isTyping) {
       editor.commands.insertContent(emoji);
@@ -191,13 +206,22 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSend = () => {
     if (!editor || disabled || isTyping) return;
-    
+
     const content = editor.getText().trim();
     if (!content) return;
 
+    if (editingMessage) {
+      if (!onEditSubmit) return;
+      onEditSubmit(editingMessage.id, content);
+      editor.commands.clearContent();
+      setIsEmpty(true);
+      editor.commands.focus();
+      return;
+    }
+
     if (!onSend) return;
     onSend(content, 'text');
-    
+
     // Clear editor after sending
     editor.commands.clearContent();
     setIsEmpty(true);
@@ -205,6 +229,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && editingMessage && onCancelEdit) {
+      e.preventDefault();
+      e.stopPropagation();
+      onCancelEdit();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -361,8 +391,25 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               <span className="text-[12px] text-gray-400 font-medium shrink-0">{t('chat.messageInput.replyPrefix', { name: replyingTo.senderName })}</span>
               <span className="text-[12px] text-gray-500 truncate">{replyingTo.content}</span>
             </div>
-            <button 
+            <button
               onClick={onCancelReply}
+              className="text-gray-500 hover:text-gray-300 transition-colors shrink-0 ml-2"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Edit Preview */}
+        {editingMessage && (
+          <div className="flex items-center justify-between px-4 py-2 bg-indigo-500/10 border-b border-indigo-500/20 rounded-t-2xl shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Pencil size={14} className="text-indigo-400 shrink-0" />
+              <span className="text-[12px] text-indigo-300 font-medium shrink-0">{t('chat.messageInput.editingPrefix')}</span>
+              <span className="text-[12px] text-gray-500 truncate">{editingMessage.content}</span>
+            </div>
+            <button
+              onClick={onCancelEdit}
               className="text-gray-500 hover:text-gray-300 transition-colors shrink-0 ml-2"
             >
               <X size={14} />
@@ -531,10 +578,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               <StopCircle size={18} strokeWidth={2.5} />
             </motion.button>
           ) : (
-            <motion.button 
+            <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              title={t('chat.messageInput.actions.send')}
+              title={editingMessage ? t('chat.messageInput.actions.saveEdit') : t('chat.messageInput.actions.send')}
               onClick={handleSend}
               disabled={disabled || isEmpty}
               className="w-8 h-8 rounded-full bg-[#00b42a] hover:bg-[#009a24] disabled:bg-white/10 disabled:text-gray-500 flex items-center justify-center text-white transition-colors shadow-sm"

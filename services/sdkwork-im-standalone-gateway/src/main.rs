@@ -1,10 +1,12 @@
 mod config;
 mod embedded_application_routes;
+mod embedded_dependency_routes;
 
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 
 use axum::Router;
+use axum::middleware::from_fn_with_state;
 use config::{load_gateway_config, resolve_config_path, resolve_gateway_config, ResolvedGatewayConfig};
 use sdkwork_api_config::StandaloneConfigLoader;
 use sdkwork_api_product_runtime::{
@@ -15,16 +17,18 @@ use sdkwork_im_cloud_gateway_observability::{
     build_startup_summary_with_registry, format_startup_summary,
 };
 use tower_http::cors::{Any, CorsLayer};
+use web_gateway::gateway_protection::{self, RateLimitConfig, RateLimiter};
 use web_gateway::{
     bootstrap_embedded_session_gateway_runtime, build_app_with_registry_product_runtime_and_embedded_services_from_env,
     build_gateway_registry,
 };
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     sdkwork_im_service_readiness::ensure_im_service_process_identity("sdkwork-im-standalone-gateway");
     sdkwork_im_service_readiness::init_im_service_tracing_from_env();
 
+    // Parse config and apply environment overrides BEFORE spawning the async runtime.
+    // std::env::set_var is only safe on the main thread before any other threads exist.
     let args: Vec<String> = std::env::args().collect();
     let config_path = resolve_config_path(&args)?;
     let file_config = load_gateway_config(Path::new(&config_path))?;
@@ -38,6 +42,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let base_url = format!("http://{}", display_listener_addr(bind_addr));
     apply_collapsed_standalone_urls(&base_url, &bind_addr);
 
+    // Apply embedded dependency environment variables before the async runtime
+    // starts to ensure all SDKWORK_*_DATABASE_URL and related env vars are set
+    // in a single-threaded context (see set_env_var safety contract).
+    embedded_dependency_routes::apply_embedded_dependency_env();
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+    runtime.block_on(async_main(gateway_config, bind_addr, base_url))
+}
+
+async fn async_main(
+    gateway_config: ResolvedGatewayConfig,
+    bind_addr: SocketAddr,
+    base_url: String,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _im_db = sdkwork_im_database_pool::bootstrap_im_database_from_env()
         .await
         .map_err(|error| format!("failed to bootstrap IM database lifecycle: {error}"))?;
@@ -61,6 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let embedded_application =
         embedded_application_routes::bootstrap_embedded_application_routes().await;
+    let embedded_dependencies = embedded_dependency_routes::bootstrap_embedded_dependency_routes().await;
 
     let web_config = WebGatewayConfig::from_env();
     let registry = build_gateway_registry()?;
@@ -88,11 +109,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     )
     .await;
 
-    // Assembly routes must win over cloud-gateway registry proxies on overlapping paths.
-    let application_router = embedded_application.router.merge(im_router);
+    // Dependency and IM assembly routes must win over cloud-gateway registry proxies.
+    let application_router = embedded_dependencies
+        .router
+        .merge(embedded_application.router)
+        .merge(im_router);
     let app = iam_router
         .merge(application_router)
-        .layer(build_cors_layer(&gateway_config));
+        .layer(build_cors_layer(&gateway_config))
+        .layer(from_fn_with_state(
+            RateLimiter::new(RateLimitConfig::from_env()),
+            gateway_protection::rate_limit_middleware,
+        ));
 
     println!("Assembling gateway router completed; binding {bind_addr}");
     let listener = tokio::net::TcpListener::bind(bind_addr).await?;
@@ -110,7 +138,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         "listening"
     );
 
-    axum::serve(listener, app)
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
         .with_graceful_shutdown(async move {
             shutdown_signal().await;
             if let Some(handle) = retention_scheduler {
@@ -122,12 +153,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     Ok(())
 }
 
+/// Apply gateway process environment defaults.
+///
+/// # Safety
+///
+/// This function must only be called from the main thread before any other
+/// threads (including the Tokio runtime) are spawned. The caller (fn main)
+/// guarantees this by invoking it before `tokio::runtime::Builder::build`.
 fn apply_gateway_process_environment(config: &ResolvedGatewayConfig) {
     if std::env::var("SDKWORK_IM_ENVIRONMENT")
         .ok()
         .map(|value| value.trim().is_empty())
         .unwrap_or(true)
     {
+        // SAFETY: Called from fn main() before the Tokio runtime is created.
+        // No other threads exist at this point.
         unsafe {
             std::env::set_var("SDKWORK_IM_ENVIRONMENT", config.environment.as_str());
         }
@@ -144,12 +184,20 @@ fn apply_gateway_process_environment(config: &ResolvedGatewayConfig) {
             "prod" | "production" => "production",
             _ => normalized_environment.as_str(),
         };
+        // SAFETY: Called from fn main() before the Tokio runtime is created.
         unsafe {
             std::env::set_var("SDKWORK_ENV", sdkwork_env);
         }
     }
 }
 
+/// Apply collapsed standalone URL environment overrides.
+///
+/// # Safety
+///
+/// This function must only be called from the main thread before any other
+/// threads (including the Tokio runtime) are spawned. See
+/// `apply_gateway_process_environment` for the safety contract.
 fn apply_collapsed_standalone_urls(base_url: &str, bind_addr: &SocketAddr) {
     let bind = format!("{}:{}", bind_addr.ip(), bind_addr.port());
     let websocket_url = format!("ws://{}", display_listener_addr(*bind_addr));
@@ -161,6 +209,7 @@ fn apply_collapsed_standalone_urls(base_url: &str, bind_addr: &SocketAddr) {
         ("SDKWORK_API_CLOUD_GATEWAY_BASE_URL", base_url),
         ("SDKWORK_API_CLOUD_GATEWAY_BIND", bind.as_str()),
     ] {
+        // SAFETY: Called from fn main() before the Tokio runtime is created.
         unsafe {
             std::env::set_var(key, value);
         }
@@ -388,12 +437,24 @@ mod tests {
         let iam_router = sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router()
             .await
             .expect("iam router should build");
+        let bootstrap = session_gateway::RealtimePlaneBootstrap {
+            assembly: session_gateway::RealtimePlaneAssembly::default(),
+            node_id: "node_embedded_ws".to_owned(),
+            cluster_bus: None,
+            iam_auth_pool: None,
+        };
+        let embedded_router =
+            sdkwork_routes_im_realtime_open_api::build_public_app_with_realtime_bootstrap(
+                &bootstrap,
+            );
+        let embedded_app_state =
+            session_gateway::AppState::from_realtime_bootstrap(&bootstrap);
         let im_router = build_app_with_registry_product_runtime_and_embedded_services_from_env(
             web_gateway_config(),
             web_gateway::build_gateway_registry().expect("gateway registry should build"),
             Some(Router::new()),
-            None,
-            None,
+            Some(embedded_router),
+            Some(embedded_app_state),
         )
         .await;
         let app = iam_router

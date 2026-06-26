@@ -449,6 +449,8 @@
       "contextMenu": {
         "copy": "复制",
         "reply": "回复",
+        "edit": "编辑",
+        "recall": "撤回",
         "reaction": "表情回应",
         "forward": "转发",
         "favorite": "收藏",
@@ -478,6 +480,8 @@
         "startedWithoutReceiver": "{{initiator}} 发起了{{mode}}",
         "syncing": "{{callSubject}}正在同步"
       },
+      "recalledPlaceholder": "该消息已被撤回",
+      "editedIndicator": "(已编辑)",
       "toast": {
         "loadFailed": "加载消息失败",
         "deleteSuccess": "消息已删除",
@@ -487,7 +491,9 @@
         "copySuccess": "已复制",
         "favoriteSuccess": "已收藏",
         "favoriteFailed": "收藏失败",
-        "reactionFailed": "表情回应失败"
+        "reactionFailed": "表情回应失败",
+        "recallSuccess": "消息已撤回",
+        "recallFailed": "撤回消息失败"
       }
     },
     "messageItems": {
@@ -516,6 +522,7 @@
       "defaultPlaceholder": "发送消息...",
       "agentTypingPlaceholder": "智能体正在回复...",
       "replyPrefix": "回复 {{name}}:",
+      "editingPrefix": "编辑消息:",
       "dropToSend": "松开鼠标发送文件",
       "actions": {
         "sendFile": "发送文件",
@@ -525,7 +532,8 @@
         "stopRecording": "停止录音并发送",
         "recordVoice": "录制语音消息",
         "stopGenerating": "停止生成",
-        "send": "发送 (Enter)"
+        "send": "发送 (Enter)",
+        "saveEdit": "保存编辑 (Enter)"
       },
       "toast": {
         "stickerNeedsFile": "表情图片需要本地文件或 Drive 资源后才能发送",
@@ -546,7 +554,8 @@
       "inputPlaceholder": "发送消息...",
       "typing": "对方正在输入...",
       "toast": {
-        "sendFailed": "发送失败"
+        "sendFailed": "发送失败",
+        "editFailed": "编辑消息失败"
       }
     },
     "startup": {

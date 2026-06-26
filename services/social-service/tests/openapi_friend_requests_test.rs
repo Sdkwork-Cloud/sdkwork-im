@@ -10,12 +10,12 @@ use tower::ServiceExt;
 fn auth_headers() -> axum::http::HeaderMap {
     let mut context = local_service_app_context(
         "100001",
-        "iamu_test_user",
+        "30",
         "user",
         Some("device_test"),
         ["*"],
     );
-    context.organization_id = "default".into();
+    context.organization_id = "0".into();
     build_dual_token_headers_for_context(&context, context.permission_scope.iter())
 }
 
@@ -57,4 +57,35 @@ async fn open_api_friend_requests_list_returns_json_not_html() {
     let json: serde_json::Value =
         serde_json::from_slice(body.as_ref()).expect("response body should be JSON");
     assert!(json.get("items").and_then(|value| value.as_array()).is_some());
+}
+
+#[tokio::test]
+async fn open_api_contact_tags_list_returns_json() {
+    let app = build_open_api_router(AppState {
+        social_runtime: Arc::new(SocialRuntime::default()),
+    });
+
+    let mut request = Request::builder()
+        .method("GET")
+        .uri("/im/v3/api/social/contacts/tags?limit=100")
+        .body(Body::empty())
+        .expect("request builder should succeed");
+    *request.headers_mut() = auth_headers();
+
+    let response = app
+        .oneshot(request)
+        .await
+        .expect("contact tags list should succeed");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("response body should collect")
+        .to_bytes();
+    let json: serde_json::Value =
+        serde_json::from_slice(body.as_ref()).expect("response body should be JSON");
+    assert!(json.get("items").and_then(|value| value.as_array()).is_some());
+    assert_eq!(json.get("hasMore").and_then(|value| value.as_bool()), Some(false));
 }

@@ -1,5 +1,47 @@
+# Rust build artifacts
 target/
+
+# Version control
 .git/
+.gitignore
+
+# IDE / editor
 .idea/
 .vscode/
+*.swp
+*.swo
+
+# Node / pnpm
+node_modules/
+**/node_modules.__stale__donor/
+**/node_modules.__stale__donor_*/
+dist/
+.cache/
+.turbo/
+.parcel-cache/
+.mimocode/
+
+# Tauri / desktop build
+.tauri/
+src-tauri/target/
+
+# Runtime state
+.runtime/
+.artifacts/
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Logs
 **/*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.postgres.example
+
+# OS files
+.DS_Store
+Thumbs.db

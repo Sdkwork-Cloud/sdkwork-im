@@ -81,8 +81,8 @@ async function main(): Promise<void> {
           organizationCalls.push(`iam.organizations.list:${params?.tenantId ?? ''}`);
           return [
             {
-              organizationId: 'org-group',
-              tenantId: 'tenant-1',
+              organizationId: '300002',
+              tenantId: '100001',
               name: 'SDKWork Group',
               parentOrganizationId: null,
               organizationKind: 'group',
@@ -93,10 +93,10 @@ async function main(): Promise<void> {
               order: 0,
             },
             {
-              organizationId: 'org-company',
-              tenantId: 'tenant-1',
+              organizationId: '300001',
+              tenantId: '100001',
               name: 'SDKWork Cloud Company',
-              parentOrganizationId: 'org-group',
+              parentOrganizationId: '300002',
               organizationKind: 'company',
               tenantBoundaryKind: 'sub_tenant',
               verificationStatus: 'verified',
@@ -115,7 +115,7 @@ async function main(): Promise<void> {
           return [
             {
               departmentId: 'dept-root',
-              organizationId: 'org-company',
+              organizationId: '300001',
               name: 'Company Headquarters',
               parentDepartmentId: null,
               departmentKind: 'business_unit',
@@ -123,7 +123,7 @@ async function main(): Promise<void> {
             },
             {
               departmentId: 'dept-rd',
-              organizationId: 'org-company',
+              organizationId: '300001',
               name: 'Research',
               parentDepartmentId: 'dept-root',
               departmentKind: 'department',
@@ -142,7 +142,7 @@ async function main(): Promise<void> {
                 {
                   assignmentId: 'assign-alice-rd',
                   membershipId: 'membership-alice-company',
-                  organizationId: 'org-company',
+                  organizationId: '300001',
                   departmentId: 'dept-rd',
                   userId: 'u_alice',
                   displayName: 'Alice',
@@ -192,10 +192,10 @@ async function main(): Promise<void> {
       organizationCalls.push(`compat.listOrganizations:${params?.tenantId ?? ''}`);
       return [
         {
-          organizationId: 'org-company',
-          tenantId: 'tenant-1',
+          organizationId: '300001',
+          tenantId: '100001',
           name: 'SDKWork Cloud Company',
-          parentOrganizationId: 'org-group',
+          parentOrganizationId: '300002',
         },
       ];
     },
@@ -229,8 +229,8 @@ async function main(): Promise<void> {
   assert.deepEqual(
     await directoryBackedService.getDepartments(),
     [
-      { id: 'dept-root', name: 'Company Headquarters', organizationId: 'org-company', parentId: null, order: 0 },
-      { id: 'dept-rd', name: 'Research', organizationId: 'org-company', parentId: 'dept-root', order: 20 },
+      { id: 'dept-root', name: 'Company Headquarters', organizationId: '300001', parentId: null, order: 0 },
+      { id: 'dept-rd', name: 'Research', organizationId: '300001', parentId: 'dept-root', order: 20 },
     ],
     'contact org directory must map departments from the independent Organization/Department directory client',
   );
@@ -245,7 +245,7 @@ async function main(): Promise<void> {
         email: 'alice@example.com',
         id: 'u_alice',
         name: 'Alice',
-        organizationId: 'org-company',
+        organizationId: '300001',
         organizationMembershipId: 'membership-alice-company',
         phone: '13800000001',
         position: 'Engineer',
@@ -282,8 +282,8 @@ async function main(): Promise<void> {
             return {
               items: [
                 {
-                  organizationId: 'org-group',
-                  tenantId: 'tenant-1',
+                  organizationId: '300002',
+                  tenantId: '100001',
                   name: 'SDKWork Group',
                   parentOrganizationId: null,
                   organizationKind: 'group',
@@ -293,10 +293,10 @@ async function main(): Promise<void> {
                   order: 0,
                   children: [
                     {
-                      organizationId: 'org-company',
-                      tenantId: 'tenant-1',
+                      organizationId: '300001',
+                      tenantId: '100001',
                       name: 'SDKWork Cloud Company',
-                      parentOrganizationId: 'org-group',
+                      parentOrganizationId: '300002',
                       organizationKind: 'company',
                       tenantBoundaryKind: 'operating_subject',
                       verificationStatus: 'verified',
@@ -326,8 +326,8 @@ async function main(): Promise<void> {
               items: [
                 {
                   departmentId: 'dept-root',
-                  tenantId: 'tenant-1',
-                  organizationId: 'org-company',
+                  tenantId: '100001',
+                  organizationId: '300001',
                   name: 'Company Headquarters',
                   parentDepartmentId: null,
                   departmentKind: 'headquarters',
@@ -336,8 +336,8 @@ async function main(): Promise<void> {
                   children: [
                     {
                       departmentId: 'dept-rd',
-                      tenantId: 'tenant-1',
-                      organizationId: 'org-company',
+                      tenantId: '100001',
+                      organizationId: '300001',
                       name: 'Research',
                       parentDepartmentId: 'dept-root',
                       departmentKind: 'department',
@@ -360,7 +360,7 @@ async function main(): Promise<void> {
             {
               assignmentId: 'assign-alice-rd',
               membershipId: 'membership-alice-company',
-              organizationId: 'org-company',
+              organizationId: '300001',
               departmentId: 'dept-rd',
               userId: 'u_alice',
               displayName: 'Alice',
@@ -384,8 +384,8 @@ async function main(): Promise<void> {
             {
               positionAssignmentId: 'pos-assign-alice-principal',
               departmentAssignmentId: 'assign-alice-rd',
-              tenantId: 'tenant-1',
-              organizationId: 'org-company',
+              tenantId: '100001',
+              organizationId: '300001',
               departmentId: 'dept-rd',
               userId: 'u_alice',
               positionId: 'pos-engineer',
@@ -402,7 +402,7 @@ async function main(): Promise<void> {
           return [
             {
               roleBindingId: 'rb-alice-rd-engineer',
-              tenantId: 'tenant-1',
+              tenantId: '100001',
               roleCode: 'department.engineer',
               principalKind: 'department_assignment',
               principalId: 'assign-alice-rd',
@@ -426,35 +426,35 @@ async function main(): Promise<void> {
             appBoundaryEnabled: true,
             children: [],
             dataBoundaryKind: 'organization_isolated',
-            id: 'org-company',
+            id: '300001',
             name: 'SDKWork Cloud Company',
             order: 10,
-            organizationId: 'org-company',
+            organizationId: '300001',
             organizationKind: 'company',
-            parentOrganizationId: 'org-group',
+            parentOrganizationId: '300002',
             status: 'active',
             tenantBoundaryKind: 'operating_subject',
-            tenantId: 'tenant-1',
+            tenantId: '100001',
             verificationStatus: 'verified',
           },
         ],
         dataBoundaryKind: undefined,
-        id: 'org-group',
+        id: '300002',
         name: 'SDKWork Group',
         order: 0,
-        organizationId: 'org-group',
+        organizationId: '300002',
         organizationKind: 'group',
         parentOrganizationId: null,
         status: 'active',
         tenantBoundaryKind: 'root_tenant',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         verificationStatus: 'verified',
       },
     ],
     'contact org directory must expose the organization hierarchy as organizations, not departments folded into iam_organizations',
   );
   assert.deepEqual(
-    await productDirectoryService.getDepartmentTree('org-company'),
+    await productDirectoryService.getDepartmentTree('300001'),
     [
       {
         children: [
@@ -463,14 +463,14 @@ async function main(): Promise<void> {
             id: 'dept-rd',
             name: 'Research',
             order: 20,
-            organizationId: 'org-company',
+            organizationId: '300001',
             parentId: 'dept-root',
           },
         ],
         id: 'dept-root',
         name: 'Company Headquarters',
         order: 0,
-        organizationId: 'org-company',
+        organizationId: '300001',
         parentId: null,
       },
     ],
@@ -490,23 +490,23 @@ async function main(): Promise<void> {
                     departmentId: 'dept-rd',
                     kind: 'department',
                     name: 'Research',
-                    organizationId: 'org-company',
+                    organizationId: '300001',
                   },
                 ],
                 departmentId: 'dept-root',
                 kind: 'department',
                 name: 'Company Headquarters',
-                organizationId: 'org-company',
+                organizationId: '300001',
               },
             ],
             kind: 'organization',
             name: 'SDKWork Cloud Company',
-            organizationId: 'org-company',
+            organizationId: '300001',
           },
         ],
         kind: 'organization',
         name: 'SDKWork Group',
-        organizationId: 'org-group',
+        organizationId: '300002',
       },
     ],
     'contact organization directory must merge organizations and departments into one address-book tree',
@@ -522,7 +522,7 @@ async function main(): Promise<void> {
         email: 'alice@example.com',
         id: 'u_alice',
         name: 'Alice',
-        organizationId: 'org-company',
+        organizationId: '300001',
         organizationMembershipId: 'membership-alice-company',
         phone: '13800000001',
         position: 'Principal Engineer',
@@ -572,14 +572,14 @@ async function main(): Promise<void> {
             return {
               items: [
                 {
-                  organizationId: 'org-a',
+                  organizationId: '300001',
                   name: 'Organization A',
                   parentOrganizationId: null,
                   order: 0,
                   children: [],
                 },
                 {
-                  organizationId: 'org-b',
+                  organizationId: '300002',
                   name: 'Organization B',
                   parentOrganizationId: null,
                   order: 10,
@@ -597,7 +597,7 @@ async function main(): Promise<void> {
               items: [
                 {
                   departmentId: 'dept-root',
-                  organizationId: 'org-a',
+                  organizationId: '300001',
                   name: 'Headquarters',
                   parentDepartmentId: null,
                   order: 0,
@@ -605,7 +605,7 @@ async function main(): Promise<void> {
                 },
                 {
                   departmentId: 'dept-root',
-                  organizationId: 'org-b',
+                  organizationId: '300002',
                   name: 'Headquarters',
                   parentDepartmentId: null,
                   order: 0,
@@ -634,7 +634,7 @@ async function main(): Promise<void> {
     'organization directory tree node ids must stay unique when different organizations reuse department ids',
   );
   assert.deepEqual(
-    await duplicateDepartmentIdDirectoryService.getUsersByDepartment('dept-root', 'org-a'),
+    await duplicateDepartmentIdDirectoryService.getUsersByDepartment('dept-root', '300001'),
     [],
     'department member lookup must accept the selected department organization when department ids are reused across organizations',
   );
@@ -652,15 +652,15 @@ async function main(): Promise<void> {
             return {
               items: [
                 {
-                  organizationId: 'org-root',
+                  organizationId: '300003',
                   name: 'Root Organization',
                   parentOrganizationId: null,
                   order: 0,
                   children: [
                     {
-                      organizationId: 'org-company',
+                      organizationId: '300001',
                       name: 'Company Organization',
-                      parentOrganizationId: 'org-root',
+                      parentOrganizationId: '300003',
                       order: 10,
                       children: [],
                     },
@@ -675,7 +675,7 @@ async function main(): Promise<void> {
         tree: {
           async retrieve(params) {
             unscopedDepartmentCalls.push(`iam.departments.tree.retrieve:${params?.organizationId ?? ''}`);
-            if (params?.organizationId === 'org-root') {
+            if (params?.organizationId === '300003') {
               return { items: [] };
             }
             return {
@@ -708,17 +708,17 @@ async function main(): Promise<void> {
                 departmentId: 'dept-unscoped',
                 kind: 'department',
                 name: 'Unscoped Department',
-                organizationId: 'org-company',
+                organizationId: '300001',
               },
             ],
             kind: 'organization',
             name: 'Company Organization',
-            organizationId: 'org-company',
+            organizationId: '300001',
           },
         ],
         kind: 'organization',
         name: 'Root Organization',
-        organizationId: 'org-root',
+        organizationId: '300003',
       },
     ],
     'organization directory must resolve unscoped department trees through scoped organization department reads',
@@ -759,8 +759,8 @@ async function main(): Promise<void> {
             return [
               {
                 membershipId: 'membership-admin-company',
-                tenantId: 'tenant-1',
-                organizationId: 'org-company',
+                tenantId: '100001',
+                organizationId: '300001',
                 userId: 'u_admin',
                 primary: true,
                 status: 'active',
@@ -778,12 +778,12 @@ async function main(): Promise<void> {
             return [
               {
                 roleBindingId: 'rb-admin-company',
-                tenantId: 'tenant-1',
+                tenantId: '100001',
                 roleCode: 'org.admin',
                 principalKind: 'organization_membership',
                 principalId: 'membership-admin-company',
                 scopeKind: 'organization',
-                scopeId: 'org-company',
+                scopeId: '300001',
                 status: 'active',
               },
             ];
@@ -864,14 +864,14 @@ async function main(): Promise<void> {
     'organization contacts view must read the logged-in IAM user through iam.users.current.retrieve',
   );
   assert.deepEqual(
-    await memberManagementDirectoryService.getOrganizationPermissions('org-company'),
+    await memberManagementDirectoryService.getOrganizationPermissions('300001'),
     {
       adminCapabilityAvailable: true,
       canAssignRoles: true,
       canInviteMembers: true,
       canManageMembers: true,
       currentUserId: 'u_admin',
-      organizationId: 'org-company',
+      organizationId: '300001',
       organizationMembershipIds: ['membership-admin-company'],
       reason: 'role_allowed',
       roleCodes: ['org.admin'],
@@ -883,14 +883,14 @@ async function main(): Promise<void> {
       assignmentType: 'secondary',
       departmentId: 'dept-rd',
       membershipType: 'employee',
-      organizationId: 'org-company',
+      organizationId: '300001',
       positionId: 'pos-engineer',
       roleCodes: ['org.member', 'department.engineer'],
       userId: 'u_charlie',
     }),
     {
       departmentAssignmentId: 'assign-charlie-rd',
-      organizationId: 'org-company',
+      organizationId: '300001',
       organizationMembershipId: 'membership-charlie-company',
       positionAssignmentIds: ['pos-assign-charlie'],
       roleBindingIds: ['rb-org-member', 'rb-dept-engineer'],
@@ -905,13 +905,13 @@ async function main(): Promise<void> {
       displayName: 'Invited User',
       email: 'invite@example.com',
       membershipType: 'employee',
-      organizationId: 'org-company',
+      organizationId: '300001',
       roleCodes: ['org.member'],
     }),
     {
       departmentAssignmentId: 'assign-invited-rd',
       invitedUserId: 'u_invited',
-      organizationId: 'org-company',
+      organizationId: '300001',
       organizationMembershipId: 'membership-invited-company',
       positionAssignmentIds: [],
       roleBindingIds: ['rb-org-member'],
@@ -950,7 +950,7 @@ async function main(): Promise<void> {
           return [
             {
               membershipId: 'membership-member-company',
-              organizationId: 'org-company',
+              organizationId: '300001',
               userId: 'u_member',
               status: 'active',
             },
@@ -964,7 +964,7 @@ async function main(): Promise<void> {
               roleBindingId: 'rb-member-company',
               roleCode: 'org.member',
               scopeKind: 'organization',
-              scopeId: 'org-company',
+              scopeId: '300001',
               status: 'active',
             },
           ];
@@ -984,7 +984,7 @@ async function main(): Promise<void> {
   });
   await assert.rejects(
     () => deniedDirectoryService.addOrganizationMember({
-      organizationId: 'org-company',
+      organizationId: '300001',
       userId: 'u_blocked',
     }),
     /not allowed to manage organization members/u,
@@ -1024,7 +1024,7 @@ async function main(): Promise<void> {
     'contact org directory must not synthesize departments when the organization directory has no records',
   );
   assert.deepEqual(
-    await emptyDirectoryService.getUsersByDepartment('org-root'),
+    await emptyDirectoryService.getUsersByDepartment('300003'),
     [],
     'contact org directory users must not fall back to IM contacts for a synthetic org-root department',
   );
@@ -1038,8 +1038,8 @@ async function main(): Promise<void> {
           multiOrganizationCalls.push(`iam.organizations.list:${params?.tenantId ?? ''}`);
           return [
             {
-              organizationId: 'org-group',
-              tenantId: 'tenant-1',
+              organizationId: '300002',
+              tenantId: '100001',
               name: 'SDKWork Group',
               parentOrganizationId: null,
               organizationKind: 'group',
@@ -1049,10 +1049,10 @@ async function main(): Promise<void> {
               order: 0,
             },
             {
-              organizationId: 'org-company',
-              tenantId: 'tenant-1',
+              organizationId: '300001',
+              tenantId: '100001',
               name: 'SDKWork Cloud Company',
-              parentOrganizationId: 'org-group',
+              parentOrganizationId: '300002',
               organizationKind: 'company',
               tenantBoundaryKind: 'operating_subject',
               verificationStatus: 'verified',
@@ -1069,8 +1069,8 @@ async function main(): Promise<void> {
           return [
             {
               membershipId: 'membership-bob-group',
-              tenantId: 'tenant-1',
-              organizationId: 'org-group',
+              tenantId: '100001',
+              organizationId: '300002',
               userId: 'u_bob',
               membershipType: 'employee',
               status: 'active',
@@ -1078,8 +1078,8 @@ async function main(): Promise<void> {
             },
             {
               membershipId: 'membership-bob-company',
-              tenantId: 'tenant-1',
-              organizationId: 'org-company',
+              tenantId: '100001',
+              organizationId: '300001',
               userId: 'u_bob',
               membershipType: 'employee',
               status: 'active',
@@ -1096,8 +1096,8 @@ async function main(): Promise<void> {
           return [
             {
               departmentId: 'dept-company-root',
-              tenantId: 'tenant-1',
-              organizationId: 'org-company',
+              tenantId: '100001',
+              organizationId: '300001',
               name: 'Company Headquarters',
               parentDepartmentId: null,
               departmentKind: 'headquarters',
@@ -1123,7 +1123,7 @@ async function main(): Promise<void> {
       {
         id: 'dept-company-root',
         name: 'Company Headquarters',
-        organizationId: 'org-company',
+        organizationId: '300001',
         parentId: null,
         order: 0,
       },

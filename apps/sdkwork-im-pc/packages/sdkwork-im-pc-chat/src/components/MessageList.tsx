@@ -9,7 +9,7 @@ import { Avatar, MediaViewer } from '@sdkwork/im-pc-commons';
 import { cn } from '@sdkwork/im-pc-commons';
 import type { Message, User } from '@sdkwork/im-pc-types';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
-import { Copy, Reply, Forward, CheckSquare, Trash2, X, Check, Play, FileText, LayoutTemplate, Volume2, Video, Phone, Download, Smile, Star } from 'lucide-react';
+import { Copy, Reply, Forward, CheckSquare, Trash2, X, Check, Play, FileText, LayoutTemplate, Volume2, Video, Phone, Download, Smile, Star, Pencil, RotateCcw } from 'lucide-react';
 import { toast } from './Toast';
 import { ForwardModal } from './ForwardModal';
 import { TextMessageItem, ImageMessageItem, VideoMessageItem, VoiceMessageItem, VideoCallMessageItem, LinkMessageItem, AppletMessageItem, CardMessageItem, FileMessageItem, MusicMessageItem } from './MessageItems';
@@ -21,6 +21,7 @@ interface MessageListProps {
   searchQuery?: string;
   senderProfiles?: Record<string, User>;
   onReply?: (msg: Message, senderName: string) => void;
+  onEdit?: (msg: Message) => void;
   onOpenGroupInvite?: (groupId: string) => Promise<void>;
 }
 
@@ -214,6 +215,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   searchQuery = '',
   senderProfiles = EMPTY_SENDER_PROFILES,
   onReply,
+  onEdit,
   onOpenGroupInvite,
 }) => {
   const { t } = useTranslation();
@@ -413,6 +415,18 @@ export const MessageList: React.FC<MessageListProps> = ({
     }
   };
 
+  const handleRecall = async (messageId: string) => {
+    try {
+      await chatService.recallMessage(chatId, messageId);
+      setMessages(prev => prev.map(msg => msg.id === messageId
+        ? { ...msg, isRecalled: true, content: '', reactions: [] }
+        : msg));
+      toast(t('chat.messageList.toast.recallSuccess'), 'success');
+    } catch {
+      toast(t('chat.messageList.toast.recallFailed'), 'error');
+    }
+  };
+
   const handleForward = (messagesToForward: Message[]) => {
     setForwardMessages(messagesToForward);
     setIsForwardModalOpen(true);
@@ -449,8 +463,18 @@ export const MessageList: React.FC<MessageListProps> = ({
       return [copyItem];
     }
     const unknownUser = t('chat.messageList.unknownUser');
+    const isOwnMessage = isCurrentUserMessage(contextMenu.msg, currentUser);
+    const isRecalled = Boolean(contextMenu.msg.isRecalled);
+    const isTextMessage = contextMenu.msg.type === 'text';
+    const ownMessageItems: ContextMenuItem[] = isOwnMessage && !isRecalled
+      ? [
+          { id: 'edit', label: t('chat.messageList.contextMenu.edit'), icon: <Pencil size={14} />, onClick: () => { if (onEdit && isTextMessage) onEdit(contextMenu.msg); } },
+          { id: 'recall', label: t('chat.messageList.contextMenu.recall'), icon: <RotateCcw size={14} />, onClick: () => { void handleRecall(contextMenu.msg.id); } },
+        ].filter(item => !(item.id === 'edit' && (!isTextMessage || !onEdit)))
+      : [];
     return [
       copyItem,
+      ...ownMessageItems,
       { id: 'reply', label: t('chat.messageList.contextMenu.reply'), icon: <Reply size={14} />, onClick: () => { if (onReply) onReply(contextMenu.msg, sender?.name || unknownUser); } },
       { id: 'reaction', label: t('chat.messageList.contextMenu.reaction'), icon: <Smile size={14} />, onClick: () => { void handleReaction(contextMenu.msg.id, '👍'); } },
       { id: 'forward', label: t('chat.messageList.contextMenu.forward'), icon: <Forward size={14} />, onClick: () => handleForward([contextMenu.msg]) },
@@ -627,22 +651,35 @@ export const MessageList: React.FC<MessageListProps> = ({
                   )}
                   <div className="relative flex items-center">
                     <div>
-                      {msg.type === 'text' && <TextMessageItem msg={msg} isMe={isMe} />}
-                      {msg.type === 'image' && <ImageMessageItem msg={msg} isMe={isMe} onMediaClick={handleMediaClick} />}
-                      {msg.type === 'video' && <VideoMessageItem msg={msg} isMe={isMe} onMediaClick={handleMediaClick} />}
-                      {msg.type === 'voice' && <VoiceMessageItem msg={msg} isMe={isMe} />}
-                      {msg.type === 'video_call' && <VideoCallMessageItem msg={displayMessage} isMe={isMe} />}
-                      {msg.type === 'link' && <LinkMessageItem msg={msg} isMe={isMe} />}
-                      {msg.type === 'applet' && <AppletMessageItem msg={msg} isMe={isMe} />}
-                      {msg.type === 'card' && <CardMessageItem
-                        msg={msg}
-                        isMe={isMe}
-                        onClick={parseGroupInviteDescriptor(msg) ? () => {
-                          void handleGroupInviteClick(msg);
-                        } : undefined}
-                      />}
-                      {msg.type === 'file' && <FileMessageItem msg={msg} isMe={isMe} />}
-                      {msg.type === 'music' && <MusicMessageItem msg={msg} isMe={isMe} allMessages={messages} />}
+                      {msg.isRecalled ? (
+                        <span className="text-[13px] text-gray-500 italic select-none">
+                          {t('chat.messageList.recalledPlaceholder')}
+                        </span>
+                      ) : (
+                        <>
+                          {msg.type === 'text' && <TextMessageItem msg={msg} isMe={isMe} />}
+                          {msg.type === 'image' && <ImageMessageItem msg={msg} isMe={isMe} onMediaClick={handleMediaClick} />}
+                          {msg.type === 'video' && <VideoMessageItem msg={msg} isMe={isMe} onMediaClick={handleMediaClick} />}
+                          {msg.type === 'voice' && <VoiceMessageItem msg={msg} isMe={isMe} />}
+                          {msg.type === 'video_call' && <VideoCallMessageItem msg={displayMessage} isMe={isMe} />}
+                          {msg.type === 'link' && <LinkMessageItem msg={msg} isMe={isMe} />}
+                          {msg.type === 'applet' && <AppletMessageItem msg={msg} isMe={isMe} />}
+                          {msg.type === 'card' && <CardMessageItem
+                            msg={msg}
+                            isMe={isMe}
+                            onClick={parseGroupInviteDescriptor(msg) ? () => {
+                              void handleGroupInviteClick(msg);
+                            } : undefined}
+                          />}
+                          {msg.type === 'file' && <FileMessageItem msg={msg} isMe={isMe} />}
+                          {msg.type === 'music' && <MusicMessageItem msg={msg} isMe={isMe} allMessages={messages} />}
+                          {msg.isEdited && (
+                            <span className="ml-1 text-[11px] text-gray-500 select-none align-bottom">
+                              {t('chat.messageList.editedIndicator')}
+                            </span>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                   {msg.reactions && msg.reactions.length > 0 && (

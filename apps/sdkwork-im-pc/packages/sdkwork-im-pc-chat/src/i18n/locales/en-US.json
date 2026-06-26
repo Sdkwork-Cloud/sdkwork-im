@@ -449,6 +449,8 @@
       "contextMenu": {
         "copy": "Copy",
         "reply": "Reply",
+        "edit": "Edit",
+        "recall": "Recall",
         "reaction": "React",
         "forward": "Forward",
         "favorite": "Favorite",
@@ -478,6 +480,8 @@
         "startedWithoutReceiver": "{{initiator}} started a {{mode}}",
         "syncing": "{{callSubject}} is syncing"
       },
+      "recalledPlaceholder": "This message was recalled",
+      "editedIndicator": "(edited)",
       "toast": {
         "loadFailed": "Failed to load messages",
         "deleteSuccess": "Message deleted",
@@ -487,7 +491,9 @@
         "copySuccess": "Copied",
         "favoriteSuccess": "Added to favorites",
         "favoriteFailed": "Failed to add favorite",
-        "reactionFailed": "Failed to update reaction"
+        "reactionFailed": "Failed to update reaction",
+        "recallSuccess": "Message recalled",
+        "recallFailed": "Failed to recall message"
       }
     },
     "messageItems": {
@@ -516,6 +522,7 @@
       "defaultPlaceholder": "Send a message...",
       "agentTypingPlaceholder": "Assistant is replying...",
       "replyPrefix": "Reply to {{name}}:",
+      "editingPrefix": "Editing message:",
       "dropToSend": "Drop to send file",
       "actions": {
         "sendFile": "Send file",
@@ -525,7 +532,8 @@
         "stopRecording": "Stop recording and send",
         "recordVoice": "Record voice message",
         "stopGenerating": "Stop generating",
-        "send": "Send (Enter)"
+        "send": "Send (Enter)",
+        "saveEdit": "Save edit (Enter)"
       },
       "toast": {
         "stickerNeedsFile": "Sticker images require a local file or Drive asset before sending",
@@ -546,7 +554,8 @@
       "inputPlaceholder": "Send a message...",
       "typing": "The other side is typing...",
       "toast": {
-        "sendFailed": "Send failed"
+        "sendFailed": "Send failed",
+        "editFailed": "Failed to edit message"
       }
     },
     "startup": {

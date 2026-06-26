@@ -1,6 +1,6 @@
 # @sdkwork/im-pc-orders
 
-Domain: commerce
+Domain: order
 Capability: im-pc-orders
 Package type: node-package
 Status: standard

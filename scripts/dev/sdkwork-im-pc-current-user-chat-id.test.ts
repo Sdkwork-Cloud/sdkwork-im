@@ -131,7 +131,7 @@ async function main(): Promise<void> {
     authToken: 'auth-token',
     context: {
       appId: 'sdkwork-im-pc',
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       userId: 'current-user',
       sessionId: 'session-1',
       environment: 'dev',
@@ -188,7 +188,7 @@ async function main(): Promise<void> {
     authToken: 'auth-token',
     context: {
       appId: 'sdkwork-im-pc',
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       userId: 'current-user',
       sessionId: 'session-1',
       environment: 'dev',
@@ -230,7 +230,7 @@ async function main(): Promise<void> {
     authToken: 'auth-token',
     context: {
       appId: 'sdkwork-im-pc',
-      tenantId: 'tenant-1',
+      tenantId: '100001',
       userId: 'current-user',
       sessionId: 'session-1',
       environment: 'dev',

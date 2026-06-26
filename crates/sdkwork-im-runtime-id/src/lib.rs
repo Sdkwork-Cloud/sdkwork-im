@@ -1,4 +1,7 @@
-use sdkwork_id::{SnowflakeIdError, SnowflakeIdGenerator};
+use sdkwork_id::{
+    NodeAllocatorConfig, NodeAllocatorError, NodeLease, SnowflakeIdError, SnowflakeIdGenerator,
+    SnowflakeNodeAllocator,
+};
 
 pub const SDKWORK_IM_ID_NODE_ID_ENV: &str = "SDKWORK_IM_ID_NODE_ID";
 
@@ -17,10 +20,10 @@ pub fn runtime_id_strategy() -> RuntimeIdStrategy {
     RuntimeIdStrategy {
         id_type: "snowflake",
         clock_rollback: "reject_and_alert",
-        node_conflict: "explicit_unique_node_id_required",
+        node_conflict: "database_backed_auto_allocation",
         sequence_overflow: "fail_closed",
-        restart_recovery: "explicit_node_id_reuse",
-        failure_handling: "fail_closed_no_random_or_database_fallback",
+        restart_recovery: "idempotent_lease_reclaim",
+        failure_handling: "database_first_then_env_fallback",
         public_id: "uuid_or_business_id",
     }
 }
@@ -75,6 +78,7 @@ pub enum RuntimeIdError {
         message: String,
     },
     Snowflake(SnowflakeIdError),
+    NodeAllocation(String),
 }
 
 impl std::fmt::Display for RuntimeIdError {
@@ -95,6 +99,9 @@ impl std::fmt::Display for RuntimeIdError {
             Self::Snowflake(error) => {
                 write!(formatter, "Snowflake ID generation failed: {error:?}")
             }
+            Self::NodeAllocation(msg) => {
+                write!(formatter, "Snowflake node_id allocation failed: {msg}")
+            }
         }
     }
 }
@@ -107,9 +114,18 @@ impl From<SnowflakeIdError> for RuntimeIdError {
     }
 }
 
-#[derive(Clone, Debug)]
+impl From<NodeAllocatorError> for RuntimeIdError {
+    fn from(error: NodeAllocatorError) -> Self {
+        Self::NodeAllocation(error.to_string())
+    }
+}
+
+#[derive(Debug)]
 pub struct RuntimeSnowflakeIdGenerator {
     inner: SnowflakeIdGenerator,
+    /// Keeps the database heartbeat alive while the generator is in use.
+    /// `None` when constructed from a static env-based node_id (legacy path).
+    _lease: Option<NodeLease>,
 }
 
 impl RuntimeSnowflakeIdGenerator {
@@ -124,6 +140,47 @@ impl RuntimeSnowflakeIdGenerator {
     pub fn with_node_id(node_id: u16) -> Result<Self, RuntimeIdError> {
         Ok(Self {
             inner: SnowflakeIdGenerator::new(node_id)?,
+            _lease: None,
+        })
+    }
+
+    /// Allocate a node_id from the IM database and create a generator.
+    ///
+    /// This is the recommended constructor for production: it automatically
+    /// discovers a unique, stable `node_id` from the `sdkwork_node_registry`
+    /// table, eliminating manual `SDKWORK_IM_ID_NODE_ID` configuration.
+    ///
+    /// The `service_name` parameter identifies the logical service (e.g.
+    /// `"social-service"`, `"space-service"`) for the node registry.
+    /// The database pool is created from `SDKWORK_IM_DATABASE_*` env vars.
+    ///
+    /// # Idempotency
+    ///
+    /// On restart, the same `service_name` + hostname will reclaim its
+    /// previous `node_id`, ensuring stable ID sequences.
+    pub async fn from_database_env(service_name: &str) -> Result<Self, RuntimeIdError> {
+        let (generator, lease) =
+            SnowflakeNodeAllocator::allocate_generator_from_env(service_name, "IM").await?;
+        Ok(Self {
+            inner: generator,
+            _lease: Some(lease),
+        })
+    }
+
+    /// Allocate a node_id from an existing database pool.
+    ///
+    /// Use this when the service already has a [`sdkwork_database_sqlx::DatabasePool`]
+    /// and wants to avoid creating a second pool.
+    pub async fn from_database_pool(
+        pool: &sdkwork_database_sqlx::DatabasePool,
+        service_name: &str,
+    ) -> Result<Self, RuntimeIdError> {
+        let config = NodeAllocatorConfig::from_service_name(service_name);
+        let (generator, lease) =
+            SnowflakeNodeAllocator::allocate_generator(pool, &config).await?;
+        Ok(Self {
+            inner: generator,
+            _lease: Some(lease),
         })
     }
 

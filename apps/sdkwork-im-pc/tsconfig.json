@@ -37,8 +37,8 @@
       "@sdkwork-internal/im-backend-api-generated": [
         "../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
-      "@sdkwork/agent-app-sdk": [
-        "../../../sdkwork-kernel/sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      "@sdkwork/agents-app-sdk": [
+        "../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/aiot-app-sdk": [
         "../../../sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript/src/index.ts"
@@ -91,6 +91,9 @@
       "@sdkwork/knowledgebase-pc-knowledge": [
         "../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledge/src/index.ts"
       ],
+      "@sdkwork/course-pc-course": [
+        "../../../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/index.ts"
+      ],
       "@packages/*": [
         "../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/*"
       ],
@@ -118,8 +121,14 @@
       "@packages/sdkwork-knowledgebase-pc-commons/src/*": [
         "../../../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-commons/src/*"
       ],
-      "@sdkwork/commerce-app-sdk": [
-        "../../../sdkwork-commerce/sdks/sdkwork-commerce-app-sdk/sdkwork-commerce-app-sdk-typescript/src/index.ts"
+      "@sdkwork/catalog-app-sdk": [
+        "../../../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/shop-app-sdk": [
+        "../../../sdkwork-shop/sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/order-app-sdk": [
+        "../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/mail-app-sdk": [
         "../../sdks/sdkwork-mail-app-sdk-shim/src/index.ts"
@@ -135,6 +144,9 @@
       ],
       "@sdkwork/course-app-sdk": [
         "../../../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/generated/server-openapi/src/index.ts"
+      ],
+      "@sdkwork/course-backend-sdk": [
+        "../../../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
       "@sdkwork/im-sdk": [
         "../../sdks/sdkwork-im-sdk/sdkwork-im-sdk-typescript/src/index.ts"
@@ -327,12 +339,6 @@
       ],
       "@sdkwork/im-pc-community": [
         "./packages/sdkwork-im-pc-community/src/index.tsx"
-      ],
-      "@sdkwork/im-pc-course/*": [
-        "./packages/sdkwork-im-pc-course/src/*"
-      ],
-      "@sdkwork/im-pc-course": [
-        "./packages/sdkwork-im-pc-course/src/index.tsx"
       ],
       "@sdkwork/im-pc-enterprise/*": [
         "./packages/sdkwork-im-pc-enterprise/src/*"

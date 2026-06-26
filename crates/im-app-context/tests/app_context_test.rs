@@ -502,7 +502,7 @@ fn test_resolve_app_context_rejects_raw_json_bearer_outside_dev_test() {
         std::env::set_var("SDKWORK_IM_ENVIRONMENT", "production");
     }
     let mut headers = HeaderMap::new();
-    let json_token = r#"{"tenant_id":"t_evil","user_id":"u_evil","organization_id":"default","actor_id":"u_evil","actor_kind":"user","permission_scope":["*"],"data_scope":["tenant"]}"#;
+    let json_token = r#"{"tenant_id":"t_evil","user_id":"u_evil","organization_id":"0","actor_id":"u_evil","actor_kind":"user","permission_scope":["*"],"data_scope":["tenant"]}"#;
     headers.insert(
         header::AUTHORIZATION,
         HeaderValue::from_str(format!("Bearer {json_token}").as_str()).expect("auth header"),
@@ -577,4 +577,19 @@ fn coalesce_websocket_device_id_prefers_frame_then_query() {
         im_app_context::coalesce_websocket_device_id(None, None),
         None
     );
+}
+
+#[test]
+fn local_service_app_context_uses_iam_default_tenant_and_organization_scope() {
+    let _env = test_dev_environment();
+    let context = local_service_app_context("100001", "30", "user", None, ["*"]);
+    assert_eq!(context.tenant_id, "100001");
+    assert_eq!(context.organization_id, "0");
+    assert_eq!(context.user_id, "30");
+
+    let headers = build_dual_token_headers_for_context(&context, context.permission_scope.iter());
+    let resolved = resolve_app_context(&headers).expect("resolve IAM-aligned local context");
+    assert_eq!(resolved.tenant_id, "100001");
+    assert_eq!(resolved.organization_id, "0");
+    assert_eq!(resolved.user_id, "30");
 }

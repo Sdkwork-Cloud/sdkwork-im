@@ -220,11 +220,39 @@
         }
       },
       {
-        "workspace": "sdkwork-commerce-app-sdk",
-        "sdkFamily": "sdkwork-commerce-app-sdk",
-        "apiAuthority": "sdkwork-commerce-app-api",
+        "workspace": "sdkwork-catalog-app-sdk",
+        "sdkFamily": "sdkwork-catalog-app-sdk",
+        "apiAuthority": "sdkwork-catalog-app-api",
         "surface": "app-api",
         "apiPrefix": "/app/v3/api/catalog",
+        "targetRuntimeIntegration": {
+          "mode": "shared-gateway",
+          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "catalogPolicy": "no-dedicated-gateway-catalog"
+        }
+      },
+      {
+        "workspace": "sdkwork-shop-app-sdk",
+        "sdkFamily": "sdkwork-shop-app-sdk",
+        "apiAuthority": "sdkwork-shop-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/shops",
+        "targetRuntimeIntegration": {
+          "mode": "shared-gateway",
+          "gatewayApplication": "sdkwork-api-cloud-gateway",
+          "commonSdkRootEnv": "SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "browserSdkRootEnv": "VITE_SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL",
+          "catalogPolicy": "no-dedicated-gateway-catalog"
+        }
+      },
+      {
+        "workspace": "sdkwork-order-app-sdk",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/orders",
         "targetRuntimeIntegration": {
           "mode": "shared-gateway",
           "gatewayApplication": "sdkwork-api-cloud-gateway",
@@ -409,6 +437,26 @@
       "catalogPolicy": "no-dedicated-gateway-catalog",
       "productApiPolicy": "Sdkwork IM IM APIs remain product-owned SDKWork API surfaces",
       "migrationState": "shared-gateway-default",
+      "standaloneUnifiedEmbeddedAuthorities": [
+        "sdkwork-drive-app-api",
+        "sdkwork-knowledgebase-app-api",
+        "sdkwork-account-app-api",
+        "sdkwork-catalog-app-api",
+        "sdkwork-inventory-app-api",
+        "sdkwork-invoice-app-api",
+        "sdkwork-membership-app-api",
+        "sdkwork-merchandise-app-api",
+        "sdkwork-order-app-api",
+        "sdkwork-payment-app-api",
+        "sdkwork-promotion-app-api",
+        "sdkwork-shop-app-api",
+        "sdkwork-mail-app-api",
+        "sdkwork-notary-app-api",
+        "sdkwork-course-app-api"
+      ],
+      "standaloneUnifiedDeferredAuthorities": [
+        "sdkwork-community-app-api"
+      ],
       "splitOverrideEnvKeys": {
         "sdkwork-iam-app-api": [
           "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
@@ -424,10 +472,55 @@
           "SDKWORK_NOTARY_APP_API_UPSTREAM",
           "SDKWORK_NOTARY_APP_API_BASE_URL"
         ],
-        "sdkwork-commerce-app-api": [
-          "SDKWORK_IM_COMMERCE_APP_API_UPSTREAM",
-          "SDKWORK_COMMERCE_APP_API_UPSTREAM",
-          "SDKWORK_COMMERCE_APP_API_BASE_URL"
+        "sdkwork-account-app-api": [
+          "SDKWORK_IM_ACCOUNT_APP_API_UPSTREAM",
+          "SDKWORK_ACCOUNT_APP_API_UPSTREAM",
+          "SDKWORK_ACCOUNT_APP_API_BASE_URL"
+        ],
+        "sdkwork-catalog-app-api": [
+          "SDKWORK_IM_CATALOG_APP_API_UPSTREAM",
+          "SDKWORK_CATALOG_APP_API_UPSTREAM",
+          "SDKWORK_CATALOG_APP_API_BASE_URL"
+        ],
+        "sdkwork-inventory-app-api": [
+          "SDKWORK_IM_INVENTORY_APP_API_UPSTREAM",
+          "SDKWORK_INVENTORY_APP_API_UPSTREAM",
+          "SDKWORK_INVENTORY_APP_API_BASE_URL"
+        ],
+        "sdkwork-invoice-app-api": [
+          "SDKWORK_IM_INVOICE_APP_API_UPSTREAM",
+          "SDKWORK_INVOICE_APP_API_UPSTREAM",
+          "SDKWORK_INVOICE_APP_API_BASE_URL"
+        ],
+        "sdkwork-membership-app-api": [
+          "SDKWORK_IM_MEMBERSHIP_APP_API_UPSTREAM",
+          "SDKWORK_MEMBERSHIP_APP_API_UPSTREAM",
+          "SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
+        ],
+        "sdkwork-merchandise-app-api": [
+          "SDKWORK_IM_MERCHANDISE_APP_API_UPSTREAM",
+          "SDKWORK_MERCHANDISE_APP_API_UPSTREAM",
+          "SDKWORK_MERCHANDISE_APP_API_BASE_URL"
+        ],
+        "sdkwork-order-app-api": [
+          "SDKWORK_IM_ORDER_APP_API_UPSTREAM",
+          "SDKWORK_ORDER_APP_API_UPSTREAM",
+          "SDKWORK_ORDER_APP_API_BASE_URL"
+        ],
+        "sdkwork-payment-app-api": [
+          "SDKWORK_IM_PAYMENT_APP_API_UPSTREAM",
+          "SDKWORK_PAYMENT_APP_API_UPSTREAM",
+          "SDKWORK_PAYMENT_APP_API_BASE_URL"
+        ],
+        "sdkwork-promotion-app-api": [
+          "SDKWORK_IM_PROMOTION_APP_API_UPSTREAM",
+          "SDKWORK_PROMOTION_APP_API_UPSTREAM",
+          "SDKWORK_PROMOTION_APP_API_BASE_URL"
+        ],
+        "sdkwork-shop-app-api": [
+          "SDKWORK_IM_SHOP_APP_API_UPSTREAM",
+          "SDKWORK_SHOP_APP_API_UPSTREAM",
+          "SDKWORK_SHOP_APP_API_BASE_URL"
         ],
         "sdkwork-mail-app-api": [
           "SDKWORK_IM_MAIL_APP_API_UPSTREAM",
@@ -454,7 +547,16 @@
         "sdkwork-iam-app-api",
         "sdkwork-drive-app-api",
         "sdkwork-notary-app-api",
-        "sdkwork-commerce-app-api",
+        "sdkwork-account-app-api",
+        "sdkwork-catalog-app-api",
+        "sdkwork-inventory-app-api",
+        "sdkwork-invoice-app-api",
+        "sdkwork-membership-app-api",
+        "sdkwork-merchandise-app-api",
+        "sdkwork-order-app-api",
+        "sdkwork-payment-app-api",
+        "sdkwork-promotion-app-api",
+        "sdkwork-shop-app-api",
         "sdkwork-mail-app-api",
         "sdkwork-community-app-api",
         "sdkwork-course-app-api",

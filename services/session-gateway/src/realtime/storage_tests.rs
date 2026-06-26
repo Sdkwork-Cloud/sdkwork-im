@@ -33,7 +33,7 @@ fn test_runtime_checkpoint_store_rejects_stale_regression_writes() {
     store
         .save_checkpoint(RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -49,7 +49,7 @@ fn test_runtime_checkpoint_store_rejects_stale_regression_writes() {
     store
         .save_checkpoint(RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -85,7 +85,7 @@ fn test_runtime_subscription_store_does_not_clear_newer_subscription() {
     store
         .save_subscriptions(RealtimeSubscriptionRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -125,7 +125,7 @@ fn test_runtime_subscription_store_compares_synced_at_by_rfc3339_instant() {
     store
         .save_subscriptions(RealtimeSubscriptionRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),

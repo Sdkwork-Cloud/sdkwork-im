@@ -62,7 +62,7 @@ export const AdminBilling = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-admin-border text-sm">
-                <TransactionRow tenant="Acme Corp" tenantId="T-1001" plan="Enterprise Grid" amount="$45,000.00" status="paid" date="Today, 09:42 AM" />
+                <TransactionRow tenant="Acme Corp" tenantId="100001" plan="Enterprise Grid" amount="$45,000.00" status="paid" date="Today, 09:42 AM" />
                 <TransactionRow tenant="Global Tech" tenantId="T-1045" plan="Business Plus" amount="$12,500.00" status="paid" date="Today, 08:15 AM" />
                 <TransactionRow tenant="Nova Labs" tenantId="T-2201" plan="Enterprise Grid" amount="$38,200.00" status="failed" date="Yesterday, 14:30 PM" />
                 <TransactionRow tenant="DataSystems Inc" tenantId="T-0982" plan="Standard" amount="$2,400.00" status="paid" date="Yesterday, 11:20 AM" />

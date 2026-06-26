@@ -60,7 +60,7 @@ const fakeClient = {
       interactionSummaryCalls.push({ conversationId, messageId });
       if (messageId === 'message-1') {
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           conversationId,
           messageId,
           messageSeq: 1,
@@ -72,7 +72,7 @@ const fakeClient = {
         };
       }
       return {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         conversationId,
         messageId,
         messageSeq: 2,

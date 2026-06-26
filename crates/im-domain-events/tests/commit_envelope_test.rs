@@ -18,7 +18,7 @@ fn test_commit_envelope_builds_stable_ordering_key() {
     let envelope = CommitEnvelope {
         event_id: "evt_demo".into(),
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         event_type: "message.posted".into(),
         event_version: 1,
         aggregate_type: AggregateType::Conversation,

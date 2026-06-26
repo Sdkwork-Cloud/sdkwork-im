@@ -62,16 +62,6 @@ const SOURCE_SPECS = Object.freeze([
     refEnvVar: 'SDKWORK_SHARED_DRIVE_GIT_REF',
   },
   {
-    id: 'sdkwork-commerce',
-    repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-commerce'),
-    requiredPaths: [
-      'package.json',
-      'sdks/sdkwork-commerce-app-sdk/sdkwork-commerce-app-sdk-typescript/package.json',
-    ],
-    repoUrlEnvVar: 'SDKWORK_SHARED_COMMERCE_REPO_URL',
-    refEnvVar: 'SDKWORK_SHARED_COMMERCE_GIT_REF',
-  },
-  {
     id: 'sdkwork-mail',
     repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-mail'),
     requiredPaths: [
@@ -97,6 +87,7 @@ const SOURCE_SPECS = Object.freeze([
     requiredPaths: [
       'package.json',
       'sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/generated/server-openapi/package.json',
+      'apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/package.json',
     ],
     repoUrlEnvVar: 'SDKWORK_SHARED_COURSE_REPO_URL',
     refEnvVar: 'SDKWORK_SHARED_COURSE_GIT_REF',
@@ -144,9 +135,9 @@ const SOURCE_SPECS = Object.freeze([
     refEnvVar: 'SDKWORK_SHARED_KNOWLEDGEBASE_GIT_REF',
   },
   {
-    id: 'sdkwork-claw-router',
-    repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-claw-router'),
-    requiredPaths: ['package.json', 'apps/sdkwork-claw-router-portal/package.json'],
+    id: 'sdkwork-clawrouter',
+    repoRoot: path.resolve(defaultRepoRoot, '..', 'sdkwork-clawrouter'),
+    requiredPaths: ['package.json', 'apps/sdkwork-clawrouter-pc/package.json'],
     repoUrlEnvVar: 'SDKWORK_SHARED_CLAW_ROUTER_REPO_URL',
     refEnvVar: 'SDKWORK_SHARED_CLAW_ROUTER_GIT_REF',
   },

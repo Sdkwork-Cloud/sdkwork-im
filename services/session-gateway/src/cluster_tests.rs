@@ -475,7 +475,7 @@ fn test_disconnect_fence_clear_for_current_session_does_not_delete_new_disconnec
     store
         .save_fence(RealtimeDisconnectFenceRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),

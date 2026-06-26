@@ -47,21 +47,13 @@ pub async fn assemble_application_router() -> ApplicationAssembly {
         sdkwork_routes_im_social_open_api::build_runtime_public_app(social_runtime.clone()),
     );
 
-    if let Some(social_state) = tokio::task::spawn_blocking(
-        social_service::try_postgres_app_state_from_database_url_env,
-    )
-    .await
-    .ok()
-    .flatten()
+    if let Some(social_state) =
+        social_service::try_postgres_app_state_from_database_url_env().await
     {
         router = router.merge(sdkwork_routes_im_social_open_api::gateway_mount(social_state));
     }
 
-    if let Some(space_state) = tokio::task::spawn_blocking(space_service::try_app_state_from_database_url_env)
-        .await
-        .ok()
-        .flatten()
-    {
+    if let Some(space_state) = space_service::try_app_state_from_database_url_env().await {
         router = router.merge(sdkwork_routes_im_space_open_api::gateway_mount(space_state));
     }
 

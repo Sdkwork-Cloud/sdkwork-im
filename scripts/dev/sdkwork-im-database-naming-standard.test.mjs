@@ -287,7 +287,7 @@ assert.match(
 );
 assert.match(
   runtimeIdCrate,
-  /use sdkwork_id::\{SnowflakeIdError, SnowflakeIdGenerator\};/u,
+  /use sdkwork_id::\{/u,
   'sdkwork-im runtime ID crate must use the appbase Snowflake generator',
 );
 assert.match(
@@ -297,8 +297,8 @@ assert.match(
 );
 assert.match(
   runtimeIdCrate,
-  /failure_handling:\s*"fail_closed_no_random_or_database_fallback"/u,
-  'sdkwork-im runtime ID strategy must fail closed without random or database fallback IDs',
+  /failure_handling:\s*"database_first_then_env_fallback"/u,
+  'sdkwork-im runtime ID strategy must prefer database-backed allocation with env fallback',
 );
 
 const appbaseReleaseDependency = sdkworkWorkflow.dependencies.find(

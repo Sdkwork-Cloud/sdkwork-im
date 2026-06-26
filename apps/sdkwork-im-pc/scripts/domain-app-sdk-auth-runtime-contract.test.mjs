@@ -38,7 +38,9 @@ const appAuthRuntimeSource = readText(
 );
 
 const domainSdkClients = [
-  ['commerce', 'Commerce'],
+  ['catalog', 'Catalog'],
+  ['order', 'Order'],
+  ['shop', 'Shop'],
   ['community', 'Community'],
   ['course', 'Course'],
   ['drive', 'Drive'],

@@ -13,7 +13,7 @@ export const SHELL_CAPABILITY_MODULE_LOADERS: Record<string, CapabilityModuleLoa
   report: () => import('@sdkwork/im-pc-reports').then((module) => ({ default: module.ReportsView })),
   attendance: () => import('@sdkwork/im-pc-attendance').then((module) => ({ default: module.AttendanceView })),
   knowledge: () => import('@sdkwork/knowledgebase-pc-knowledge').then((module) => ({ default: module.KnowledgeView })),
-  course: () => import('@sdkwork/im-pc-course').then((module) => ({ default: module.CourseView })),
+  course: () => import('@sdkwork/course-pc-course').then((module) => ({ default: module.CourseView })),
   enterprise: () => import('@sdkwork/im-pc-enterprise').then((module) => ({ default: module.EnterpriseView })),
   devices: () => import('@sdkwork/im-pc-devices').then((module) => ({ default: module.DevicesView })),
   community: () => import('@sdkwork/im-pc-community').then((module) => ({ default: module.CommunityView })),

@@ -919,7 +919,7 @@ mod tests {
         CommitEnvelope {
             event_id: "evt_recovery_created".into(),
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             event_type: "conversation.created".into(),
             event_version: 1,
             aggregate_type: AggregateType::Conversation,

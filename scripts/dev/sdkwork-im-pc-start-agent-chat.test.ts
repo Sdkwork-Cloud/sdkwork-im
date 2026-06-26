@@ -31,7 +31,7 @@ const fakeClient = {
         conversationId,
         displayName: body.displayName,
         notice: '',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         updatedAt: '2026-06-04T00:00:00.000Z',
       };
     },
@@ -45,7 +45,7 @@ const fakeClient = {
         isPinned: false,
         principalId: 'current-user',
         principalKind: 'user',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         updatedAt: '2026-06-04T00:00:00.000Z',
       };
     },

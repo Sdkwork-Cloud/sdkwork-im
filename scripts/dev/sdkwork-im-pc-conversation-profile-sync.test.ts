@@ -14,7 +14,7 @@ type ProfileCall = {
 const retrieveCalls: ProfileCall[] = [];
 const updateCalls: ProfileCall[] = [];
 const storedProfile = {
-  tenantId: 'tenant-1',
+  tenantId: '100001',
   conversationId: 'chat-1',
   displayName: 'Backend Group Name',
   avatarUrl: 'https://cdn.example.test/group.png',
@@ -44,7 +44,7 @@ const fakeClient = {
   conversations: {
     async getPreferences(conversationId: string) {
       return {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         conversationId,
         principalKind: 'user',
         principalId: 'u_owner',

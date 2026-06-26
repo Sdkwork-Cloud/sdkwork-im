@@ -34,8 +34,8 @@ struct UpstreamState {
 
 fn gateway_test_app_context() -> AppContext {
     let mut context = local_service_app_context(
-        "tenant_real",
-        "user_real",
+        "100001",
+        "30",
         "user",
         Some("device_real"),
         ["*"],
@@ -301,8 +301,8 @@ async fn gateway_derives_proxied_im_http_context_from_appbase_dual_tokens_not_cl
 
     assert_eq!(response.status(), StatusCode::OK);
     let context = read_json_body(response).await;
-    assert_eq!(context["tenantId"], "tenant_real");
-    assert_eq!(context["userId"], "user_real");
+    assert_eq!(context["tenantId"], "100001");
+    assert_eq!(context["userId"], "30");
     assert_eq!(context["sessionId"], "session_real");
     assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
 }
@@ -345,8 +345,8 @@ async fn gateway_drops_sdkwork_internal_headers_when_signature_secret_is_configu
 
     assert_eq!(response.status(), StatusCode::OK);
     let context = read_json_body(response).await;
-    assert_eq!(context["tenantId"], "tenant_real");
-    assert_eq!(context["userId"], "user_real");
+    assert_eq!(context["tenantId"], "100001");
+    assert_eq!(context["userId"], "30");
     assert_eq!(context["sessionId"], "session_real");
     assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
 }
@@ -425,7 +425,7 @@ async fn gateway_derives_proxied_im_calls_context_from_appbase_dual_tokens_not_c
         let body = if method == Method::GET {
             Body::empty()
         } else {
-            Body::from(json!({ "participantId": "user_real" }).to_string())
+            Body::from(json!({ "participantId": "30" }).to_string())
         };
         let is_get = method == Method::GET;
         let mut request_builder = Request::builder()
@@ -450,8 +450,8 @@ async fn gateway_derives_proxied_im_calls_context_from_appbase_dual_tokens_not_c
             "gateway IM calls request should succeed for {path}"
         );
         let context = read_json_body(response).await;
-        assert_eq!(context["tenantId"], "tenant_real", "{path} tenant context");
-        assert_eq!(context["userId"], "user_real", "{path} user context");
+        assert_eq!(context["tenantId"], "100001", "{path} tenant context");
+        assert_eq!(context["userId"], "30", "{path} user context");
         assert_eq!(
             context["sessionId"], "session_real",
             "{path} session context"
@@ -529,13 +529,13 @@ async fn gateway_derives_proxied_chat_data_context_from_appbase_dual_tokens_not_
             "/app/v3/api/drive/uploader/uploads",
         ),
         (
-            "sdkwork-commerce-app-api",
+            "sdkwork-catalog-app-api",
             Method::GET,
             "/app/v3/api/catalog/products",
             "/app/v3/api/catalog/products",
         ),
         (
-            "sdkwork-commerce-app-api",
+            "sdkwork-order-app-api",
             Method::GET,
             "/app/v3/api/orders",
             "/app/v3/api/orders",
@@ -651,13 +651,13 @@ async fn gateway_derives_context_for_protected_routes_without_appbase_session_lo
             "/app/v3/api/drive/uploader/uploads",
         ),
         (
-            "sdkwork-commerce-app-api",
+            "sdkwork-catalog-app-api",
             Method::GET,
             "/app/v3/api/catalog/products",
             "/app/v3/api/catalog/products",
         ),
         (
-            "sdkwork-commerce-app-api",
+            "sdkwork-order-app-api",
             Method::GET,
             "/app/v3/api/orders",
             "/app/v3/api/orders",
@@ -949,11 +949,11 @@ async fn assert_gateway_derives_context_for_configured_upstream(
     );
     let context = read_json_body(response).await;
     assert_eq!(
-        context["tenantId"], "tenant_real",
+        context["tenantId"], "100001",
         "{service_id} must receive dual-token tenant context"
     );
     assert_eq!(
-        context["userId"], "user_real",
+        context["userId"], "30",
         "{service_id} must receive dual-token user context"
     );
     assert_eq!(
@@ -1007,11 +1007,11 @@ async fn assert_gateway_derives_context_without_appbase_session_lookup(
     );
     let context = read_json_body(response).await;
     assert_eq!(
-        context["tenantId"], "tenant_real",
+        context["tenantId"], "100001",
         "{service_id} must receive dual-token tenant context without appbase session lookup"
     );
     assert_eq!(
-        context["userId"], "user_real",
+        context["userId"], "30",
         "{service_id} must receive dual-token user context without appbase session lookup"
     );
     assert_eq!(

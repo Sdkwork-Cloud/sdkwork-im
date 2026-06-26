@@ -9,7 +9,7 @@ use sdkwork_im_contract_core::ContractError;
 fn demo_auth(actor_kind: &str, session_id: &str, device_id: &str) -> AppContext {
     AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         user_id: "u_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: actor_kind.into(),
@@ -31,7 +31,7 @@ fn presence_record(
 ) -> PresenceStateRecord {
     PresenceStateRecord {
         tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
         principal_kind: "user".into(),
         principal_id: "u_demo".into(),
         device_id: "d_cold".into(),
@@ -286,7 +286,7 @@ fn test_presence_runtime_expires_stale_online_devices_loaded_only_from_store() {
     presence_store
         .save_state(PresenceStateRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_cold".into(),

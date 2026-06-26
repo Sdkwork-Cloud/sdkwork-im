@@ -77,7 +77,7 @@ entries:
     owner: im-open-api
   - operationId: conversations.retrieve
     httpSurface: open-api
-    httpPath: /im/v3/api/chat/conversations/{conversation_id}/binding
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/binding
     rpcPackage: sdkwork.communication.app.v3
     rpcService: ConversationService
     rpcMethod: RetrieveConversation
@@ -86,7 +86,7 @@ entries:
     owner: im-open-api
   - operationId: inbox.retrieve
     httpSurface: open-api
-    httpPath: /im/v3/api/inbox
+    httpPath: /im/v3/api/chat/inbox
     rpcPackage: sdkwork.communication.app.v3
     rpcService: ConversationService
     rpcMethod: RetrieveInbox
@@ -96,7 +96,7 @@ entries:
     rpcPartialReason: conversation-runtime RPC inbox scans loaded runtime state; projection inbox is authoritative for cold storage
   - operationId: conversations.members.list
     httpSurface: open-api
-    httpPath: /im/v3/api/chat/conversations/{conversation_id}/members
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/members
     rpcPackage: sdkwork.communication.app.v3
     rpcService: ConversationService
     rpcMethod: ListConversationMembers
@@ -105,7 +105,7 @@ entries:
     owner: im-open-api
   - operationId: conversations.messages.list
     httpSurface: open-api
-    httpPath: /im/v3/api/chat/conversations/{conversation_id}/messages
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/messages
     rpcPackage: sdkwork.communication.app.v3
     rpcService: MessageService
     rpcMethod: ListConversationMessages
@@ -114,7 +114,7 @@ entries:
     owner: im-open-api
   - operationId: conversations.messages.create
     httpSurface: open-api
-    httpPath: /im/v3/api/chat/conversations/{conversation_id}/messages
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/messages
     rpcPackage: sdkwork.communication.app.v3
     rpcService: MessageService
     rpcMethod: CreateConversationMessage
@@ -132,7 +132,7 @@ entries:
     owner: im-open-api
   - operationId: rooms.get
     httpSurface: open-api
-    httpPath: /im/v3/api/chat/rooms/{room_id}
+    httpPath: /im/v3/api/chat/rooms/{roomId}
     rpcPackage: sdkwork.communication.app.v3
     rpcService: RoomService
     rpcMethod: RetrieveRoom
@@ -141,7 +141,7 @@ entries:
     owner: im-open-api
   - operationId: rooms.enter
     httpSurface: open-api
-    httpPath: /im/v3/api/chat/rooms/{room_id}/enter
+    httpPath: /im/v3/api/chat/rooms/{roomId}/enter
     rpcPackage: sdkwork.communication.app.v3
     rpcService: RoomService
     rpcMethod: EnterRoom
@@ -150,7 +150,7 @@ entries:
     owner: im-open-api
   - operationId: rooms.leave
     httpSurface: open-api
-    httpPath: /im/v3/api/chat/rooms/{room_id}/leave
+    httpPath: /im/v3/api/chat/rooms/{roomId}/leave
     rpcPackage: sdkwork.communication.app.v3
     rpcService: RoomService
     rpcMethod: LeaveRoom
@@ -209,7 +209,7 @@ entries:
     rpcOnlyReason: room orchestration for split-deploy service-mtls callers
   - operationId: conversations.preferences.retrieve
     httpSurface: open-api
-    httpPath: /im/v3/api/conversations/{conversation_id}/preferences
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/preferences
     rpcPackage: sdkwork.communication.app.v3
     rpcService: ConversationService
     rpcMethod: RetrieveConversationPreferences
@@ -219,7 +219,7 @@ entries:
     httpOnlyReason: conversation preferences are projection-owned until runtime preference store ships
   - operationId: conversations.profile.retrieve
     httpSurface: open-api
-    httpPath: /im/v3/api/conversations/{conversation_id}/profile
+    httpPath: /im/v3/api/chat/conversations/{conversationId}/profile
     rpcPackage: sdkwork.communication.app.v3
     rpcService: ConversationService
     rpcMethod: RetrieveConversationProfile
@@ -229,7 +229,7 @@ entries:
     httpOnlyReason: conversation profile is projection-owned until runtime profile store ships
   - operationId: messages.favorites.list
     httpSurface: open-api
-    httpPath: /im/v3/api/messages/favorites
+    httpPath: /im/v3/api/chat/messages/favorites
     rpcPackage: sdkwork.communication.app.v3
     rpcService: MessageService
     rpcMethod: ListFavoriteMessages
@@ -239,7 +239,7 @@ entries:
     httpOnlyReason: favorites are projection-owned until runtime favorite index ships
   - operationId: messages.visibility.delete
     httpSurface: open-api
-    httpPath: /im/v3/api/messages/{message_id}/visibility
+    httpPath: /im/v3/api/chat/messages/{messageId}/visibility
     rpcPackage: sdkwork.communication.app.v3
     rpcService: MessageService
     rpcMethod: DeleteMessageVisibility

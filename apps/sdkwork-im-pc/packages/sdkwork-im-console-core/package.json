@@ -5,7 +5,9 @@
   "types": "./src/index.tsx",
   "dependencies": {
     "@sdkwork/im-console-shop": "workspace:*",
-    "@sdkwork/im-console-product": "workspace:*"
+    "@sdkwork/im-console-product": "workspace:*",
+    "@sdkwork/im-pc-commons": "workspace:*",
+    "@sdkwork/im-pc-core": "workspace:*"
   },
   "exports": {
     ".": {

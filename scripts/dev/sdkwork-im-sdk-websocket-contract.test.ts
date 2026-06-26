@@ -168,8 +168,9 @@ function fakeAccessToken(claims: Record<string, unknown>): string {
 }
 
 const TEST_ACCESS_CLAIMS = {
-  tenant_id: 'tenant-1',
-  user_id: 'user-1',
+  tenant_id: '100001',
+  user_id: '30',
+  organization_id: '0',
   session_id: 'session-1',
   subject_type: 'user',
 };
@@ -272,8 +273,8 @@ function completeNegotiatedSessionResume(
 function completeFactoryCcpHandshake(
   socket: FakeWebSocket,
   bindContext = {
-    tenantId: 'tenant-1',
-    principalId: 'user-1',
+    tenantId: '100001',
+    principalId: '30',
     sessionId: 'session-1',
     deviceId: 'device-1',
     actorKind: 'user',
@@ -373,7 +374,7 @@ async function main(): Promise<void> {
     connection.messages.onConversation('conversation-1', (message, context) => {
       received.push({ context, message });
     });
-    connection.events.onScope('user', 'user-1', (event, context) => {
+    connection.events.onScope('user', '30', (event, context) => {
       userScopeEvents.push({ context, event });
     });
 
@@ -446,7 +447,7 @@ async function main(): Promise<void> {
     connection.subscriptions.syncScopes([
       {
         scopeType: 'user',
-        scopeId: 'user-1',
+        scopeId: '30',
         eventTypes: [
           'friend_request.submitted',
           'friend_request.accepted',
@@ -471,7 +472,7 @@ async function main(): Promise<void> {
         },
         {
           scopeType: 'user',
-          scopeId: 'user-1',
+          scopeId: '30',
           eventTypes: [
             'friend_request.submitted',
             'friend_request.accepted',
@@ -498,13 +499,13 @@ async function main(): Promise<void> {
                 friendRequest: {
                   requestId: 'friend-request-1',
                   requesterUserId: 'user-2',
-                  targetUserId: 'user-1',
+                  targetUserId: '30',
                   status: 'pending',
                 },
               }),
               realtimeSeq: 6,
               scopeType: 'user',
-              scopeId: 'user-1',
+              scopeId: '30',
             },
           ],
           nextAfterSeq: 6,
@@ -514,14 +515,14 @@ async function main(): Promise<void> {
 
     assert.equal(userScopeEvents.length, 1, 'IM SDK must dispatch non-conversation user-scope realtime events');
     assert.equal(userScopeEvents[0].context.scopeType, 'user');
-    assert.equal(userScopeEvents[0].context.scopeId, 'user-1');
+    assert.equal(userScopeEvents[0].context.scopeId, '30');
     assert.equal(userScopeEvents[0].context.eventType, 'friend_request.submitted');
     assert.equal(userScopeEvents[0].context.sequence, 6);
     assert.deepEqual(userScopeEvents[0].context.payload, {
       friendRequest: {
         requestId: 'friend-request-1',
         requesterUserId: 'user-2',
-        targetUserId: 'user-1',
+        targetUserId: '30',
         status: 'pending',
       },
     });
@@ -1209,8 +1210,8 @@ async function main(): Promise<void> {
     heartbeatConnection.lifecycle.onError((error) => heartbeatErrors.push(error));
     heartbeatSocket.open();
     completeFactoryCcpHandshake(heartbeatSocket, {
-      tenantId: 'tenant-1',
-      principalId: 'user-1',
+      tenantId: '100001',
+      principalId: '30',
       sessionId: 'session-1',
       deviceId: 'heartbeat-device-1',
     });
@@ -1253,8 +1254,8 @@ async function main(): Promise<void> {
     staleHeartbeatConnection.lifecycle.onError((error) => staleHeartbeatErrors.push(error));
     staleHeartbeatSocket.open();
     completeFactoryCcpHandshake(staleHeartbeatSocket, {
-      tenantId: 'tenant-1',
-      principalId: 'user-1',
+      tenantId: '100001',
+      principalId: '30',
       sessionId: 'session-1',
       deviceId: 'stale-heartbeat-device-1',
     });
@@ -1293,8 +1294,8 @@ async function main(): Promise<void> {
     runtimeErrorConnection.lifecycle.onError((error) => runtimeErrors.push(error));
     runtimeErrorSocket.open();
     completeFactoryCcpHandshake(runtimeErrorSocket, {
-      tenantId: 'tenant-1',
-      principalId: 'user-1',
+      tenantId: '100001',
+      principalId: '30',
       sessionId: 'session-1',
       deviceId: 'runtime-error-device-1',
     });
@@ -1343,8 +1344,8 @@ async function main(): Promise<void> {
     fatalRuntimeErrorConnection.lifecycle.onError((error) => fatalRuntimeErrors.push(error));
     fatalRuntimeErrorSocket.open();
     completeFactoryCcpHandshake(fatalRuntimeErrorSocket, {
-      tenantId: 'tenant-1',
-      principalId: 'user-1',
+      tenantId: '100001',
+      principalId: '30',
       sessionId: 'session-1',
       deviceId: 'fatal-runtime-error-device-1',
     });
@@ -1512,8 +1513,8 @@ async function main(): Promise<void> {
 
     completeBrowserGatewayAuthAndCcp(browserSocket, {
       requestId: 'sdkwork-im-auth-init-1',
-      tenantId: 'tenant_real',
-      principalId: 'user_real',
+      tenantId: '100001',
+      principalId: '30',
       sessionId: 'session_real',
       deviceId: 'browser-device-1',
     });

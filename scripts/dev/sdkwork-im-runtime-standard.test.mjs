@@ -161,6 +161,36 @@ assert.equal(
   canonicalSqlite.env.SDKWORK_IM_DATABASE_URL,
   'desktop SQLite config must be bridged to the current Rust-compatible env name',
 );
+assert.match(
+  canonicalSqlite.env.SDKWORK_DRIVE_DATABASE_SQLITE_URL,
+  /sqlite:\/\/.*[/\\]drive\.sqlite$/u,
+  'shared SQLite bridge must isolate Drive persistence from IM chat.sqlite',
+);
+assert.match(
+  canonicalSqlite.env.SDKWORK_KNOWLEDGEBASE_DATABASE_URL,
+  /sqlite:\/\/.*[/\\]knowledgebase\.db\?mode=rwc$/u,
+  'shared SQLite bridge must isolate Knowledgebase persistence from IM chat.sqlite',
+);
+assert.match(
+  canonicalSqlite.env.SDKWORK_CATALOG_DATABASE_URL,
+  /sqlite:\/\/.*[/\\]catalog\.sqlite$/u,
+  'shared SQLite bridge must isolate catalog persistence from IM chat.sqlite',
+);
+assert.match(
+  canonicalSqlite.env.SDKWORK_ORDER_DATABASE_URL,
+  /sqlite:\/\/.*[/\\]order\.sqlite$/u,
+  'shared SQLite bridge must isolate order persistence from IM chat.sqlite',
+);
+assert.match(
+  canonicalSqlite.env.SDKWORK_SHOP_DATABASE_URL,
+  /sqlite:\/\/.*[/\\]shop\.sqlite$/u,
+  'shared SQLite bridge must isolate shop persistence from IM chat.sqlite',
+);
+assert.match(
+  canonicalSqlite.env.SDKWORK_MAIL_DATABASE_URL,
+  /sqlite:\/\/.*[/\\]mail\.sqlite$/u,
+  'shared SQLite bridge must isolate Mail persistence from IM chat.sqlite',
+);
 
 const planModule = await import(
   pathToFileURL(path.join(repoRoot, 'scripts/release/plan-sdkwork-im-install-packages.mjs')).href
@@ -219,7 +249,7 @@ for (const required of [
   'SDKWORK_IM_PC_API_UPSTREAM=https://im.sdkwork.com',
   'SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE=true',
   'SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET=replace-with-secret-manager-app-context-signature-secret',
-  'SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID=replace-with-tenant-id',
+  'SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID=100001',
   'SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID=bootstrap',
   'SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET=replace-with-secret-manager-jwt-signing-secret',
 ]) {

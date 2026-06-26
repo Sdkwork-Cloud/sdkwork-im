@@ -13,16 +13,26 @@ import { resetAppSdkClient, getAppSdkClient, resolveAppSdkBaseUrl } from './appS
 import { resetAgentAppSdkClient, getAgentAppSdkClient } from './agentAppSdkClient';
 import { resetAppbaseAppSdkClient } from './appbaseAppSdkClient';
 import {
-  getCommerceAppSdkClient,
-  resetCommerceAppSdkClient,
-} from './commerceAppSdkClient';
+  getCatalogAppSdkClient,
+  resetCatalogAppSdkClient,
+} from './catalogAppSdkClient';
+import {
+  getOrderAppSdkClient,
+  resetOrderAppSdkClient,
+} from './orderAppSdkClient';
+import {
+  getShopAppSdkClient,
+  resetShopAppSdkClient,
+} from './shopAppSdkClient';
 import {
   getCommunityAppSdkClient,
   resetCommunityAppSdkClient,
 } from './communityAppSdkClient';
 import { getCourseAppSdkClient, resetCourseAppSdkClient } from './courseAppSdkClient';
+import { resetCourseBackendSdkClient } from './courseBackendSdkClient';
 import { resetDriveAppSdkClient, getDriveAppSdkClient } from './driveAppSdkClient';
 import { rebootstrapDrivePcRuntimeForIm, resetDrivePcRuntime } from './drivePcIntegration';
+import { rebootstrapCoursePcRuntimeForIm, resetCoursePcRuntime } from './coursePcIntegration';
 import { resetImSdkClient, getImSdkClient } from './imSdkClient';
 import { getKnowledgebaseAppSdkClient, resetKnowledgebaseAppSdkClient } from './knowledgebaseAppSdkClient';
 import { rebootstrapKnowledgebasePcRuntimeForIm, resetKnowledgebasePcRuntime } from './knowledgebasePcIntegration';
@@ -109,9 +119,12 @@ export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetAiotAppSdkClient();
   resetAppSdkClient();
   resetAgentAppSdkClient();
-  resetCommerceAppSdkClient();
+  resetCatalogAppSdkClient();
+  resetOrderAppSdkClient();
+  resetShopAppSdkClient();
   resetCommunityAppSdkClient();
   resetCourseAppSdkClient();
+  resetCourseBackendSdkClient();
   resetDriveAppSdkClient();
   resetImSdkClient();
   resetKnowledgebaseAppSdkClient();
@@ -121,6 +134,7 @@ export function resetSdkworkChatAuthenticatedSdkClients(): void {
   resetNotaryPcRuntime();
   resetDrivePcRuntime();
   resetKnowledgebasePcRuntime();
+  resetCoursePcRuntime();
 }
 
 export function clearSdkworkChatIamRuntimeSession(): void {
@@ -133,7 +147,9 @@ function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
     getAiotAppSdkClient(),
     getAppSdkClient(),
     getAgentAppSdkClient(),
-    getCommerceAppSdkClient(),
+    getCatalogAppSdkClient(),
+    getOrderAppSdkClient(),
+    getShopAppSdkClient(),
     getCommunityAppSdkClient(),
     getCourseAppSdkClient(),
     getDriveAppSdkClient(),
@@ -161,6 +177,7 @@ function createSdkworkChatIamRuntime(): SdkworkAppbasePcAuthRuntimeComposition {
         rebootstrapNotaryPcRuntimeForIm();
         rebootstrapDrivePcRuntimeForIm();
         rebootstrapKnowledgebasePcRuntimeForIm();
+        rebootstrapCoursePcRuntimeForIm();
       },
     },
     sdkClients: getAuthenticatedSdkClients(),

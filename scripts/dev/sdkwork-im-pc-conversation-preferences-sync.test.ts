@@ -47,7 +47,7 @@ const fakeClient = {
     async getPreferences(conversationId: string) {
       retrieveCalls.push({ conversationId });
       return {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         conversationId,
         principalKind: 'user',
         principalId: 'u_owner',
@@ -69,7 +69,7 @@ const fakeClient = {
     ) {
       updateCalls.push({ conversationId, body });
       return {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         conversationId,
         principalKind: 'user',
         principalId: 'u_owner',
@@ -98,7 +98,7 @@ const fakeClient = {
     ) {
       readCursorCalls.push({ conversationId, body });
       return {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         conversationId,
         memberId: 'member-1',
         principalId: 'u_owner',

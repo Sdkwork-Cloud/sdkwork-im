@@ -537,7 +537,7 @@ mod tests {
         store
             .save_checkpoint(RealtimeCheckpointRecord {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_pad".into(),
@@ -553,7 +553,7 @@ mod tests {
         store
             .save_checkpoint(RealtimeCheckpointRecord {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_pad".into(),
@@ -589,7 +589,7 @@ mod tests {
         store
             .save_subscriptions(RealtimeSubscriptionRecord {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_pad".into(),
@@ -630,7 +630,7 @@ mod tests {
         store
             .save_subscriptions(RealtimeSubscriptionRecord {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_pad".into(),

@@ -1,5 +1,6 @@
 import type {
   DeleteMessageFavoriteResponse,
+  EditMessageRequest,
   FavoriteMessageRequest,
   FavoriteMessagesResponse,
   MessageFavoriteType,
@@ -8,6 +9,7 @@ import type {
   MessageReactionMutationResult,
   MessageReactionRequest,
   MessageVisibilityMutationResult,
+  PostedMessageResponse,
   QueryParams,
 } from '@sdkwork/im-sdk-generated';
 import type { ImTransportClientLike } from './transport-client-like';
@@ -54,6 +56,14 @@ export class ImMessagesModule {
 
   deleteForMe(messageId: string | number): Promise<MessageVisibilityMutationResult> {
     return this.transportClient.chat.messages.visibility.delete(messageId);
+  }
+
+  recall(messageId: string | number): Promise<PostedMessageResponse> {
+    return this.transportClient.chat.messages.recall(messageId);
+  }
+
+  edit(messageId: string | number, body: EditMessageRequest): Promise<PostedMessageResponse> {
+    return this.transportClient.chat.messages.edit(messageId, body);
   }
 
   listFavorites(params?: QueryParams & { favoriteType?: MessageFavoriteType }): Promise<FavoriteMessagesResponse> {

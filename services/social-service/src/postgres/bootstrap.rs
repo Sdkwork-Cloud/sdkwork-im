@@ -15,7 +15,7 @@ use super::id::build_runtime_id_generator;
 
 pub const DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
 
-pub fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> PostgresAppState {
+pub async fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> PostgresAppState {
     let pool_arc = Arc::new(pool.inner().clone());
     PostgresAppState {
         postgres_pool: pool,
@@ -27,11 +27,11 @@ pub fn app_state_from_postgres_pool(pool: SocialPostgresPool) -> PostgresAppStat
         direct_chat_store: Arc::new(PostgresDirectChatStore::new(pool_arc)),
         presence_cache: None,
         session_cache: None,
-        id_generator: build_runtime_id_generator(),
+        id_generator: build_runtime_id_generator().await,
     }
 }
 
-pub fn try_postgres_app_state_from_database_url_env() -> Option<PostgresAppState> {
+pub async fn try_postgres_app_state_from_database_url_env() -> Option<PostgresAppState> {
     let config = sdkwork_database_config::DatabaseConfig::from_env("IM").ok()?;
     if config.engine != sdkwork_database_config::DatabaseEngine::Postgres {
         return None;
@@ -39,5 +39,5 @@ pub fn try_postgres_app_state_from_database_url_env() -> Option<PostgresAppState
     let pool = SocialPostgresConfig::from_database_config(&config)
         .connect_pool()
         .ok()?;
-    Some(app_state_from_postgres_pool(pool))
+    Some(app_state_from_postgres_pool(pool).await)
 }

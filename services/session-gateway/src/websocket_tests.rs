@@ -15,7 +15,7 @@ use super::*;
 fn demo_auth_context() -> AppContext {
     AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         user_id: "u_demo".into(),
         actor_id: "u_demo".into(),
         actor_kind: "user".into(),

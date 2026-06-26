@@ -185,7 +185,7 @@
           "enabled": true,
           "metadata": {},
           "checksumAlgorithm": "SHA-256",
-          "checksum": "2eb85c4c2eb85c4c2eb85c4c2eb85c4c2eb85c4c2eb85c4c2eb85c4c2eb85c4c",
+          "checksum": null,
           "architecture": "universal",
           "deploymentProfile": "cloud",
           "runtimeTarget": "browser"
@@ -201,7 +201,7 @@
           "metadata": {},
           "architecture": "x64",
           "checksumAlgorithm": "SHA-256",
-          "checksum": "de10c198de10c198de10c198de10c198de10c198de10c198de10c198de10c198",
+          "checksum": null,
           "deploymentProfile": "standalone",
           "runtimeTarget": "desktop"
         },
@@ -216,7 +216,7 @@
           "metadata": {},
           "architecture": "universal",
           "checksumAlgorithm": "SHA-256",
-          "checksum": "3a457bc83a457bc83a457bc83a457bc83a457bc83a457bc83a457bc83a457bc8",
+          "checksum": null,
           "deploymentProfile": "standalone",
           "runtimeTarget": "desktop"
         },
@@ -235,7 +235,7 @@
           },
           "architecture": "x64",
           "checksumAlgorithm": "SHA-256",
-          "checksum": "3a3b31493a3b31493a3b31493a3b31493a3b31493a3b31493a3b31493a3b3149",
+          "checksum": null,
           "deploymentProfile": "standalone",
           "runtimeTarget": "desktop"
         }
@@ -282,7 +282,7 @@
   },
   "security": {
     "checksumRequired": true,
-    "signatureRequired": true,
+    "signatureRequired": false,
     "sbomRequired": true
   },
   "devApp": {

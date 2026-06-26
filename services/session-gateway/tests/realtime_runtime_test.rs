@@ -1435,7 +1435,7 @@ fn test_runtime_clamps_invalid_checkpoint_invariants_on_restore() {
     checkpoint_store
         .save_checkpoint(RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -1472,7 +1472,7 @@ fn test_failed_checkpoint_normalization_restore_retries_durable_repair() {
     let checkpoint_store = Arc::new(FailAfterRealtimeCheckpointStore::new(0));
     checkpoint_store.insert_checkpoint(RealtimeCheckpointRecord {
         tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
         principal_id: "u_demo".into(),
         device_id: "d_pad".into(),
@@ -1523,7 +1523,7 @@ fn test_restore_client_route_state_clamps_invalid_checkpoint_fields_before_persi
     expect_ok(runtime.restore_client_route_state(
         session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -1565,7 +1565,7 @@ fn test_restore_client_route_state_checkpoint_failure_does_not_install_runtime_s
     let error = runtime
         .restore_client_route_state(session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -1639,7 +1639,7 @@ fn test_restore_client_route_state_reports_subscription_compensation_failure() {
     let error = runtime
         .restore_client_route_state(session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -1700,7 +1700,7 @@ fn test_restore_client_route_state_checkpoint_failure_restores_previous_durable_
     let error = failing_runtime
         .restore_client_route_state(session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -1736,7 +1736,7 @@ fn test_restore_client_route_state_normalizes_event_order_for_monotonic_paginati
     expect_ok(runtime.restore_client_route_state(
         session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -1805,7 +1805,7 @@ fn test_restore_client_route_state_deduplicates_realtime_sequences() {
     expect_ok(runtime.restore_client_route_state(
         session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -1846,7 +1846,7 @@ fn test_restore_client_route_state_discards_events_at_or_below_trimmed_boundary(
     expect_ok(runtime.restore_client_route_state(
         session_gateway::RealtimeClientRouteStateSnapshot {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),

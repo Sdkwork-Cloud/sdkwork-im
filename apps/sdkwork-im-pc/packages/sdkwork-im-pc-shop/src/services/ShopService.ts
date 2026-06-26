@@ -1,13 +1,15 @@
-import type { CommerceAppSdkClient } from '@sdkwork/commerce-app-sdk';
+import type { CatalogAppSdkClient } from '@sdkwork/im-pc-core/sdk/catalogAppSdkClient';
+import type { OrderAppSdkClient } from '@sdkwork/im-pc-core/sdk/orderAppSdkClient';
 import {
-  extractCommercePayload,
-  extractCommerceRecordsFromResult,
+  extractAppSdkPayload,
+  extractAppSdkRecordsFromResult,
   parseMoneyAmount,
   readNumber,
   readOptionalString,
   readString,
-} from '@sdkwork/im-pc-core/sdk/commerceApiHelpers';
-import { getCommerceAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/commerceAppSdkClient';
+} from '@sdkwork/im-pc-core/sdk/appSdkResponseHelpers';
+import { getCatalogAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/catalogAppSdkClient';
+import { getOrderAppSdkClientWithSession } from '@sdkwork/im-pc-core/sdk/orderAppSdkClient';
 
 export interface ShopCategory {
   id: string;
@@ -109,7 +111,8 @@ export {
 };
 
 interface ShopServiceOptions {
-  client?: CommerceAppSdkClient;
+  catalogClient?: CatalogAppSdkClient;
+  orderClient?: OrderAppSdkClient;
 }
 
 const DEFAULT_CATEGORY_ICON = 'Store';
@@ -197,22 +200,26 @@ class SdkworkShopService implements ShopService {
 
   constructor(private readonly options: ShopServiceOptions = {}) {}
 
-  private client(): CommerceAppSdkClient {
-    return this.options.client ?? getCommerceAppSdkClientWithSession();
+  private catalogClient(): CatalogAppSdkClient {
+    return this.options.catalogClient ?? getCatalogAppSdkClientWithSession();
+  }
+
+  private orderClient(): OrderAppSdkClient {
+    return this.options.orderClient ?? getOrderAppSdkClientWithSession();
   }
 
   async getCategories(): Promise<ShopCategory[]> {
-    const result = await this.client().catalog.categories.list({ pageSize: 100 });
-    return extractCommerceRecordsFromResult(result).map(mapCategory);
+    const result = await this.catalogClient().catalog.categories.list({ pageSize: 100 });
+    return extractAppSdkRecordsFromResult(result).map(mapCategory);
   }
 
   async getProducts(categoryId?: string): Promise<ShopProduct[]> {
-    const result = await this.client().catalog.products.list({
+    const result = await this.catalogClient().catalog.products.list({
       categoryId,
       pageSize: 100,
       status: 'active',
     });
-    return extractCommerceRecordsFromResult(result).map(mapSpuToProduct);
+    return extractAppSdkRecordsFromResult(result).map(mapSpuToProduct);
   }
 
   async getProductById(id: string): Promise<ShopProduct | null> {
@@ -222,13 +229,13 @@ class SdkworkShopService implements ShopService {
     }
 
     try {
-      const productResult = await this.client().catalog.products.retrieve(normalizedId);
-      const productRecord = extractCommercePayload(productResult);
+      const productResult = await this.catalogClient().catalog.products.retrieve(normalizedId);
+      const productRecord = extractAppSdkPayload(productResult);
       if (productRecord && typeof productRecord === 'object' && !Array.isArray(productRecord)) {
         const product = mapSpuToProduct(productRecord as Record<string, unknown>);
         try {
-          const skuResult = await this.client().catalog.skus.retrieve(normalizedId);
-          const skuRecord = extractCommercePayload(skuResult);
+          const skuResult = await this.catalogClient().catalog.skus.retrieve(normalizedId);
+          const skuRecord = extractAppSdkPayload(skuResult);
           if (skuRecord && typeof skuRecord === 'object' && !Array.isArray(skuRecord)) {
             const sku = mapSkuToProductSku(skuRecord as Record<string, unknown>);
             product.skus = [sku];
@@ -246,8 +253,8 @@ class SdkworkShopService implements ShopService {
     }
 
     try {
-      const skuResult = await this.client().catalog.skus.retrieve(normalizedId);
-      const skuRecord = extractCommercePayload(skuResult);
+      const skuResult = await this.catalogClient().catalog.skus.retrieve(normalizedId);
+      const skuRecord = extractAppSdkPayload(skuResult);
       if (!skuRecord || typeof skuRecord !== 'object' || Array.isArray(skuRecord)) {
         return null;
       }
@@ -270,8 +277,8 @@ class SdkworkShopService implements ShopService {
   }
 
   async getCart(): Promise<CartItem[]> {
-    const result = await this.client().cart.current.retrieve();
-    return extractCommerceRecordsFromResult(result).map((record) =>
+    const result = await this.catalogClient().cart.current.retrieve();
+    return extractAppSdkRecordsFromResult(result).map((record) =>
       mapCartItem(record, this.selectedCartItemIds),
     );
   }
@@ -279,16 +286,16 @@ class SdkworkShopService implements ShopService {
   async addToCart(productId: string, quantity = 1, skuId?: string): Promise<void> {
     const resolvedSkuId = (skuId ?? productId).trim();
     if (!resolvedSkuId) {
-      throw new Error('A sku id is required to add commerce cart items.');
+      throw new Error('A sku id is required to add catalog cart items.');
     }
-    await this.client().cart.items.create({
+    await this.catalogClient().cart.items.create({
       skuId: resolvedSkuId,
       quantity: Math.max(1, quantity),
     });
   }
 
   async updateCartItem(cartItemId: string, quantity: number): Promise<void> {
-    await this.client().cart.items.update(cartItemId, {
+    await this.catalogClient().cart.items.update(cartItemId, {
       quantity: Math.max(1, quantity),
     });
   }
@@ -312,7 +319,7 @@ class SdkworkShopService implements ShopService {
   }
 
   async removeCartItem(cartItemId: string): Promise<void> {
-    await this.client().cart.items.delete(cartItemId);
+    await this.catalogClient().cart.items.delete(cartItemId);
     this.selectedCartItemIds.delete(cartItemId);
   }
 
@@ -334,18 +341,18 @@ class SdkworkShopService implements ShopService {
       throw new Error('Select at least one cart item before checkout.');
     }
 
-    const sessionResult = await this.client().checkout.sessions.create({
+    const sessionResult = await this.orderClient().checkout.sessions.create({
       items: checkoutLines,
       currencyCode: 'CNY',
     });
-    const sessionRecord = extractCommercePayload(sessionResult);
+    const sessionRecord = extractAppSdkPayload(sessionResult);
     const sessionId = readString(sessionRecord as Record<string, unknown>, 'checkoutSessionId', 'checkout_session_id');
     if (!sessionId) {
       throw new Error('Commerce checkout session id is missing from the SDK response.');
     }
 
-    const orderResult = await this.client().checkout.sessions.orders.create(sessionId, {});
-    const orderRecord = extractCommercePayload(orderResult);
+    const orderResult = await this.orderClient().checkout.sessions.orders.create(sessionId, {});
+    const orderRecord = extractAppSdkPayload(orderResult);
     const orderId = readString(orderRecord as Record<string, unknown>, 'orderId', 'order_id', 'id');
     const total = parseMoneyAmount(
       (orderRecord as Record<string, unknown> | null)?.totalAmount
@@ -370,8 +377,8 @@ class SdkworkShopService implements ShopService {
   }
 
   async getOrders(): Promise<ShopOrder[]> {
-    const result = await this.client().orders.list({ pageSize: 100 });
-    return extractCommerceRecordsFromResult(result).map(mapConsumerOrder);
+    const result = await this.orderClient().orders.list({ pageSize: 100 });
+    return extractAppSdkRecordsFromResult(result).map(mapConsumerOrder);
   }
 
   async getShippingAddresses(): Promise<ShopShippingAddress[]> {

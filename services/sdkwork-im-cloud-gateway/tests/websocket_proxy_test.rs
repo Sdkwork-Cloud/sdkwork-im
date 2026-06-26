@@ -63,8 +63,8 @@ fn test_gateway_config(
 
 fn gateway_test_app_context() -> AppContext {
     let mut context = local_service_app_context(
-        "tenant_real",
-        "user_real",
+        "100001",
+        "30",
         "user",
         Some("device_real"),
         ["*"],
@@ -311,8 +311,8 @@ async fn gateway_accepts_browser_realtime_websocket_auth_init_before_upstream_co
         serde_json::from_str(text.as_str()).expect("auth.ok frame should be json");
     assert_eq!(auth_ok["type"], "auth.ok", "first frame: {auth_ok}");
     assert_eq!(auth_ok["requestId"], "auth-1");
-    assert_eq!(auth_ok["tenantId"], "tenant_real");
-    assert_eq!(auth_ok["principalId"], "user_real");
+    assert_eq!(auth_ok["tenantId"], "100001");
+    assert_eq!(auth_ok["principalId"], "30");
     assert_eq!(auth_ok["sessionId"], "session_real");
     assert_eq!(auth_ok["deviceId"], "device_real");
 
@@ -326,8 +326,8 @@ async fn gateway_accepts_browser_realtime_websocket_auth_init_before_upstream_co
     };
     let context: serde_json::Value =
         serde_json::from_str(text.as_str()).expect("context frame should be json");
-    assert_eq!(context["tenantId"], "tenant_real");
-    assert_eq!(context["userId"], "user_real");
+    assert_eq!(context["tenantId"], "100001");
+    assert_eq!(context["userId"], "30");
     assert_eq!(context["sessionId"], "session_real");
     assert_eq!(context["deviceId"], "device_real");
     assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
@@ -609,8 +609,8 @@ async fn gateway_derives_realtime_websocket_context_from_appbase_dual_tokens_not
     let context: serde_json::Value =
         serde_json::from_str(text.as_str()).expect("context frame should be json");
 
-    assert_eq!(context["tenantId"], "tenant_real");
-    assert_eq!(context["userId"], "user_real");
+    assert_eq!(context["tenantId"], "100001");
+    assert_eq!(context["userId"], "30");
     assert_eq!(context["sessionId"], "session_real");
     assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
     assert_ne!(context["tenantId"], "t_demo");
@@ -678,8 +678,8 @@ async fn gateway_drops_realtime_websocket_sdkwork_internal_headers_when_signatur
     let context: serde_json::Value =
         serde_json::from_str(text.as_str()).expect("context frame should be json");
 
-    assert_eq!(context["tenantId"], "tenant_real");
-    assert_eq!(context["userId"], "user_real");
+    assert_eq!(context["tenantId"], "100001");
+    assert_eq!(context["userId"], "30");
     assert_eq!(context["sessionId"], "session_real");
     assert_eq!(context["sdkworkInternalHeadersForwarded"], false);
 

@@ -195,7 +195,7 @@ assert.match(devCommandSource, /resolveSdkworkImSharedDatabaseConfig/u);
 assert.match(devCommandSource, /SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL/u);
 assert.doesNotMatch(
   devCommandSource,
-  /SDKWORK_IM_DRIVE_APP_API_UPSTREAM:\s*resolveDriveAppApiUpstream|SDKWORK_IM_NOTARY_APP_API_UPSTREAM:\s*resolveNotaryAppApiUpstream|SDKWORK_IM_COMMERCE_APP_API_UPSTREAM:\s*resolveCommerceAppApiUpstream|SDKWORK_IM_MAIL_APP_API_UPSTREAM:\s*resolveMailAppApiUpstream|SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM:\s*resolveCommunityAppApiUpstream|SDKWORK_IM_COURSE_APP_API_UPSTREAM:\s*resolveCourseAppApiUpstream/u,
+  /SDKWORK_IM_DRIVE_APP_API_UPSTREAM:\s*resolveDriveAppApiUpstream|SDKWORK_IM_NOTARY_APP_API_UPSTREAM:\s*resolveNotaryAppApiUpstream|SDKWORK_IM_CATALOG_APP_API_UPSTREAM:\s*resolveCatalogAppApiUpstream|SDKWORK_IM_MAIL_APP_API_UPSTREAM:\s*resolveMailAppApiUpstream|SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM:\s*resolveCommunityAppApiUpstream|SDKWORK_IM_COURSE_APP_API_UPSTREAM:\s*resolveCourseAppApiUpstream/u,
   'local PC development must use one shared sdkwork-api-cloud-gateway root by default instead of materializing per-module foundation upstreams.',
 );
 assert.doesNotMatch(
@@ -211,13 +211,15 @@ for (const sourceName of [
   'sdkwork-notary',
   'sdkwork-appbase',
   'sdkwork-drive',
-  'sdkwork-commerce',
+  'sdkwork-catalog',
+  'sdkwork-shop',
+  'sdkwork-order',
   'sdkwork-mail',
   'sdkwork-community',
   'sdkwork-course',
   'sdkwork-core',
   'sdkwork-ui',
-  'sdkwork-claw-router',
+  'sdkwork-clawrouter',
   'sdkwork-birdcoder',
 ]) {
   assert.ok(releaseSources.sources?.[sourceName], `release shared SDK config must include ${sourceName}`);

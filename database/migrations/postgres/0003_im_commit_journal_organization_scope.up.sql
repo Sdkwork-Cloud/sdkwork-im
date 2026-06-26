@@ -3,7 +3,7 @@
 -- that re-created this table with organization_id.
 
 ALTER TABLE im_commit_journal
-    ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT 'default';
+    ADD COLUMN IF NOT EXISTS organization_id TEXT NOT NULL DEFAULT '0';
 
 DROP INDEX IF EXISTS idx_im_commit_journal_tenant_aggregate_seq;
 CREATE INDEX IF NOT EXISTS idx_im_commit_journal_tenant_aggregate_seq

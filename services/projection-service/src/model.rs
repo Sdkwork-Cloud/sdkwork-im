@@ -147,7 +147,7 @@ pub struct RegisteredClientRouteView {
 }
 
 fn default_organization_id() -> String {
-    "default".to_owned()
+    "0".to_owned()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

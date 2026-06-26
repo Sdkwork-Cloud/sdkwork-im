@@ -41,7 +41,7 @@ impl RouteBindingRequest {
     ) -> Self {
         Self {
             tenant_id: tenant_id.into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_id: principal_id.into(),
             principal_kind: principal_kind.into(),
             device_id: device_id.into(),

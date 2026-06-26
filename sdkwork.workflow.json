@@ -88,10 +88,80 @@
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
-      "id": "sdkwork-commerce",
-      "repository": "Sdkwork-Cloud/sdkwork-commerce",
-      "ref": "cbc0e0b829a8d60fb8a7249567db1cb521199448",
-      "refInput": "SDKWORK_COMMERCE_REF",
+      "id": "sdkwork-account",
+      "repository": "Sdkwork-Cloud/sdkwork-account",
+      "ref": "main",
+      "refInput": "SDKWORK_ACCOUNT_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-catalog",
+      "repository": "Sdkwork-Cloud/sdkwork-catalog",
+      "ref": "main",
+      "refInput": "SDKWORK_CATALOG_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-inventory",
+      "repository": "Sdkwork-Cloud/sdkwork-inventory",
+      "ref": "main",
+      "refInput": "SDKWORK_INVENTORY_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-invoice",
+      "repository": "Sdkwork-Cloud/sdkwork-invoice",
+      "ref": "main",
+      "refInput": "SDKWORK_INVOICE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-membership",
+      "repository": "Sdkwork-Cloud/sdkwork-membership",
+      "ref": "main",
+      "refInput": "SDKWORK_MEMBERSHIP_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-merchandise",
+      "repository": "Sdkwork-Cloud/sdkwork-merchandise",
+      "ref": "main",
+      "refInput": "SDKWORK_MERCHANDISE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-order",
+      "repository": "Sdkwork-Cloud/sdkwork-order",
+      "ref": "main",
+      "refInput": "SDKWORK_ORDER_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-payment",
+      "repository": "Sdkwork-Cloud/sdkwork-payment",
+      "ref": "main",
+      "refInput": "SDKWORK_PAYMENT_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-promotion",
+      "repository": "Sdkwork-Cloud/sdkwork-promotion",
+      "ref": "main",
+      "refInput": "SDKWORK_PROMOTION_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-shop",
+      "repository": "Sdkwork-Cloud/sdkwork-shop",
+      "ref": "main",
+      "refInput": "SDKWORK_SHOP_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-agents",
+      "repository": "Sdkwork-Cloud/sdkwork-agents",
+      "ref": "main",
+      "refInput": "SDKWORK_AGENTS_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {

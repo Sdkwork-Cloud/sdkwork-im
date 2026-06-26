@@ -103,7 +103,7 @@ const fakeClient = {
               lastActivityAt: '2026-06-04T10:00:10.000Z',
               lastMessageSeq: 3,
               messageCount: 3,
-              tenantId: 'tenant-1',
+              tenantId: '100001',
               unreadCount: 0,
             },
           ],
@@ -122,7 +122,7 @@ const fakeClient = {
         isPinned: false,
         principalId: 'current-user',
         principalKind: 'user',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         updatedAt: '2026-06-04T10:00:00.000Z',
       };
     },
@@ -133,7 +133,7 @@ const fakeClient = {
         conversationId,
         displayName: 'Backend Group',
         notice: '',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         updatedAt: '2026-06-04T10:00:00.000Z',
       };
     },

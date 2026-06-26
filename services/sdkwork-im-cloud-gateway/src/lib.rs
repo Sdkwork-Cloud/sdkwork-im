@@ -1,3 +1,5 @@
+pub mod gateway_protection;
+
 use axum::{
     Json, Router,
     body::Body,
@@ -6,10 +8,13 @@ use axum::{
         ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade},
     },
     http::{HeaderMap, HeaderValue, Method, StatusCode, header},
+    middleware::from_fn_with_state,
     response::Html,
     response::{IntoResponse, Response},
     routing::get,
 };
+
+use gateway_protection::CircuitBreakerRegistry;
 use futures_util::{SinkExt, StreamExt};
 use im_app_context::{
     build_dual_token_headers_for_context, coalesce_websocket_device_id,
@@ -55,25 +60,32 @@ pub use embedded_session_gateway::{
 };
 
 const BROWSER_ORIGINS_ENV: &str = "SDKWORK_IM_BROWSER_ORIGINS";
-const COMMERCE_APP_API_SEGMENTS: &[&str] = &[
-    "accounts",
-    "addresses",
-    "after_sales",
-    "billing",
-    "cart",
-    "catalog",
-    "checkout",
-    "fulfillments",
-    "invoices",
-    "memberships",
-    "orders",
-    "payments",
-    "promotions",
-    "recharges",
-    "refunds",
-    "shipments",
-    "shops",
-    "wallet",
+const COMMERCE_T1_ROUTE_GROUPS: &[(&str, &[&str])] = &[
+    (
+        "sdkwork-account-app-api",
+        &["accounts", "addresses", "billing", "wallet"],
+    ),
+    ("sdkwork-catalog-app-api", &["catalog"]),
+    (
+        "sdkwork-order-app-api",
+        &[
+            "cart",
+            "checkout",
+            "orders",
+            "after_sales",
+            "fulfillments",
+            "shipments",
+            "refunds",
+        ],
+    ),
+    (
+        "sdkwork-payment-app-api",
+        &["payments", "recharges"],
+    ),
+    ("sdkwork-shop-app-api", &["shops"]),
+    ("sdkwork-membership-app-api", &["memberships"]),
+    ("sdkwork-promotion-app-api", &["promotions"]),
+    ("sdkwork-invoice-app-api", &["invoices"]),
 ];
 const COURSE_APP_API_SEGMENTS: &[&str] = &[
     "course_categories",
@@ -124,6 +136,7 @@ struct GatewayState {
     product_runtime_router: Option<Router>,
     embedded_session_gateway: Option<Router>,
     realtime_auth: RealtimeAuthContextResolver,
+    circuit_breakers: CircuitBreakerRegistry,
 }
 
 pub fn build_app(config: WebGatewayConfig) -> Router {
@@ -218,11 +231,20 @@ async fn finish_gateway_app_from_env(
             product_runtime_router,
             embedded_session_gateway,
             realtime_auth,
+            circuit_breakers: CircuitBreakerRegistry::new(
+                gateway_protection::CircuitBreakerConfig::from_env(),
+            ),
         });
 
     let wrapped_business = web_framework::wrap_gateway_router_from_env(business_router)
         .await
-        .layer(build_browser_cors_layer());
+        .layer(build_browser_cors_layer())
+        .layer(from_fn_with_state(
+            gateway_protection::RateLimiter::new(
+                gateway_protection::RateLimitConfig::from_env(),
+            ),
+            gateway_protection::rate_limit_middleware,
+        ));
     mount_embedded_realtime_websocket_router(embedded_realtime_app_state, wrapped_business)
 }
 
@@ -256,10 +278,19 @@ fn finish_gateway_app_sync(
             product_runtime_router,
             embedded_session_gateway,
             realtime_auth,
+            circuit_breakers: CircuitBreakerRegistry::new(
+                gateway_protection::CircuitBreakerConfig::from_env(),
+            ),
         });
 
     let wrapped_business =
-        web_framework::wrap_gateway_router(business_router).layer(build_browser_cors_layer());
+        web_framework::wrap_gateway_router(business_router).layer(build_browser_cors_layer())
+        .layer(from_fn_with_state(
+            gateway_protection::RateLimiter::new(
+                gateway_protection::RateLimitConfig::from_env(),
+            ),
+            gateway_protection::rate_limit_middleware,
+        ));
     mount_embedded_realtime_websocket_router(embedded_realtime_app_state, wrapped_business)
 }
 
@@ -376,6 +407,20 @@ async fn proxy_websocket_request(
             format!("upstream target is not configured for {service_id}").as_str(),
         );
     };
+    if !state.circuit_breakers.check(service_id) {
+        tracing::warn!(
+            target: "sdkwork.im.gateway",
+            event = "im.gateway.circuit_open",
+            service = %service_id,
+            "websocket request rejected by circuit breaker for {service_id}"
+        );
+        return json_error_response(
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!(
+                "upstream service {service_id} is temporarily unavailable. Please retry later."
+            ).as_str(),
+        );
+    }
     if should_authenticate_gateway_websocket_with_init_frame(request.headers(), request.uri()) {
         let path_and_query = sanitized_gateway_websocket_path_and_query(request.uri());
         let original_headers = request.headers().clone();
@@ -400,6 +445,31 @@ async fn proxy_websocket_request(
         websocket_auth_headers_from_query(request.uri()).is_some(),
     ) && let Some(query_auth_headers) = websocket_auth_headers_from_query(request.uri())
     {
+        // Query-token auth is less secure than auth.init frame because tokens
+        // may appear in access logs, browser history, or referrer headers.
+        // In production, reject query-token auth entirely; in non-production,
+        // allow it with a debug log for browser compatibility.
+        let environment = std::env::var("SDKWORK_IM_ENVIRONMENT")
+            .unwrap_or_else(|_| "development".to_owned());
+        if environment == "production" || environment == "prod" {
+            tracing::warn!(
+                target: "sdkwork.im.gateway",
+                event = "im.gateway.websocket_query_token_rejected",
+                environment = %environment,
+                "WebSocket query-token auth rejected in production — clients must use auth.init frame auth"
+            );
+            return json_error_response(
+                StatusCode::UNAUTHORIZED,
+                "WebSocket query-token authentication is not permitted in production. Use auth.init frame authentication instead.",
+            );
+        } else {
+            tracing::debug!(
+                target: "sdkwork.im.gateway",
+                event = "im.gateway.websocket_query_token_auth",
+                environment = %environment,
+                "WebSocket query-token auth used (non-production only)"
+            );
+        }
         let original_headers = request.headers().clone();
         let state = state.clone();
         return bounded_websocket_upgrade(ws)
@@ -446,20 +516,26 @@ async fn proxy_websocket_request(
     copy_websocket_headers(request.headers(), upstream_request.headers_mut());
 
     match connect_upstream_websocket(upstream_request).await {
-        Ok(upstream_socket) => bounded_websocket_upgrade(ws)
+        Ok(upstream_socket) => {
+            state.circuit_breakers.record_success(service_id);
+            bounded_websocket_upgrade(ws)
             .protocols(websocket_subprotocols.to_vec())
             .on_upgrade(move |downstream_socket| {
                 proxy_websocket_streams(downstream_socket, upstream_socket)
             })
-            .into_response(),
-        Err(error) => json_error_response(
-            StatusCode::BAD_GATEWAY,
-            format!(
-                "gateway websocket upstream request to {} failed: {error}",
-                service_id
+            .into_response()
+        }
+        Err(error) => {
+            state.circuit_breakers.record_failure(service_id);
+            json_error_response(
+                StatusCode::BAD_GATEWAY,
+                format!(
+                    "gateway websocket upstream request to {} failed: {error}",
+                    service_id
+                )
+                .as_str(),
             )
-            .as_str(),
-        ),
+        }
     }
 }
 
@@ -564,9 +640,27 @@ async fn proxy_request(State(state): State<GatewayState>, request: Request) -> R
         .await;
     };
     let service_id = route.service_id.clone();
+    if !state.circuit_breakers.check(service_id.as_str()) {
+        tracing::warn!(
+            target: "sdkwork.im.gateway",
+            event = "im.gateway.circuit_open",
+            service = %service_id,
+            path = %request.uri().path(),
+            "request rejected by circuit breaker for {service_id}"
+        );
+        return json_error_response(
+            StatusCode::SERVICE_UNAVAILABLE,
+            format!(
+                "upstream service {service_id} is temporarily unavailable. Please retry later."
+            ).as_str(),
+        );
+    }
     let Some(upstream_base_url) = state.config.upstream_base_url(service_id.as_str()) else {
         if state.config.runtime_mode == GatewayRuntimeMode::Unified
-            && is_assembly_embedded_im_service(service_id.as_str())
+            && (is_assembly_embedded_im_service(service_id.as_str())
+                || sdkwork_im_cloud_gateway_config::is_standalone_embedded_dependency_service(
+                    service_id.as_str(),
+                ))
         {
             let (parts, body) = request.into_parts();
             return delegate_to_runtime_router(
@@ -619,11 +713,22 @@ async fn proxy_request(State(state): State<GatewayState>, request: Request) -> R
     };
 
     match request_builder.body(body).send().await {
-        Ok(upstream_response) => build_proxy_response(service_id.as_str(), upstream_response).await,
-        Err(error) => json_error_response(
-            StatusCode::BAD_GATEWAY,
-            format!("gateway upstream request to {service_id} failed: {error}").as_str(),
-        ),
+        Ok(upstream_response) => {
+            let status = upstream_response.status();
+            if status.is_server_error() {
+                state.circuit_breakers.record_failure(service_id.as_str());
+            } else {
+                state.circuit_breakers.record_success(service_id.as_str());
+            }
+            build_proxy_response(service_id.as_str(), upstream_response).await
+        }
+        Err(error) => {
+            state.circuit_breakers.record_failure(service_id.as_str());
+            json_error_response(
+                StatusCode::BAD_GATEWAY,
+                format!("gateway upstream request to {service_id} failed: {error}").as_str(),
+            )
+        }
     }
 }
 
@@ -1358,22 +1463,24 @@ fn gateway_route_descriptors() -> Vec<RouteDescriptor> {
         vec![SdkTarget::SdkworkNotaryAppSdk],
         "notary",
     ));
-    let commerce_path_patterns: Vec<String> = COMMERCE_APP_API_SEGMENTS
-        .iter()
-        .map(|segment| format!("/app/v3/api/{segment}/{{*path}}"))
-        .collect();
-    let commerce_paths: Vec<&str> = commerce_path_patterns
-        .iter()
-        .map(String::as_str)
-        .collect();
-    entries.extend(prefix_routes(
-        "sdkwork-commerce-app-api",
-        all_http_methods(),
-        &commerce_paths,
-        RouteVisibility::Public,
-        vec![SdkTarget::SdkworkCommerceAppSdk],
-        "commerce",
-    ));
+    for (service_id, segments) in COMMERCE_T1_ROUTE_GROUPS {
+        let commerce_path_patterns: Vec<String> = segments
+            .iter()
+            .map(|segment| format!("/app/v3/api/{segment}/{{*path}}"))
+            .collect();
+        let commerce_paths: Vec<&str> = commerce_path_patterns
+            .iter()
+            .map(String::as_str)
+            .collect();
+        entries.extend(prefix_routes(
+            service_id,
+            all_http_methods(),
+            &commerce_paths,
+            RouteVisibility::Public,
+            vec![SdkTarget::SdkworkCommerceAppSdk],
+            "commerce",
+        ));
+    }
     entries.extend(prefix_routes(
         "sdkwork-mail-app-api",
         all_http_methods(),

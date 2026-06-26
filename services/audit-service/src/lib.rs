@@ -10,8 +10,9 @@ use axum::{
     Json, Router,
     routing::{get, post},
 };
-use im_app_context::{AppContext, AppContextError, resolve_app_context};
+use im_app_context::{AppContext, AppContextError, resolve_app_context, resolve_web_environment_from_process_env};
 use im_time::utc_now_rfc3339_millis;
+use sdkwork_web_core::WebEnvironment;
 use sdkwork_im_api_registry::HttpMethod;
 use sdkwork_im_openapi::{
     OpenApiServiceSpec, build_openapi_document, extract_routes_from_function, render_docs_html,
@@ -20,6 +21,7 @@ use sdkwork_im_web_bootstrap::{im_service_router_config, mount_im_infra_routes};
 use serde::{Deserialize, Serialize};
 use sdkwork_utils_rust::sha256_hash;
 use tokio::sync::Semaphore;
+use tracing::{error, info, warn};
 
 const AUDIT_RECORD_ID_MAX_BYTES: usize = 256;
 const AUDIT_AGGREGATE_TYPE_MAX_BYTES: usize = 128;
@@ -576,13 +578,37 @@ fn compute_audit_record_chain_hash(input: AuditRecordHashInput<'_>) -> String {
     sha256_hash(&canonical_bytes)
 }
 
+const AUDIT_DATABASE_URL_ENV: &str = "SDKWORK_IM_DATABASE_URL";
+
+fn log_audit_persistence_warning() {
+    let environment = resolve_web_environment_from_process_env();
+    let database_url_set = std::env::var(AUDIT_DATABASE_URL_ENV).is_ok();
+    match (environment, database_url_set) {
+        (WebEnvironment::Dev | WebEnvironment::Test, _) => {
+            info!("audit-service using in-memory audit ledger (development/test)");
+        }
+        (WebEnvironment::Prod, false) => {
+            error!(
+                env = "SDKWORK_IM_ENVIRONMENT=prod",
+                hint = "set SDKWORK_IM_DATABASE_URL to enable durable audit storage",
+                "audit-service running in PRODUCTION with in-memory audit ledger; all audit records will be lost on restart"
+            );
+        }
+        (WebEnvironment::Prod, true) => {
+            warn!("audit-service Postgres backend not yet implemented; running with in-memory audit ledger despite SDKWORK_IM_DATABASE_URL being set");
+        }
+    }
+}
+
 pub fn default_app_state() -> AppState {
+    log_audit_persistence_warning();
     AppState {
         runtime: Arc::new(AuditRuntime::default()),
     }
 }
 
 pub fn build_default_app() -> Router {
+    log_audit_persistence_warning();
     build_app(Arc::new(AuditRuntime::default()))
 }
 
@@ -607,6 +633,7 @@ pub fn apply_public_http_guardrails(router: Router) -> Router {
 }
 
 pub fn build_public_app() -> Router {
+    log_audit_persistence_warning();
     mount_im_infra_routes(
         apply_public_http_guardrails(build_business_router(Arc::new(AuditRuntime::default()))),
         im_service_router_config(),

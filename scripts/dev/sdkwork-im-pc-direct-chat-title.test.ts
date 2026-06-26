@@ -22,7 +22,7 @@ const fakeClient = {
           return {
             items: [
               {
-                tenantId: 'tenant-1',
+                tenantId: '100001',
                 conversationId: 'c_direct_projected',
                 conversationType: 'single',
                 displayName: 'Alice Project Lead',
@@ -58,7 +58,7 @@ const fakeClient = {
         if (inboxScenario === 'many-legacy-direct') {
           return {
             items: Array.from({ length: 9 }, (_, index) => ({
-              tenantId: 'tenant-1',
+              tenantId: '100001',
               conversationId: `c_direct_perf_${index}`,
               conversationType: 'single',
               lastActivityAt: `2026-06-10T08:00:0${index}.000Z`,
@@ -76,7 +76,7 @@ const fakeClient = {
           return {
             items: [
               {
-                tenantId: 'tenant-1',
+                tenantId: '100001',
                 conversationId: 'c_group_avatar_only',
                 conversationType: 'group',
                 avatarUrl: 'https://cdn.example.test/group.png',
@@ -102,7 +102,7 @@ const fakeClient = {
           return {
             items: [
               {
-                tenantId: 'tenant-1',
+                tenantId: '100001',
                 conversationId: 'c_group_projected',
                 conversationType: 'group',
                 displayName: 'Design Review Room',
@@ -129,7 +129,7 @@ const fakeClient = {
           return {
             items: [
               {
-                tenantId: 'tenant-1',
+                tenantId: '100001',
                 conversationId: 'c_group_missing_profile',
                 conversationType: 'group',
                 preferences: {
@@ -154,7 +154,7 @@ const fakeClient = {
           return {
             items: [
               {
-                tenantId: 'tenant-1',
+                tenantId: '100001',
                 conversationId: 'c_agent_handoff_123',
                 conversationType: 'single',
                 agentHandoff: true,
@@ -180,7 +180,7 @@ const fakeClient = {
           return {
             items: [
               {
-                tenantId: 'tenant-1',
+                tenantId: '100001',
                 conversationId: 'pc-agent-current-user-agent.code',
                 conversationType: 'single',
                 preferences: {
@@ -204,7 +204,7 @@ const fakeClient = {
         return {
           items: [
             {
-              tenantId: 'tenant-1',
+              tenantId: '100001',
               conversationId: 'c_direct_e46da962d83a0fc8c4069f96',
               conversationType: 'single',
               lastActivityAt: '2026-06-10T08:00:00.000Z',
@@ -225,7 +225,7 @@ const fakeClient = {
     async getPreferences(conversationId: string) {
       sdkCalls.push(`conversations.getPreferences:${conversationId}`);
       return {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         conversationId,
         ownerUserId: 'current-user',
         targetUserId: conversationId,
@@ -240,7 +240,7 @@ const fakeClient = {
       sdkCalls.push(`conversations.getProfile:${conversationId}`);
       if (conversationId === 'c_group_avatar_only') {
         return {
-          tenantId: 'tenant-1',
+          tenantId: '100001',
           conversationId,
           displayName: 'Project Room',
           avatarUrl: 'https://cdn.example.test/group.png',
@@ -255,7 +255,7 @@ const fakeClient = {
         throw new Error('agent dialog profile unavailable');
       }
       return {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         conversationId,
         displayName: `Chat ${conversationId}`,
         avatarUrl: '',
@@ -280,7 +280,7 @@ const fakeClient = {
       return {
         items: [
           {
-            tenantId: 'tenant-1',
+            tenantId: '100001',
             conversationId,
             memberId: 'm-current',
             principalId: 'current-user',
@@ -290,7 +290,7 @@ const fakeClient = {
             joinedAt: '2026-06-10T08:00:00.000Z',
           },
           {
-            tenantId: 'tenant-1',
+            tenantId: '100001',
             conversationId,
             memberId: 'm-alice',
             principalId: peerUserId,
@@ -310,7 +310,7 @@ const fakeClient = {
         async retrieve(targetUserId: string) {
           sdkCalls.push(`social.contacts.preferences.retrieve:${targetUserId}`);
           return {
-            tenantId: 'tenant-1',
+            tenantId: '100001',
             ownerUserId: 'current-user',
             targetUserId,
             isStarred: false,
@@ -328,7 +328,7 @@ const fakeClient = {
           return {
             items: [
               {
-                tenantId: 'tenant-1',
+                tenantId: '100001',
                 userId: params.q,
                 chatId: `${params.q}-chat-id`,
                 displayName: `Peer ${params.q}`,
@@ -342,7 +342,7 @@ const fakeClient = {
         return {
           items: [
             {
-              tenantId: 'tenant-1',
+              tenantId: '100001',
               userId: 'u_alice',
               chatId: 'alice-chat-id',
               displayName: 'Alice Chen',
@@ -364,7 +364,7 @@ async function main(): Promise<void> {
       authToken: 'auth-token',
       accessToken: 'access-token',
       context: {
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         userId: 'current-user',
       },
       user: {

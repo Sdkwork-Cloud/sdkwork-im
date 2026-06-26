@@ -108,6 +108,41 @@ assert.match(
   /embedded_application_routes::bootstrap_embedded_application_routes/,
   'standalone gateway must embed application-plane route crates in-process',
 );
+assert.match(
+  read('services/sdkwork-im-standalone-gateway/src/main.rs'),
+  /embedded_dependency_routes::bootstrap_embedded_dependency_routes/,
+  'standalone gateway must embed sibling dependency route crates in-process',
+);
+assert.match(
+  read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
+  /sdkwork_drive_gateway_assembly::assemble_application_router/,
+  'standalone dependency bootstrap must mount drive through sibling gateway assembly library',
+);
+assert.match(
+  read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
+  /build_served_unified_router/,
+  'standalone dependency bootstrap must mount knowledgebase through route crate bootstrap',
+);
+assert.match(
+  read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
+  /sdkwork_catalog_gateway_assembly::assemble_application_router[\s\S]*sdkwork_order_gateway_assembly::assemble_application_router[\s\S]*sdkwork_shop_gateway_assembly::assemble_application_router/,
+  'standalone dependency bootstrap must mount commerce T1 capabilities through sibling gateway assemblies',
+);
+assert.match(
+  read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
+  /build_sdkwork_mail_app_api_router/,
+  'standalone dependency bootstrap must mount mail through route crate bootstrap',
+);
+assert.match(
+  read('services/sdkwork-im-standalone-gateway/src/embedded_dependency_routes.rs'),
+  /sdkwork_notary_gateway_assembly::assemble_application_router/,
+  'standalone dependency bootstrap must mount notary through sibling gateway assembly library',
+);
+assert.match(
+  read('crates/sdkwork-im-cloud-gateway-config/src/lib.rs'),
+  /COMMERCE_T1_APP_API_SERVICES[\s\S]*sdkwork-mail-app-api[\s\S]*sdkwork-notary-app-api/,
+  'cloud gateway config must treat T1 commerce, mail, and notary as standalone-embedded dependency services',
+);
 
 const serverDevRuntime = read('scripts/dev/sdkwork-im-server-dev-runtime.mjs');
 assert.doesNotMatch(

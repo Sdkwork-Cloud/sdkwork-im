@@ -28,7 +28,7 @@ fn realtime_disconnect_fence_record(
 ) -> RealtimeDisconnectFenceRecord {
     RealtimeDisconnectFenceRecord {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         principal_kind: "user".into(),
         principal_id: principal_id.into(),
         device_id: "d_pad".into(),
@@ -500,7 +500,7 @@ fn test_file_checkpoint_store_recovers_pending_tmp_file_on_reopen() {
         "6:t_demo|7:default|4:user|6:u_demo|5:d_pad".to_string(),
         RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -547,7 +547,7 @@ fn test_file_checkpoint_store_persists_across_reopen() {
     store
         .save_checkpoint(RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -580,7 +580,7 @@ fn test_file_realtime_event_window_store_persists_and_trims_across_reopen() {
     store
         .save_window(RealtimeEventWindowRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -648,7 +648,7 @@ fn test_file_checkpoint_store_rejects_stale_regression_writes() {
     store
         .save_checkpoint(RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -664,7 +664,7 @@ fn test_file_checkpoint_store_rejects_stale_regression_writes() {
     store
         .save_checkpoint(RealtimeCheckpointRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -704,7 +704,7 @@ fn test_file_checkpoint_store_persists_checkpoint_batch_across_reopen() {
         .save_checkpoints(vec![
             RealtimeCheckpointRecord {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_pad".into(),
@@ -718,7 +718,7 @@ fn test_file_checkpoint_store_persists_checkpoint_batch_across_reopen() {
             },
             RealtimeCheckpointRecord {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: "d_phone".into(),
@@ -931,7 +931,7 @@ fn test_file_subscription_store_persists_across_reopen() {
     store
         .save_subscriptions(RealtimeSubscriptionRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -985,7 +985,7 @@ fn test_file_subscription_store_loads_matching_scope_event_candidates_across_reo
         store
             .save_subscriptions(RealtimeSubscriptionRecord {
                 tenant_id: "t_demo".into(),
-                organization_id: "default".into(),
+                organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: device_id.into(),
@@ -1004,7 +1004,7 @@ fn test_file_subscription_store_loads_matching_scope_event_candidates_across_reo
     let matches = reopened
         .load_matching_subscriptions(im_platform_contracts::RealtimeMatchingSubscriptionQuery {
             tenant_id: "t_demo",
-            organization_id: "default",
+            organization_id: "0",
             principal_kind: "user",
             principal_id: "u_demo",
             scope_type: "conversation",
@@ -1120,7 +1120,7 @@ fn test_file_subscription_store_does_not_clear_newer_subscription() {
     store
         .save_subscriptions(RealtimeSubscriptionRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -1164,7 +1164,7 @@ fn test_file_subscription_store_compares_cutoff_by_rfc3339_instant() {
     store
         .save_subscriptions(RealtimeSubscriptionRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -1568,7 +1568,7 @@ fn test_file_presence_state_store_persists_across_reopen() {
     store
         .save_state(PresenceStateRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),
@@ -1590,7 +1590,7 @@ fn test_file_presence_state_store_persists_across_reopen() {
     store
         .save_state(PresenceStateRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_phone".into(),
@@ -1654,7 +1654,7 @@ fn test_file_presence_state_store_lists_stale_online_devices_by_seen_at() {
         store
             .save_state(PresenceStateRecord {
                 tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: device_id.into(),
@@ -1706,7 +1706,7 @@ fn test_file_presence_state_store_seen_at_cutoff_compares_rfc3339_by_instant() {
         store
             .save_state(PresenceStateRecord {
                 tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
                 principal_kind: "user".into(),
                 principal_id: "u_demo".into(),
                 device_id: device_id.into(),
@@ -1749,7 +1749,7 @@ fn test_file_presence_state_store_conditionally_expires_only_stale_online_state(
     store
         .save_state(PresenceStateRecord {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_kind: "user".into(),
             principal_id: "u_demo".into(),
             device_id: "d_pad".into(),

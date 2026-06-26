@@ -7,8 +7,8 @@ use im_adapters_social_postgres::organization_store::{
     ChannelRecord, ChannelStore, GroupRecord, GroupStore, SpaceRecord, SpaceStore,
 };
 use sdkwork_im_contract_core::ContractError;
+use sdkwork_im_runtime_id::RuntimeSnowflakeIdGenerator;
 use space_service::http::{AppState, build_app};
-use space_service::id::build_runtime_id_generator;
 use tower::ServiceExt;
 
 struct NoopSpaceStore;
@@ -136,7 +136,9 @@ fn test_app_state() -> AppState {
         space_store: Arc::new(NoopSpaceStore),
         group_store: Arc::new(NoopGroupStore),
         channel_store: Arc::new(NoopChannelStore),
-        id_generator: build_runtime_id_generator(),
+        id_generator: Arc::new(
+            RuntimeSnowflakeIdGenerator::with_node_id(0).expect("snowflake node 0 must initialize"),
+        ),
     }
 }
 

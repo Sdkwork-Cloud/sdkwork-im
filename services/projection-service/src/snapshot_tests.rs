@@ -490,7 +490,7 @@ fn test_restore_client_route_sync_snapshot_recovers_from_poisoned_sequence_store
     let timeline_store = MemoryTimelineProjectionStore::default();
     let device_scope = ClientRouteSyncScopeCatalogEntry {
             tenant_id: "t_demo".into(),
-            organization_id: "default".into(),
+            organization_id: "0".into(),
             principal_id: "u_demo".into(),
         principal_kind: "user".into(),
         device_id: "d_demo".into(),

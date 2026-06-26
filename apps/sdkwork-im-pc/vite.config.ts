@@ -18,10 +18,6 @@ const generatedImBackendSdkEntry = path.resolve(
   __dirname,
   '../../sdks/sdkwork-im-backend-sdk/sdkwork-im-backend-sdk-typescript/generated/server-openapi/src/index.ts',
 );
-const generatedAgentAppSdkEntry = path.resolve(
-  dependencyRoot('sdkwork-kernel'),
-  'sdks/sdkwork-agent-app-sdk/sdkwork-agent-app-sdk-typescript/generated/server-openapi/src/index.ts',
-);
 const generatedAppbaseAppSdkEntry = path.resolve(
   repoRoot,
   '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts',
@@ -42,9 +38,17 @@ const generatedDriveAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-drive'),
   'sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts',
 );
-const generatedCommerceAppSdkEntry = path.resolve(
-  dependencyRoot('sdkwork-commerce'),
-  'sdks/sdkwork-commerce-app-sdk/sdkwork-commerce-app-sdk-typescript/src/index.ts',
+const generatedCatalogAppSdkEntry = path.resolve(
+  dependencyRoot('sdkwork-catalog'),
+  'sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript/generated/server-openapi/src/index.ts',
+);
+const generatedShopAppSdkEntry = path.resolve(
+  dependencyRoot('sdkwork-shop'),
+  'sdks/sdkwork-shop-app-sdk/sdkwork-shop-app-sdk-typescript/generated/server-openapi/src/index.ts',
+);
+const generatedOrderAppSdkEntry = path.resolve(
+  dependencyRoot('sdkwork-order'),
+  'sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 
 const generatedMailAppSdkEntry = path.resolve(
@@ -68,6 +72,10 @@ const generatedCourseAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-course'),
   'sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/generated/server-openapi/src/index.ts',
 );
+const generatedCourseBackendSdkEntry = path.resolve(
+  dependencyRoot('sdkwork-course'),
+  'sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/generated/server-openapi/src/index.ts',
+);
 
 const generatedNotaryAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-notary'),
@@ -84,6 +92,18 @@ const drivePcPackageRoot = path.resolve(
 const knowledgebasePcPackageRoot = path.resolve(
   dependencyRoot('sdkwork-knowledgebase'),
   'apps/sdkwork-knowledgebase-pc',
+);
+const coursePcPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-course'),
+  'apps/sdkwork-course-pc/packages',
+);
+const agentsPcPackageRoot = path.resolve(
+  dependencyRoot('sdkwork-agents'),
+  'apps/sdkwork-agents-pc/packages',
+);
+const generatedAgentsAppSdkEntry = path.resolve(
+  dependencyRoot('sdkwork-agents'),
+  'sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/index.ts',
 );
 const generatedKnowledgebaseAppSdkEntry = path.resolve(
   dependencyRoot('sdkwork-knowledgebase'),
@@ -198,19 +218,26 @@ export default defineConfig(({mode}) => {
         { find: /^react$/, replacement: reactEntry },
         { find: '@sdkwork-internal/im-app-api-generated', replacement: generatedImAppSdkEntry },
         { find: '@sdkwork-internal/im-backend-api-generated', replacement: generatedImBackendSdkEntry },
-        { find: '@sdkwork/agent-app-sdk', replacement: generatedAgentAppSdkEntry },
+        { find: '@sdkwork/agents-app-sdk', replacement: generatedAgentsAppSdkEntry },
+        { find: '@sdkwork/agents-pc-agents', replacement: path.resolve(agentsPcPackageRoot, 'sdkwork-agents-pc-agents/src/index.ts') },
+        { find: '@sdkwork/agents-pc-commons', replacement: path.resolve(agentsPcPackageRoot, 'sdkwork-agents-pc-commons/src/index.ts') },
+        { find: '@sdkwork/agents-pc-core', replacement: path.resolve(agentsPcPackageRoot, 'sdkwork-agents-pc-core/src') },
+        { find: '@sdkwork/agents-pc-core/sdk/agentsAppSdkClient', replacement: path.resolve(agentsPcPackageRoot, 'sdkwork-agents-pc-core/src/sdk/agentsAppSdkClient.ts') },
         { find: '@sdkwork/aiot-app-sdk', replacement: generatedAiotAppSdkEntry },
         { find: '@sdkwork/aiot-backend-sdk', replacement: generatedAiotBackendSdkEntry },
         { find: '@sdkwork/iam-app-sdk', replacement: generatedAppbaseAppSdkEntry },
         { find: '@sdkwork/iam-backend-sdk', replacement: generatedAppbaseBackendSdkEntry },
         { find: '@sdkwork/drive-app-sdk', replacement: generatedDriveAppSdkEntry },
         { find: '@sdkwork/knowledgebase-app-sdk', replacement: generatedKnowledgebaseAppSdkEntry },
-        { find: '@sdkwork/commerce-app-sdk', replacement: generatedCommerceAppSdkEntry },
+        { find: '@sdkwork/catalog-app-sdk', replacement: generatedCatalogAppSdkEntry },
+        { find: '@sdkwork/shop-app-sdk', replacement: generatedShopAppSdkEntry },
+        { find: '@sdkwork/order-app-sdk', replacement: generatedOrderAppSdkEntry },
         { find: '@sdkwork/mail-app-sdk', replacement: generatedMailAppSdkEntry },
         { find: 'sdkwork-mail-app-sdk-generated-typescript', replacement: generatedMailAppSdkTransportEntry },
         { find: '@sdkwork/community-app-sdk', replacement: generatedCommunityAppSdkEntry },
         { find: 'sdkwork-community-app-sdk-generated-typescript', replacement: generatedCommunityAppSdkTransportEntry },
         { find: '@sdkwork/course-app-sdk', replacement: generatedCourseAppSdkEntry },
+        { find: '@sdkwork/course-backend-sdk', replacement: generatedCourseBackendSdkEntry },
         { find: '@sdkwork/notary-app-sdk', replacement: generatedNotaryAppSdkEntry },
         { find: '@sdkwork/im-sdk', replacement: generatedImSdkEntry },
         { find: '@sdkwork/im-sdk-generated', replacement: generatedImSdkTransportEntry },
@@ -251,6 +278,7 @@ export default defineConfig(({mode}) => {
         { find: 'sdkwork-drive-pc-transfer', replacement: path.resolve(drivePcPackageRoot, 'sdkwork-drive-pc-transfer/src') },
         { find: 'sdkwork-drive-pc-types', replacement: path.resolve(drivePcPackageRoot, 'sdkwork-drive-pc-types/src') },
         { find: '@sdkwork/knowledgebase-pc-knowledge', replacement: path.resolve(knowledgebasePcPackageRoot, 'packages/sdkwork-knowledgebase-pc-knowledge/src/index.ts') },
+        { find: '@sdkwork/course-pc-course', replacement: path.resolve(coursePcPackageRoot, 'sdkwork-course-pc-course/src/index.ts') },
         { find: '@packages', replacement: path.resolve(knowledgebasePcPackageRoot, 'packages') },
         { find: 'sdkwork-knowledgebase-pc-core', replacement: path.resolve(knowledgebasePcPackageRoot, 'packages/sdkwork-knowledgebase-pc-core/src') },
         { find: 'sdkwork-knowledgebase-pc-core/host/hostAdapter', replacement: path.resolve(knowledgebasePcPackageRoot, 'packages/sdkwork-knowledgebase-pc-core/src/host/hostAdapter.ts') },
@@ -264,7 +292,6 @@ export default defineConfig(({mode}) => {
         { find: '@sdkwork/im-pc-shop', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-shop/src') },
         { find: '@sdkwork/im-pc-devices', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-devices/src') },
         { find: '@sdkwork/im-pc-community', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-community/src') },
-        { find: '@sdkwork/im-pc-course', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-course/src') },
         { find: '@sdkwork/im-pc-enterprise', replacement: path.resolve(__dirname, './packages/sdkwork-im-pc-enterprise/src') },
         { find: '@sdkwork/im-console-core', replacement: path.resolve(__dirname, './packages/sdkwork-im-console-core/src') },
         { find: /^@sdkwork\/im-admin-core\/(.+)$/, replacement: `${adminCoreSourceRoot}/$1` },
@@ -300,7 +327,7 @@ export default defineConfig(({mode}) => {
       exclude: [
         '@sdkwork-internal/im-app-api-generated',
         '@sdkwork-internal/im-backend-api-generated',
-        '@sdkwork/agent-app-sdk',
+        '@sdkwork/agents-app-sdk',
         '@sdkwork/aiot-app-sdk',
         '@sdkwork/aiot-backend-sdk',
         '@sdkwork/iam-app-sdk',
@@ -309,18 +336,22 @@ export default defineConfig(({mode}) => {
         '@sdkwork/knowledgebase-app-sdk',
         '@sdkwork/drive-pc-drive',
         '@sdkwork/knowledgebase-pc-knowledge',
+        '@sdkwork/course-pc-course',
         'sdkwork-drive-pc-core',
         'sdkwork-drive-pc-commons',
         'sdkwork-drive-pc-file',
         'sdkwork-drive-pc-transfer',
         'sdkwork-drive-pc-types',
         'sdkwork-knowledgebase-pc-core',
-        '@sdkwork/commerce-app-sdk',
+        '@sdkwork/catalog-app-sdk',
+        '@sdkwork/shop-app-sdk',
+        '@sdkwork/order-app-sdk',
         '@sdkwork/mail-app-sdk',
         'sdkwork-mail-app-sdk-generated-typescript',
         '@sdkwork/community-app-sdk',
         'sdkwork-community-app-sdk-generated-typescript',
         '@sdkwork/course-app-sdk',
+        '@sdkwork/course-backend-sdk',
         '@sdkwork/notary-app-sdk',
         '@sdkwork/im-sdk',
         '@sdkwork/rtc-sdk',

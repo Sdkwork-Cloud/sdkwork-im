@@ -27,7 +27,7 @@ function createMember(conversationId: string, principalId: string): Conversation
     principalKind: 'user',
     role: principalId === 'current-user' ? 'owner' : 'member',
     state: 'joined',
-    tenantId: 'tenant-1',
+    tenantId: '100001',
   };
 }
 
@@ -83,7 +83,7 @@ const fakeClient = {
         isPinned: false,
         principalId: 'current-user',
         principalKind: 'user',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         updatedAt: '2026-06-04T10:00:00.000Z',
       };
     },
@@ -94,7 +94,7 @@ const fakeClient = {
         conversationId,
         displayName: conversationId === 'group-1' ? 'Backend Group' : 'Backend Invited Group',
         notice: '',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         updatedAt: '2026-06-04T10:00:00.000Z',
       };
     },
@@ -134,7 +134,7 @@ const fakeClient = {
             lastActivityAt: '2026-06-04T10:00:00.000Z',
             lastMessageSeq: 2,
             messageCount: 2,
-            tenantId: 'tenant-1',
+            tenantId: '100001',
             unreadCount: 0,
           },
           {
@@ -143,7 +143,7 @@ const fakeClient = {
             lastActivityAt: '2026-06-04T08:00:00.000Z',
             lastMessageSeq: 0,
             messageCount: 0,
-            tenantId: 'tenant-1',
+            tenantId: '100001',
             unreadCount: 0,
           },
         ],

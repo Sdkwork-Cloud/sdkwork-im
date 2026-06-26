@@ -122,7 +122,7 @@ mod tests {
         let journal = ConversationCommitJournal::Memory(InMemoryJournal::default());
         let envelope = CommitEnvelope::minimal(
             "evt-1",
-            "tenant-1",
+            "100001",
             "ConversationCreated",
             "conversation",
             "conv-1",

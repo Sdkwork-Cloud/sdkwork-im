@@ -90,7 +90,7 @@ const {
   createSdkworkChatBrowserOrigins,
   createSdkworkChatPcDevPlan,
   resolveNotaryAppApiUpstream,
-  resolveCommerceAppApiUpstream,
+  resolveCatalogAppApiUpstream,
   resolveAvailableSdkworkChatPcDevPort,
   runSdkworkChatPcDev,
 } = await import(pathToFileURL(path.join(repoRoot, 'scripts/lib/im-pc-dev.mjs')).href);
@@ -381,9 +381,9 @@ assert.equal(
   'PC dev command module must expose an auditable Notary app-api upstream resolver',
 );
 assert.equal(
-  typeof resolveCommerceAppApiUpstream,
+  typeof resolveCatalogAppApiUpstream,
   'function',
-  'PC dev command module must expose an auditable Commerce app-api upstream resolver',
+  'PC dev command module must expose an auditable catalog app-api upstream resolver',
 );
 const releaseBuildPlan = releaseBuildModule.createSdkworkChatPcReleaseBuildPlan({
   env: {
@@ -392,7 +392,6 @@ const releaseBuildPlan = releaseBuildModule.createSdkworkChatPcReleaseBuildPlan(
     SDKWORK_IM_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.example.com/',
     SDKWORK_DRIVE_REF: 'drive-release-ref',
     SDKWORK_NOTARY_REF: 'notary-release-ref',
-    SDKWORK_COMMERCE_REF: 'commerce-release-ref',
     SDKWORK_SHARED_SDK_MODE: 'source',
   },
   repoRoot,
@@ -420,11 +419,6 @@ assert.equal(
   releaseBuildPlan.env.SDKWORK_SHARED_NOTARY_GIT_REF,
   'notary-release-ref',
   'release build plan must bridge SDKWORK_NOTARY_REF into the shared SDK materializer ref for the notary app SDK',
-);
-assert.equal(
-  releaseBuildPlan.env.SDKWORK_SHARED_COMMERCE_GIT_REF,
-  'commerce-release-ref',
-  'release build plan must bridge SDKWORK_COMMERCE_REF into the shared SDK materializer ref for the commerce app SDK',
 );
 assert.equal(
   releaseBuildPlan.env.SDKWORK_IAM_MODE,
@@ -492,10 +486,6 @@ assert.ok(
   releaseSpawnCalls.every((call) => !Object.hasOwn(call.options.env, 'SDKWORK_SHARED_NOTARY_GIT_REF')),
   'release build runner must not pass an undefined notary shared SDK ref when no release ref override is present',
 );
-assert.ok(
-  releaseSpawnCalls.every((call) => !Object.hasOwn(call.options.env, 'SDKWORK_SHARED_COMMERCE_GIT_REF')),
-  'release build runner must not pass an undefined commerce shared SDK ref when no release ref override is present',
-);
 assert.match(
   sharedSdkModeSource,
   /SDKWORK_SHARED_SDK_MODE/u,
@@ -520,7 +510,7 @@ for (const sourceName of [
   'sdkwork-im-backend-sdk',
   'sdkwork-im-sdk',
   'sdkwork-notary',
-  'sdkwork-claw-router',
+  'sdkwork-clawrouter',
   'sdkwork-birdcoder',
 ]) {
   const sourceConfig = sharedSdkReleaseConfig.sources?.[sourceName];
@@ -764,24 +754,24 @@ assert.deepEqual(
   ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-cloud-gateway'],
   'cloud split-services dev must keep the shared gateway available for remaining foundation surfaces when Notary uses an explicit split upstream',
 );
-const customCommerceUpstreamPlan = createSdkworkChatPcDevPlan({
+const customCatalogUpstreamPlan = createSdkworkChatPcDevPlan({
   argv: ['--target', 'browser'],
   env: {
     SDKWORK_IM_DEPLOYMENT_PROFILE: 'cloud',
     SDKWORK_IM_SERVICE_LAYOUT: 'split-services',
-    SDKWORK_COMMERCE_APP_API_UPSTREAM: 'http://127.0.0.1:28094/',
+    SDKWORK_CATALOG_APP_API_UPSTREAM: 'http://127.0.0.1:28094/',
   },
   repoRoot,
 });
 assert.equal(
-  customCommerceUpstreamPlan.processes[0].env.SDKWORK_IM_COMMERCE_APP_API_UPSTREAM,
+  customCatalogUpstreamPlan.processes[0].env.SDKWORK_IM_CATALOG_APP_API_UPSTREAM,
   'http://127.0.0.1:28094',
-  'PC dev must allow the Commerce app-api dependency upstream to be overridden for split Commerce deployments',
+  'PC dev must allow the catalog app-api dependency upstream to be overridden for split catalog deployments',
 );
 assert.deepEqual(
-  customCommerceUpstreamPlan.processes.map((entry) => entry.label),
+  customCatalogUpstreamPlan.processes.map((entry) => entry.label),
   ['sdkwork-im-server', 'sdkwork-im-pc-browser', 'sdkwork-api-cloud-gateway'],
-  'cloud split-services dev must keep the shared gateway available for remaining foundation surfaces when Commerce uses an explicit split upstream',
+  'cloud split-services dev must keep the shared gateway available for remaining foundation surfaces when catalog uses an explicit split upstream',
 );
 assert.equal(
   createSdkworkChatBrowserOrigins({ port: 4188 }),
@@ -1148,7 +1138,7 @@ assert.ok(
 assert.ok(
   !('SDKWORK_IM_DRIVE_APP_API_UPSTREAM' in spawned[0].options.env)
     && !('SDKWORK_IM_NOTARY_APP_API_UPSTREAM' in spawned[0].options.env)
-    && !('SDKWORK_IM_COMMERCE_APP_API_UPSTREAM' in spawned[0].options.env),
+    && !('SDKWORK_IM_CATALOG_APP_API_UPSTREAM' in spawned[0].options.env),
   'standalone unified-process dev runner must not pass split foundation upstreams',
 );
 assert.equal(

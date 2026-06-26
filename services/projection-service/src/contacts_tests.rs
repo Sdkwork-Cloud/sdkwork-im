@@ -10,7 +10,7 @@ use super::*;
 fn contact(target_user_id: &str, last_interaction_at: &str) -> ContactView {
     ContactView {
         tenant_id: "t_demo".into(),
-        organization_id: "default".into(),
+        organization_id: "0".into(),
         owner_user_id: "u_owner".into(),
         target_user_id: target_user_id.into(),
         contact_type: "friendship".into(),
@@ -50,7 +50,7 @@ fn test_ordered_contact_views_compares_last_interaction_by_rfc3339_instant() {
 /// Verify the per-user active-friendship cap is enforced at the projection
 /// layer. We cannot easily lower the production constant for the test, so we
 /// drive the projection up to a modest number of friends and assert that the
-/// contact catalog grows monotonically below the cap â€” and that re-activating
+/// contact catalog grows monotonically below the cap â€?and that re-activating
 /// an existing friendship (the replay path) does not corrupt the catalog. The
 /// hard-rejection path (count >= cap) is covered by the same `upsert`
 /// guard, which returns early without inserting when the cap is reached.

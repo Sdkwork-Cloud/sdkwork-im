@@ -1,6 +1,7 @@
 import { SdkworkImClient as GeneratedSdkworkImClient } from '@sdkwork/im-sdk-generated';
 import type {
   DeleteMessageFavoriteResponse,
+  EditMessageRequest,
   FavoriteMessageRequest,
   FavoriteMessagesResponse,
   MessageFavoriteType,
@@ -9,6 +10,7 @@ import type {
   MessageReactionMutationResult,
   MessageReactionRequest,
   MessageVisibilityMutationResult,
+  PostedMessageResponse,
   QueryParams,
   SdkworkImConfig,
 } from '@sdkwork/im-sdk-generated';
@@ -42,7 +44,23 @@ export interface ImSdkClientOptions {
 }
 
 function resolveApiBaseUrl(options: ImSdkClientOptions): string {
-  return options.apiBaseUrl ?? options.baseUrl ?? 'http://127.0.0.1:18079';
+  const fromOptions = options.apiBaseUrl ?? options.baseUrl;
+  if (fromOptions) {
+    return fromOptions;
+  }
+  // Fall back to SDKWORK_IM_API_BASE_URL env var (browser/Vite) or throw.
+  const fromEnv =
+    (typeof import.meta !== 'undefined' &&
+      (import.meta as { env?: Record<string, string> }).env?.SDKWORK_IM_API_BASE_URL) ||
+    (typeof process !== 'undefined' &&
+      process.env?.SDKWORK_IM_API_BASE_URL);
+  if (fromEnv) {
+    return fromEnv;
+  }
+  throw new Error(
+    'ImSdkClient requires an apiBaseUrl or baseUrl option, or SDKWORK_IM_API_BASE_URL env var. ' +
+      'Set it explicitly: new ImSdkClient({ apiBaseUrl: "https://your-im-gateway.example.com" })',
+  );
 }
 
 function resolveWebsocketBaseUrl(options: ImSdkClientOptions): string {
@@ -160,6 +178,14 @@ export class ImSdkClient {
 
   deleteMessageForMe(messageId: string | number): Promise<MessageVisibilityMutationResult> {
     return this.messages.deleteForMe(messageId);
+  }
+
+  recallMessage(messageId: string | number): Promise<PostedMessageResponse> {
+    return this.messages.recall(messageId);
+  }
+
+  editMessage(messageId: string | number, body: EditMessageRequest): Promise<PostedMessageResponse> {
+    return this.messages.edit(messageId, body);
   }
 
   listMessageFavorites(params?: QueryParams & { favoriteType?: MessageFavoriteType }): Promise<FavoriteMessagesResponse> {

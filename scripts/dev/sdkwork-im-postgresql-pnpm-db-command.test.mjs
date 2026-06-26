@@ -87,8 +87,19 @@ assert.equal(
   'node scripts/dev/sdkwork-im-postgres-db.mjs --mode migrate --config .env.postgres',
   'root pnpm db:postgres:migrate must run PostgreSQL migrations from .env.postgres',
 );
+assert.equal(
+  packageJson.scripts['db:postgres:repair'],
+  'node scripts/dev/repair-postgres-migration-checksums.cli.mjs --config .env.postgres',
+  'root pnpm db:postgres:repair must reconcile local PostgreSQL migration checksum drift',
+);
 
 const dbScriptPath = path.join(repoRoot, 'scripts/dev/sdkwork-im-postgres-db.mjs');
+const dbScript = read('scripts/dev/sdkwork-im-postgres-db.mjs');
+assert.match(
+  dbScript,
+  /repairPostgresMigrationChecksums/u,
+  'PostgreSQL migrate flow must repair local migration checksum drift before bootstrap',
+);
 assert.ok(fs.existsSync(dbScriptPath), 'PostgreSQL pnpm database script must exist');
 
 const {

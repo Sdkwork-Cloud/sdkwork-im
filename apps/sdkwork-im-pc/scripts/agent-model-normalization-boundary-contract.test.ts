@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
-import type { SdkworkAgentAppClient } from '@sdkwork/im-pc-core/sdk/agentAppSdkClient';
-import type { AgentManagementProfile } from '@sdkwork/agent-app-sdk';
-import type * as AgentServiceModule from '../packages/sdkwork-im-pc-chat/src/services/AgentService.ts';
+import type { SdkworkAgentAppClient } from '@sdkwork/agents-pc-core/sdk/agentsAppSdkClient';
+import type { AgentManagementProfile } from '@sdkwork/agents-app-sdk';
+import type * as AgentServiceModule from '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/AgentService.ts';
 
 type AgentServiceExports = typeof AgentServiceModule;
 type AgentConfig = AgentServiceModule.AgentConfig;
@@ -13,7 +13,7 @@ type AgentRequestBody = RecordLike & {
 
 async function loadAgentServiceModule(): Promise<AgentServiceExports> {
   const moduleUrl = pathToFileURL(
-    './packages/sdkwork-im-pc-chat/src/services/AgentService.ts',
+    '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/AgentService.ts',
   ).href;
   const loaded = (await import(moduleUrl)) as Partial<AgentServiceExports> & {
     default?: Partial<AgentServiceExports>;

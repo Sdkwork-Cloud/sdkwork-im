@@ -19,9 +19,11 @@ use serde_json::{Value, json};
 
 const APP_CONTEXT_REQUIRE_SIGNATURE_ENV: &str = "SDKWORK_IM_APP_CONTEXT_REQUIRE_SIGNATURE";
 const APP_CONTEXT_SIGNATURE_SECRET_ENV: &str = "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET";
+const APP_CONTEXT_SIGNATURE_SECRET_FILE_ENV: &str = "SDKWORK_IM_APP_CONTEXT_SIGNATURE_SECRET_FILE";
 const APP_CONTEXT_JWT_TENANT_ID_ENV: &str = "SDKWORK_IM_APP_CONTEXT_JWT_TENANT_ID";
 const APP_CONTEXT_JWT_KEY_ID_ENV: &str = "SDKWORK_IM_APP_CONTEXT_JWT_KEY_ID";
 const APP_CONTEXT_JWT_SIGNING_SECRET_ENV: &str = "SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET";
+const APP_CONTEXT_JWT_SIGNING_SECRET_FILE_ENV: &str = "SDKWORK_IM_APP_CONTEXT_JWT_SIGNING_SECRET_FILE";
 const APP_CONTEXT_JWT_KEY_ID_DEFAULT: &str = "bootstrap";
 const SDKWORK_CONTEXT_SIGNATURE_HEADER: &str = "x-sdkwork-context-signature";
 const SIGNED_APP_CONTEXT_HEADER_NAMES: &[&str] = &[
@@ -81,10 +83,10 @@ impl AppContextSignatureConfig {
             require_signature: parse_truthy_env_flag(
                 std::env::var(APP_CONTEXT_REQUIRE_SIGNATURE_ENV).ok(),
             ),
-            shared_secret: std::env::var(APP_CONTEXT_SIGNATURE_SECRET_ENV)
-                .ok()
-                .map(|value| value.trim().to_owned())
-                .filter(|value| !value.is_empty()),
+            shared_secret: resolve_secret_from_env_or_file(
+                APP_CONTEXT_SIGNATURE_SECRET_ENV,
+                APP_CONTEXT_SIGNATURE_SECRET_FILE_ENV,
+            ),
         }
     }
 }
@@ -317,7 +319,7 @@ where
 {
     AppContext {
         tenant_id: tenant_id.to_owned(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: user_id.to_owned(),
         session_id: Some("s_local_service".to_owned()),
         app_id: Some("sdkwork-im".to_owned()),
@@ -336,6 +338,19 @@ where
     }
 }
 
+fn local_service_app_context_from_env() -> AppContext {
+    let tenant_id = std::env::var(APP_CONTEXT_JWT_TENANT_ID_ENV)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "100001".to_owned());
+    eprintln!(
+        "WARN: with_updated_local_dual_token_context fell back to local_service_app_context; \
+         caller did not forward AppContext headers. Using tenant_id={tenant_id} actor=system with no permissions."
+    );
+    local_service_app_context(&tenant_id, "0", "system", None, Vec::<&str>::new())
+}
+
 fn with_updated_local_dual_token_context<F>(
     mut builder: axum::http::request::Builder,
     update: F,
@@ -346,7 +361,7 @@ where
     let mut context = builder
         .headers_ref()
         .and_then(|headers| resolve_app_context(headers).ok())
-        .unwrap_or_else(|| local_service_app_context("t_demo", "u_demo", "user", None, ["*"]));
+        .unwrap_or_else(local_service_app_context_from_env);
     update(&mut context);
     let headers = build_dual_token_headers_for_context(&context, context.permission_scope.iter());
     if let Some(target_headers) = builder.headers_mut() {
@@ -418,7 +433,7 @@ pub fn app_context_from_web_principal(principal: &WebRequestPrincipal) -> AppCon
         organization_id: principal
             .organization_id()
             .map(str::to_owned)
-            .unwrap_or_else(|| "default".to_owned()),
+            .unwrap_or_else(|| "0".to_owned()),
         user_id: principal.user_id().to_owned(),
         session_id: principal.session_id().map(str::to_owned),
         app_id: Some(principal.app_id().to_owned()),
@@ -556,11 +571,10 @@ where
         permission_scope
     };
     let data_scope = context.data_scope.iter().cloned().collect::<Vec<_>>();
-    let login_scope = if context.organization_id != "default" && !context.organization_id.is_empty()
-    {
-        "ORGANIZATION"
-    } else {
+    let login_scope = if is_tenant_level_organization_id(&context.organization_id) {
         "TENANT"
+    } else {
+        "ORGANIZATION"
     };
     let organization_id = dual_token_organization_id_claim(login_scope, &context.organization_id);
     let session_id = context
@@ -804,7 +818,7 @@ fn app_context_from_claims(
         organization_id: principal
             .organization_id()
             .map(str::to_owned)
-            .unwrap_or_else(|| "default".to_owned()),
+            .unwrap_or_else(|| "0".to_owned()),
         user_id: principal.user_id().to_owned(),
         session_id: principal.session_id().map(str::to_owned),
         app_id: Some(principal.app_id().to_owned()),
@@ -885,6 +899,36 @@ fn parse_truthy_env_flag(raw: Option<String>) -> bool {
             "1" | "true" | "yes" | "on"
         )
     })
+}
+
+/// Resolve a secret value from either a direct env var or a `_FILE` env var.
+///
+/// Follows the Docker/Kubernetes secrets pattern: if `<key>_FILE` is set,
+/// the secret is read from the referenced file path; otherwise, the value
+/// of `<key>` is used directly. The `_FILE` variant takes precedence.
+fn resolve_secret_from_env_or_file(direct_key: &str, file_key: &str) -> Option<String> {
+    // Check _FILE variant first (Docker/Kubernetes secrets pattern).
+    if let Ok(file_path) = std::env::var(file_key) {
+        let trimmed_path = file_path.trim();
+        if !trimmed_path.is_empty() {
+            return std::fs::read_to_string(trimmed_path)
+                .ok()
+                .map(|content| content.trim().to_owned())
+                .filter(|value| !value.is_empty())
+                .or_else(|| {
+                    tracing::error!(
+                        target: "sdkwork.im.app_context",
+                        "failed to read secret file `{trimmed_path}` referenced by {file_key}"
+                    );
+                    None
+                });
+        }
+    }
+    // Fall back to direct env var.
+    std::env::var(direct_key)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
 }
 
 /// Returns true when the upgrade request already carries dual-token credentials in headers.
@@ -1047,10 +1091,10 @@ fn tenant_signing_lookup_from_env() -> Option<EnvBootstrapTenantSigningKeyLookup
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| APP_CONTEXT_JWT_KEY_ID_DEFAULT.to_owned());
-    let secret = std::env::var(APP_CONTEXT_JWT_SIGNING_SECRET_ENV)
-        .ok()
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())?;
+    let secret = resolve_secret_from_env_or_file(
+        APP_CONTEXT_JWT_SIGNING_SECRET_ENV,
+        APP_CONTEXT_JWT_SIGNING_SECRET_FILE_ENV,
+    )?;
     Some(EnvBootstrapTenantSigningKeyLookup::new(
         tenant_id,
         key_id,
@@ -1150,12 +1194,13 @@ fn parse_jwt_numeric_claim(value: &Value, claim_name: &str) -> Result<i64, AppCo
     }
 }
 
+fn is_tenant_level_organization_id(organization_id: &str) -> bool {
+    matches!(organization_id.trim(), "" | "default" | "0")
+}
+
 fn dual_token_organization_id_claim(login_scope: &str, organization_id: &str) -> String {
     if login_scope.eq_ignore_ascii_case("TENANT") {
-        let trimmed = organization_id.trim();
-        if trimmed.is_empty() || trimmed == "default" {
-            return "0".to_owned();
-        }
+        return "0".to_owned();
     }
     organization_id.to_owned()
 }

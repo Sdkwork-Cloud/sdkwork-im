@@ -38,27 +38,27 @@ fn tenant_override_resolves_before_global_fallback() {
             "encrypted-global-secret",
         ))
         .with_binding(StorageBindingRecord::new_tenant(
-            "tenant-a",
+            "100001",
             "object-storage-google",
         ))
         .with_config(StorageConfigRecord::new_tenant(
-            "tenant-a",
+            "100001",
             "object-storage-google",
         ))
         .with_secret(StorageSecretRecord::new_tenant(
-            "tenant-a",
+            "100001",
             "object-storage-google",
             StorageCredentialMode::ServiceAccountJson,
             "encrypted-tenant-secret",
         ));
 
     let effective = snapshot
-        .effective_config(StorageScopeRef::tenant("tenant-a"))
+        .effective_config(StorageScopeRef::tenant("100001"))
         .expect("tenant storage config should resolve");
 
     assert_eq!(
         effective.resolved_scope,
-        StorageScopeRef::tenant("tenant-a")
+        StorageScopeRef::tenant("100001")
     );
     assert_eq!(
         effective.binding.provider_plugin_id,

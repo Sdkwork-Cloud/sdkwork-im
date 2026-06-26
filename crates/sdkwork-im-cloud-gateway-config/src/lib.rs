@@ -101,6 +101,39 @@ pub fn is_assembly_embedded_im_service(service_id: &str) -> bool {
     )
 }
 
+/// T1 commerce capability app-api authorities embedded by IM standalone gateway.
+pub const COMMERCE_T1_APP_API_SERVICES: &[&str] = &[
+    "sdkwork-account-app-api",
+    "sdkwork-catalog-app-api",
+    "sdkwork-inventory-app-api",
+    "sdkwork-invoice-app-api",
+    "sdkwork-membership-app-api",
+    "sdkwork-merchandise-app-api",
+    "sdkwork-order-app-api",
+    "sdkwork-payment-app-api",
+    "sdkwork-promotion-app-api",
+    "sdkwork-shop-app-api",
+];
+
+pub fn is_commerce_t1_app_api_service(service_id: &str) -> bool {
+    let canonical = canonical_service_id(service_id);
+    COMMERCE_T1_APP_API_SERVICES
+        .iter()
+        .any(|candidate| *candidate == canonical)
+}
+
+/// Sibling dependency app APIs embedded by IM standalone gateway in unified-process mode.
+pub fn is_standalone_embedded_dependency_service(service_id: &str) -> bool {
+    matches!(
+        canonical_service_id(service_id),
+        "sdkwork-drive-app-api"
+            | "sdkwork-knowledgebase-app-api"
+            | "sdkwork-mail-app-api"
+            | "sdkwork-notary-app-api"
+            | "sdkwork-course-app-api"
+    ) || is_commerce_t1_app_api_service(service_id)
+}
+
 fn first_env_value(names: &[&str]) -> Option<String> {
     names.iter().find_map(|name| {
         env::var(name)
@@ -211,42 +244,25 @@ fn parse_toml_key_value(trimmed: &str, keys: &[&str]) -> Option<String> {
     Some(value.to_owned())
 }
 
-/// Upstreams for standalone unified-process: sibling app APIs only.
-/// IM foundation routes are served by gateway assembly, not split-service ports.
+/// Upstreams for standalone unified-process: split-only foundation APIs and Appbase catalog.
+/// IM foundation routes and standalone-embedded dependency APIs are served in-process.
 pub fn default_unified_process_upstreams() -> Vec<ServiceUpstreamConfig> {
     let appbase_upstream = default_appbase_app_api_upstream();
-    let drive_upstream = default_drive_app_api_upstream();
-    let notary_upstream = default_notary_app_api_upstream();
-    let commerce_upstream = default_commerce_app_api_upstream();
-    let mail_upstream = default_mail_app_api_upstream();
-    let community_upstream = default_community_app_api_upstream();
-    let course_upstream = default_course_app_api_upstream();
-    let knowledgebase_upstream = default_knowledgebase_app_api_upstream();
-    vec![
-        service_upstream("sdkwork-iam-app-api", appbase_upstream.as_str()),
-        service_upstream("sdkwork-drive-app-api", drive_upstream.as_str()),
-        service_upstream("sdkwork-notary-app-api", notary_upstream.as_str()),
-        service_upstream("sdkwork-commerce-app-api", commerce_upstream.as_str()),
-        service_upstream("sdkwork-mail-app-api", mail_upstream.as_str()),
-        service_upstream("sdkwork-community-app-api", community_upstream.as_str()),
-        service_upstream("sdkwork-course-app-api", course_upstream.as_str()),
-        service_upstream(
-            "sdkwork-knowledgebase-app-api",
-            knowledgebase_upstream.as_str(),
-        ),
-    ]
+    vec![service_upstream(
+        "sdkwork-iam-app-api",
+        appbase_upstream.as_str(),
+    )]
 }
 
 pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
     let appbase_upstream = default_appbase_app_api_upstream();
     let drive_upstream = default_drive_app_api_upstream();
     let notary_upstream = default_notary_app_api_upstream();
-    let commerce_upstream = default_commerce_app_api_upstream();
     let mail_upstream = default_mail_app_api_upstream();
     let community_upstream = default_community_app_api_upstream();
     let course_upstream = default_course_app_api_upstream();
     let knowledgebase_upstream = default_knowledgebase_app_api_upstream();
-    vec![
+    let mut upstreams = vec![
         service_upstream("sdkwork-iam-app-api", appbase_upstream.as_str()),
         service_upstream("session-gateway", "http://127.0.0.1:18080"),
         service_upstream("governance-service", "http://127.0.0.1:18081"),
@@ -257,7 +273,6 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
         service_upstream("im-calls-service", "http://127.0.0.1:18085"),
         service_upstream("sdkwork-drive-app-api", drive_upstream.as_str()),
         service_upstream("sdkwork-notary-app-api", notary_upstream.as_str()),
-        service_upstream("sdkwork-commerce-app-api", commerce_upstream.as_str()),
         service_upstream("sdkwork-mail-app-api", mail_upstream.as_str()),
         service_upstream("sdkwork-community-app-api", community_upstream.as_str()),
         service_upstream("sdkwork-course-app-api", course_upstream.as_str()),
@@ -271,7 +286,41 @@ pub fn default_split_upstreams() -> Vec<ServiceUpstreamConfig> {
         service_upstream("social-service", "http://127.0.0.1:18092"),
         service_upstream("comms-space-service", "http://127.0.0.1:18093"),
         service_upstream("space-service", "http://127.0.0.1:18093"),
-    ]
+    ];
+    upstreams.extend(commerce_t1_split_upstreams());
+    upstreams
+}
+
+fn commerce_t1_split_upstreams() -> Vec<ServiceUpstreamConfig> {
+    COMMERCE_T1_APP_API_SERVICES
+        .iter()
+        .map(|service_id| {
+            service_upstream(
+                service_id,
+                default_commerce_t1_app_api_upstream(service_id).as_str(),
+            )
+        })
+        .collect()
+}
+
+fn default_commerce_t1_app_api_upstream(service_id: &str) -> String {
+    explicit_commerce_t1_app_api_upstream(service_id)
+        .unwrap_or_else(default_platform_api_gateway_base_url)
+}
+
+fn explicit_commerce_t1_app_api_upstream(service_id: &str) -> Option<String> {
+    let capability = service_id
+        .strip_prefix("sdkwork-")
+        .and_then(|rest| rest.strip_suffix("-app-api"))
+        .unwrap_or(service_id);
+    let capability_env = capability.replace('-', "_").to_ascii_uppercase();
+    first_env_value(&[
+        &format!("SDKWORK_IM_{capability_env}_APP_API_UPSTREAM"),
+        &format!("SDKWORK_{capability_env}_APP_API_UPSTREAM"),
+        &format!("SDKWORK_{capability_env}_APP_API_BASE_URL"),
+    ])
+    .map(|value| value.trim().trim_end_matches('/').to_owned())
+    .filter(|value| !value.is_empty())
 }
 
 /// Resolves legacy gateway service ids to canonical communication capability ids.
@@ -312,10 +361,6 @@ fn default_drive_app_api_upstream() -> String {
 
 fn default_notary_app_api_upstream() -> String {
     explicit_notary_app_api_upstream().unwrap_or_else(default_platform_api_gateway_base_url)
-}
-
-fn default_commerce_app_api_upstream() -> String {
-    explicit_commerce_app_api_upstream().unwrap_or_else(default_platform_api_gateway_base_url)
 }
 
 fn default_mail_app_api_upstream() -> String {
@@ -380,16 +425,6 @@ fn explicit_notary_app_api_upstream() -> Option<String> {
         "SDKWORK_IM_NOTARY_APP_API_UPSTREAM",
         "SDKWORK_NOTARY_APP_API_UPSTREAM",
         "SDKWORK_NOTARY_APP_API_BASE_URL",
-    ])
-    .map(|value| value.trim().trim_end_matches('/').to_owned())
-    .filter(|value| !value.is_empty())
-}
-
-fn explicit_commerce_app_api_upstream() -> Option<String> {
-    first_env_value(&[
-        "SDKWORK_IM_COMMERCE_APP_API_UPSTREAM",
-        "SDKWORK_COMMERCE_APP_API_UPSTREAM",
-        "SDKWORK_COMMERCE_APP_API_BASE_URL",
     ])
     .map(|value| value.trim().trim_end_matches('/').to_owned())
     .filter(|value| !value.is_empty())
@@ -633,11 +668,11 @@ bind_address = "127.0.0.1:38080"
         let _notary_upstream = ScopedEnvVar::remove("SDKWORK_IM_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
-        let _commerce_upstream = ScopedEnvVar::remove("SDKWORK_IM_COMMERCE_APP_API_UPSTREAM");
-        let _sdkwork_commerce_upstream =
-            ScopedEnvVar::remove("SDKWORK_COMMERCE_APP_API_UPSTREAM");
-        let _sdkwork_commerce_base_url =
-            ScopedEnvVar::remove("SDKWORK_COMMERCE_APP_API_BASE_URL");
+        let _catalog_upstream = ScopedEnvVar::remove("SDKWORK_IM_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_upstream =
+            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_base_url =
+            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
         let _mail_upstream = ScopedEnvVar::remove("SDKWORK_IM_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_upstream = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_base_url = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_BASE_URL");
@@ -673,7 +708,7 @@ bind_address = "127.0.0.1:38080"
             Some("http://127.0.0.1:3900")
         );
         assert_eq!(
-            config.upstream_base_url("sdkwork-commerce-app-api"),
+            config.upstream_base_url("sdkwork-catalog-app-api"),
             Some("http://127.0.0.1:3900")
         );
         assert_eq!(
@@ -726,11 +761,28 @@ bind_address = "127.0.0.1:38080"
             config.upstream_base_url("sdkwork-iam-app-api"),
             Some("http://127.0.0.1:3900")
         );
+        assert_eq!(config.upstream_base_url("sdkwork-drive-app-api"), None);
+        assert_eq!(config.upstream_base_url("sdkwork-knowledgebase-app-api"), None);
+        assert_eq!(config.upstream_base_url("sdkwork-catalog-app-api"), None);
+        assert_eq!(config.upstream_base_url("sdkwork-mail-app-api"), None);
+        assert_eq!(config.upstream_base_url("sdkwork-notary-app-api"), None);
+        assert_eq!(config.upstream_base_url("sdkwork-community-app-api"), None);
+        assert_eq!(config.upstream_base_url("sdkwork-course-app-api"), None);
         assert_eq!(config.upstream_base_url("session-gateway"), None);
         assert_eq!(config.upstream_base_url("comms-social-service"), None);
         assert_eq!(config.upstream_base_url("comms-space-service"), None);
         assert_eq!(config.upstream_base_url("projection-service"), None);
         assert!(super::is_assembly_embedded_im_service("social-service"));
+        assert!(super::is_standalone_embedded_dependency_service("sdkwork-drive-app-api"));
+        assert!(super::is_standalone_embedded_dependency_service(
+            "sdkwork-knowledgebase-app-api"
+        ));
+        assert!(super::is_standalone_embedded_dependency_service(
+            "sdkwork-catalog-app-api"
+        ));
+        assert!(super::is_standalone_embedded_dependency_service("sdkwork-mail-app-api"));
+        assert!(super::is_standalone_embedded_dependency_service("sdkwork-notary-app-api"));
+        assert!(super::is_standalone_embedded_dependency_service("sdkwork-course-app-api"));
     }
 
     #[test]
@@ -751,11 +803,11 @@ bind_address = "127.0.0.1:38080"
         let _notary_upstream = ScopedEnvVar::remove("SDKWORK_IM_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
-        let _commerce_upstream = ScopedEnvVar::remove("SDKWORK_IM_COMMERCE_APP_API_UPSTREAM");
-        let _sdkwork_commerce_upstream =
-            ScopedEnvVar::remove("SDKWORK_COMMERCE_APP_API_UPSTREAM");
-        let _sdkwork_commerce_base_url =
-            ScopedEnvVar::remove("SDKWORK_COMMERCE_APP_API_BASE_URL");
+        let _catalog_upstream = ScopedEnvVar::remove("SDKWORK_IM_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_upstream =
+            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_base_url =
+            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
         let _mail_upstream = ScopedEnvVar::remove("SDKWORK_IM_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_upstream = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_base_url = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_BASE_URL");
@@ -787,7 +839,7 @@ bind_address = "127.0.0.1:38080"
             Some("http://127.0.0.1:4900")
         );
         assert_eq!(
-            config.upstream_base_url("sdkwork-commerce-app-api"),
+            config.upstream_base_url("sdkwork-catalog-app-api"),
             Some("http://127.0.0.1:4900")
         );
         assert_eq!(
@@ -822,11 +874,11 @@ bind_address = "127.0.0.1:38080"
         let _notary_upstream = ScopedEnvVar::remove("SDKWORK_IM_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
-        let _commerce_upstream = ScopedEnvVar::remove("SDKWORK_IM_COMMERCE_APP_API_UPSTREAM");
-        let _sdkwork_commerce_upstream =
-            ScopedEnvVar::remove("SDKWORK_COMMERCE_APP_API_UPSTREAM");
-        let _sdkwork_commerce_base_url =
-            ScopedEnvVar::remove("SDKWORK_COMMERCE_APP_API_BASE_URL");
+        let _catalog_upstream = ScopedEnvVar::remove("SDKWORK_IM_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_upstream =
+            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_base_url =
+            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
         let _mail_upstream = ScopedEnvVar::remove("SDKWORK_IM_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_upstream = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_base_url = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_BASE_URL");
@@ -857,7 +909,7 @@ bind_address = "127.0.0.1:38080"
             Some("http://127.0.0.1:7900")
         );
         assert_eq!(
-            config.upstream_base_url("sdkwork-commerce-app-api"),
+            config.upstream_base_url("sdkwork-catalog-app-api"),
             Some("http://127.0.0.1:7900")
         );
         assert_eq!(
@@ -921,22 +973,22 @@ bind_address = "127.0.0.1:38080"
     }
 
     #[test]
-    fn test_web_gateway_config_allows_commerce_app_api_upstream_override() {
+    fn test_web_gateway_config_allows_catalog_app_api_upstream_override() {
         let _guard = gateway_config_env_guard();
-        let _commerce_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_COMMERCE_APP_API_UPSTREAM",
+        let _catalog_upstream = ScopedEnvVar::set(
+            "SDKWORK_IM_CATALOG_APP_API_UPSTREAM",
             "http://127.0.0.1:28094/",
         );
-        let _sdkwork_commerce_upstream =
-            ScopedEnvVar::set("SDKWORK_COMMERCE_APP_API_UPSTREAM", "http://127.0.0.1:38094");
-        let _sdkwork_commerce_base_url =
-            ScopedEnvVar::set("SDKWORK_COMMERCE_APP_API_BASE_URL", "http://127.0.0.1:48094");
+        let _sdkwork_catalog_upstream =
+            ScopedEnvVar::set("SDKWORK_CATALOG_APP_API_UPSTREAM", "http://127.0.0.1:38094");
+        let _sdkwork_catalog_base_url =
+            ScopedEnvVar::set("SDKWORK_CATALOG_APP_API_BASE_URL", "http://127.0.0.1:48094");
 
         let config = WebGatewayConfig::from_env();
 
         assert_eq!(config.runtime_mode, GatewayRuntimeMode::Split);
         assert_eq!(
-            config.upstream_base_url("sdkwork-commerce-app-api"),
+            config.upstream_base_url("sdkwork-catalog-app-api"),
             Some("http://127.0.0.1:28094")
         );
     }
@@ -1043,11 +1095,11 @@ bind_address = "127.0.0.1:38080"
         let _notary_upstream = ScopedEnvVar::remove("SDKWORK_IM_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_upstream = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_UPSTREAM");
         let _sdkwork_notary_base_url = ScopedEnvVar::remove("SDKWORK_NOTARY_APP_API_BASE_URL");
-        let _commerce_upstream = ScopedEnvVar::remove("SDKWORK_IM_COMMERCE_APP_API_UPSTREAM");
-        let _sdkwork_commerce_upstream =
-            ScopedEnvVar::remove("SDKWORK_COMMERCE_APP_API_UPSTREAM");
-        let _sdkwork_commerce_base_url =
-            ScopedEnvVar::remove("SDKWORK_COMMERCE_APP_API_BASE_URL");
+        let _catalog_upstream = ScopedEnvVar::remove("SDKWORK_IM_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_upstream =
+            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_UPSTREAM");
+        let _sdkwork_catalog_base_url =
+            ScopedEnvVar::remove("SDKWORK_CATALOG_APP_API_BASE_URL");
         let _mail_upstream = ScopedEnvVar::remove("SDKWORK_IM_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_upstream = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_UPSTREAM");
         let _sdkwork_mail_base_url = ScopedEnvVar::remove("SDKWORK_MAIL_APP_API_BASE_URL");
@@ -1079,7 +1131,7 @@ bind_address = "127.0.0.1:38080"
             Some("http://127.0.0.1:3900")
         );
         assert_eq!(
-            config.upstream_base_url("sdkwork-commerce-app-api"),
+            config.upstream_base_url("sdkwork-catalog-app-api"),
             Some("http://127.0.0.1:3900")
         );
     }
@@ -1145,21 +1197,21 @@ bind_address = "127.0.0.1:38080"
     }
 
     #[test]
-    fn test_web_gateway_local_mode_alias_allows_explicit_commerce_app_api_upstream() {
+    fn test_web_gateway_local_mode_alias_allows_explicit_catalog_app_api_upstream() {
         let _guard = gateway_config_env_guard();
         let _appbase_upstream = ScopedEnvVar::set(
             "SDKWORK_IM_APPBASE_APP_API_UPSTREAM",
             "http://127.0.0.1:19090/",
         );
         let _appbase_bind_addr = ScopedEnvVar::remove("SDKWORK_APPBASE_APP_API_BIND_ADDR");
-        let _commerce_upstream = ScopedEnvVar::set(
-            "SDKWORK_IM_COMMERCE_APP_API_UPSTREAM",
+        let _catalog_upstream = ScopedEnvVar::set(
+            "SDKWORK_IM_CATALOG_APP_API_UPSTREAM",
             "http://127.0.0.1:28094/",
         );
-        let _sdkwork_commerce_upstream =
-            ScopedEnvVar::set("SDKWORK_COMMERCE_APP_API_UPSTREAM", "http://127.0.0.1:38094");
-        let _sdkwork_commerce_base_url =
-            ScopedEnvVar::set("SDKWORK_COMMERCE_APP_API_BASE_URL", "http://127.0.0.1:48094");
+        let _sdkwork_catalog_upstream =
+            ScopedEnvVar::set("SDKWORK_CATALOG_APP_API_UPSTREAM", "http://127.0.0.1:38094");
+        let _sdkwork_catalog_base_url =
+            ScopedEnvVar::set("SDKWORK_CATALOG_APP_API_BASE_URL", "http://127.0.0.1:48094");
 
         let config = WebGatewayConfig::from_env();
 
@@ -1169,7 +1221,7 @@ bind_address = "127.0.0.1:38080"
             Some("http://127.0.0.1:19090")
         );
         assert_eq!(
-            config.upstream_base_url("sdkwork-commerce-app-api"),
+            config.upstream_base_url("sdkwork-catalog-app-api"),
             Some("http://127.0.0.1:28094")
         );
     }

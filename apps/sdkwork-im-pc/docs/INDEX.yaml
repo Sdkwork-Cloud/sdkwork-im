@@ -1,6 +1,6 @@
 schemaVersion: 1
 kind: sdkwork.docs.index
-repository: sdkwork-im-sdkwork-im-pc
+repository: sdkwork-im-pc
 canon:
   prd: docs/product/prd/PRD.md
   techArchitecture: docs/architecture/tech/TECH_ARCHITECTURE.md

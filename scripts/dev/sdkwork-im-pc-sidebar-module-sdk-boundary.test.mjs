@@ -26,7 +26,7 @@ const calendarServiceSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-calendar/src/services/CalendarService.ts',
 );
 const courseServiceSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-course/src/services/CourseService.ts',
+  '../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/services/CourseService.ts',
 );
 const communityViewSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-community/src/components/CommunityView.tsx',
@@ -38,10 +38,10 @@ const shopHomeSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/ShopHome.tsx',
 );
 const videoPlayerViewSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-course/src/components/VideoPlayerView.tsx',
+  '../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/components/VideoPlayerView.tsx',
 );
 const liveRoomViewSource = read(
-  'apps/sdkwork-im-pc/packages/sdkwork-im-pc-course/src/components/LiveRoomView.tsx',
+  '../sdkwork-course/apps/sdkwork-course-pc/packages/sdkwork-course-pc-course/src/components/LiveRoomView.tsx',
 );
 const checkoutViewSource = read(
   'apps/sdkwork-im-pc/packages/sdkwork-im-pc-shop/src/components/CheckoutView.tsx',
@@ -109,18 +109,18 @@ assert.match(
 );
 assert.match(
   ordersServiceSource,
-  /getCommerceAppSdkClientWithSession/u,
-  'pc orders service must consume the generated commerce app SDK wrapper.',
+  /getOrderAppSdkClientWithSession/u,
+  'pc orders service must consume the generated order app SDK wrapper.',
 );
 assert.match(
   ordersServiceSource,
-  /pc orders write contract requires commerce command headers/u,
-  'pc orders write mutations must fail closed until commerce command headers are wired through the SDK.',
+  /pc orders write contract requires order command headers/u,
+  'pc orders write mutations must fail closed until order command headers are wired through the SDK.',
 );
 assert.match(
   shopServiceSource,
-  /getCommerceAppSdkClientWithSession/u,
-  'pc shop service must consume the generated commerce app SDK wrapper.',
+  /getCatalogAppSdkClientWithSession[\s\S]*getOrderAppSdkClientWithSession/u,
+  'pc shop service must consume the generated catalog and order app SDK wrappers.',
 );
 assert.match(
   shopServiceSource,
@@ -159,8 +159,8 @@ assert.match(
 );
 assert.match(
   courseServiceSource,
-  /getCourseAppSdkClientWithSession/u,
-  'pc course service must consume the generated course app SDK wrapper.',
+  /getCoursePcSdkPorts\(\)\.getCourseClient/u,
+  'pc course service must consume the host-injected course app SDK client.',
 );
 assert.match(
   courseServiceSource,

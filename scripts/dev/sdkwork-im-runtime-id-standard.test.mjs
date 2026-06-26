@@ -24,11 +24,12 @@ assert.match(
 
 const runtimeIdSource = readText('crates', 'sdkwork-im-runtime-id', 'src', 'lib.rs');
 for (const expectedText of [
-  'use sdkwork_id::{SnowflakeIdError, SnowflakeIdGenerator};',
+  'use sdkwork_id::{',
+  'SnowflakeIdGenerator',
   'pub const SDKWORK_IM_ID_NODE_ID_ENV: &str = "SDKWORK_IM_ID_NODE_ID";',
   'clock_rollback: "reject_and_alert"',
-  'node_conflict: "explicit_unique_node_id_required"',
-  'failure_handling: "fail_closed_no_random_or_database_fallback"',
+  'node_conflict: "database_backed_auto_allocation"',
+  'failure_handling: "database_first_then_env_fallback"',
 ]) {
   assert.match(
     runtimeIdSource,

@@ -11,10 +11,10 @@ fn runtime_id_strategy_declares_database_spec_failure_policies() {
         RuntimeIdStrategy {
             id_type: "snowflake",
             clock_rollback: "reject_and_alert",
-            node_conflict: "explicit_unique_node_id_required",
+            node_conflict: "database_backed_auto_allocation",
             sequence_overflow: "fail_closed",
-            restart_recovery: "explicit_node_id_reuse",
-            failure_handling: "fail_closed_no_random_or_database_fallback",
+            restart_recovery: "idempotent_lease_reclaim",
+            failure_handling: "database_first_then_env_fallback",
             public_id: "uuid_or_business_id",
         }
     );

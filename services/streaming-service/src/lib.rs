@@ -1598,7 +1598,7 @@ mod tests {
     fn test_stream_request_keys_are_segment_safe() {
         let first = AppContext {
             tenant_id: "tenant:a".into(),
-            organization_id: "default".to_owned(),
+            organization_id: "0".to_owned(),
             user_id: "b".into(),
             session_id: None,
             app_id: None,
@@ -1613,7 +1613,7 @@ mod tests {
         };
         let second = AppContext {
             tenant_id: "tenant".into(),
-            organization_id: "default".to_owned(),
+            organization_id: "0".to_owned(),
             user_id: "b".into(),
             session_id: None,
             app_id: None,

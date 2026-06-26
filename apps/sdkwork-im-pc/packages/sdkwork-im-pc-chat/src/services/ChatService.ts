@@ -108,6 +108,8 @@ export interface ChatService {
   markAsRead(chatId: string): Promise<void>;
   markAsUnread(chatId: string): Promise<void>;
   deleteMessage(chatId: string, messageId: string): Promise<void>;
+  recallMessage(chatId: string, messageId: string): Promise<void>;
+  editMessage(chatId: string, messageId: string, text: string): Promise<void>;
   deleteChat(chatId: string): Promise<void>;
   pinChat(chatId: string, isPinned: boolean): Promise<void>;
   muteChat(chatId: string, isMuted: boolean): Promise<void>;
@@ -2056,6 +2058,36 @@ class SdkworkChatService implements ChatService {
     await this.client().messages.deleteForMe(messageId);
     const messages = this.localMessages.get(chatId) ?? [];
     this.localMessages.set(chatId, messages.filter((message) => message.id !== messageId));
+  }
+
+  async recallMessage(chatId: string, messageId: string): Promise<void> {
+    await this.client().recallMessage(messageId);
+    let recalledMessage: Message | undefined;
+    this.updateLocalMessage(chatId, messageId, (message) => {
+      recalledMessage = { ...message, isRecalled: true, content: '', reactions: [] };
+      return recalledMessage;
+    });
+    const subscription = this.liveSubscriptions.get(chatId);
+    if (subscription && recalledMessage) {
+      this.notifyLiveSubscription(subscription, recalledMessage);
+    }
+  }
+
+  async editMessage(chatId: string, messageId: string, text: string): Promise<void> {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      throw new Error('Edited message text must not be empty.');
+    }
+    await this.client().editMessage(messageId, { text: trimmed });
+    let editedMessage: Message | undefined;
+    this.updateLocalMessage(chatId, messageId, (message) => {
+      editedMessage = { ...message, content: trimmed, isEdited: true };
+      return editedMessage;
+    });
+    const subscription = this.liveSubscriptions.get(chatId);
+    if (subscription && editedMessage) {
+      this.notifyLiveSubscription(subscription, editedMessage);
+    }
   }
 
   async deleteChat(chatId: string): Promise<void> {

@@ -23,6 +23,10 @@ import {
 } from './im-topology.mjs';
 import { resolveImProductSiteDirEnv } from './im-product-site-dirs.mjs';
 import { resolveRealtimeClusterDevEnv } from './im-realtime-cluster-dev.mjs';
+import {
+  COMMERCE_T1_APP_API_AUTHORITIES,
+  COMMERCE_T1_SPLIT_OVERRIDE_ENV_KEY_GROUPS,
+} from '../dev/commerce-t1-capabilities.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), '..');
@@ -47,11 +51,14 @@ const NOTARY_APP_API_UPSTREAM_ENV_KEYS = [
   'SDKWORK_NOTARY_APP_API_UPSTREAM',
   'SDKWORK_NOTARY_APP_API_BASE_URL',
 ];
-const COMMERCE_APP_API_UPSTREAM_ENV_KEYS = [
-  'SDKWORK_IM_COMMERCE_APP_API_UPSTREAM',
-  'SDKWORK_COMMERCE_APP_API_UPSTREAM',
-  'SDKWORK_COMMERCE_APP_API_BASE_URL',
-];
+const COMMERCE_T1_APP_API_UPSTREAM_ENV_KEYS = Object.freeze(
+  Object.fromEntries(
+    COMMERCE_T1_APP_API_AUTHORITIES.map((authority, index) => [
+      authority,
+      Object.freeze([...COMMERCE_T1_SPLIT_OVERRIDE_ENV_KEY_GROUPS[index]]),
+    ]),
+  ),
+);
 const MAIL_APP_API_UPSTREAM_ENV_KEYS = [
   'SDKWORK_IM_MAIL_APP_API_UPSTREAM',
   'SDKWORK_MAIL_APP_API_UPSTREAM',
@@ -228,14 +235,27 @@ export function resolveNotaryAppApiUpstream(env = process.env) {
   return resolveSdkworkApiGatewayBaseUrl(env);
 }
 
-export function resolveCommerceAppApiUpstream(env = process.env) {
-  for (const key of COMMERCE_APP_API_UPSTREAM_ENV_KEYS) {
+export function resolveCommerceT1AppApiUpstream(authority, env = process.env) {
+  const keys = COMMERCE_T1_APP_API_UPSTREAM_ENV_KEYS[authority] ?? [];
+  for (const key of keys) {
     const upstream = normalizeUpstreamBaseUrl(env[key], key);
     if (upstream) {
       return upstream;
     }
   }
   return resolveSdkworkApiGatewayBaseUrl(env);
+}
+
+export function resolveCatalogAppApiUpstream(env = process.env) {
+  return resolveCommerceT1AppApiUpstream('sdkwork-catalog-app-api', env);
+}
+
+export function resolveOrderAppApiUpstream(env = process.env) {
+  return resolveCommerceT1AppApiUpstream('sdkwork-order-app-api', env);
+}
+
+export function resolveShopAppApiUpstream(env = process.env) {
+  return resolveCommerceT1AppApiUpstream('sdkwork-shop-app-api', env);
 }
 
 export function resolveMailAppApiUpstream(env = process.env) {
@@ -702,9 +722,19 @@ export function createSdkworkChatPcDevPlan({
   const explicitNotaryAppApiUpstream = standaloneUnified
     ? undefined
     : resolveExplicitAppApiUpstream(mergedEnv, NOTARY_APP_API_UPSTREAM_ENV_KEYS);
-  const explicitCommerceAppApiUpstream = standaloneUnified
-    ? undefined
-    : resolveExplicitAppApiUpstream(mergedEnv, COMMERCE_APP_API_UPSTREAM_ENV_KEYS);
+  const explicitCommerceT1AppApiUpstreams = standaloneUnified
+    ? {}
+    : Object.fromEntries(
+      COMMERCE_T1_APP_API_AUTHORITIES.flatMap((authority) => {
+        const keys = COMMERCE_T1_APP_API_UPSTREAM_ENV_KEYS[authority] ?? [];
+        const upstream = resolveExplicitAppApiUpstream(mergedEnv, keys);
+        if (!upstream) {
+          return [];
+        }
+        const imKey = keys.find((key) => key.startsWith('SDKWORK_IM_'));
+        return imKey ? [[imKey, upstream]] : [];
+      }),
+    );
   const explicitMailAppApiUpstream = standaloneUnified
     ? undefined
     : resolveExplicitAppApiUpstream(mergedEnv, MAIL_APP_API_UPSTREAM_ENV_KEYS);
@@ -746,9 +776,7 @@ export function createSdkworkChatPcDevPlan({
     ...(explicitNotaryAppApiUpstream
       ? { SDKWORK_IM_NOTARY_APP_API_UPSTREAM: explicitNotaryAppApiUpstream }
       : {}),
-    ...(explicitCommerceAppApiUpstream
-      ? { SDKWORK_IM_COMMERCE_APP_API_UPSTREAM: explicitCommerceAppApiUpstream }
-      : {}),
+    ...explicitCommerceT1AppApiUpstreams,
     ...(explicitMailAppApiUpstream
       ? { SDKWORK_IM_MAIL_APP_API_UPSTREAM: explicitMailAppApiUpstream }
       : {}),
@@ -763,10 +791,16 @@ export function createSdkworkChatPcDevPlan({
       : {}),
   };
   if (standaloneUnified) {
+    for (const authority of COMMERCE_T1_APP_API_AUTHORITIES) {
+      for (const key of COMMERCE_T1_APP_API_UPSTREAM_ENV_KEYS[authority] ?? []) {
+        if (key.startsWith('SDKWORK_IM_')) {
+          delete gatewayServerEnv[key];
+        }
+      }
+    }
     for (const key of [
       'SDKWORK_IM_DRIVE_APP_API_UPSTREAM',
       'SDKWORK_IM_NOTARY_APP_API_UPSTREAM',
-      'SDKWORK_IM_COMMERCE_APP_API_UPSTREAM',
       'SDKWORK_IM_MAIL_APP_API_UPSTREAM',
       'SDKWORK_IM_COMMUNITY_APP_API_UPSTREAM',
       'SDKWORK_IM_COURSE_APP_API_UPSTREAM',

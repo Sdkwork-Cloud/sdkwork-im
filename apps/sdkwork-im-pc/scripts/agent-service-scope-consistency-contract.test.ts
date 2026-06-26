@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 
 const agentServiceText = readFileSync(
-  './packages/sdkwork-im-pc-chat/src/services/AgentService.ts',
+  '../../../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/AgentService.ts',
   'utf8',
 );
 const knowledgeAiServiceText = readFileSync(

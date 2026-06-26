@@ -21,7 +21,7 @@ impl CommitJournal for RecordingJournal {
 fn auth_context(actor_id: &str, actor_kind: &str, session_id: &str) -> AppContext {
     AppContext {
         tenant_id: "t_demo".into(),
-        organization_id: "default".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: actor_id.into(),
         actor_id: actor_id.into(),
         actor_kind: actor_kind.into(),

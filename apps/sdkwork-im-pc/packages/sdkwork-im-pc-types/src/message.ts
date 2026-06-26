@@ -13,6 +13,7 @@ export interface Message {
   desc?: string;
   timestamp: number;
   isRecalled?: boolean;
+  isEdited?: boolean;
   replyTo?: {
     id: string;
     senderName: string;

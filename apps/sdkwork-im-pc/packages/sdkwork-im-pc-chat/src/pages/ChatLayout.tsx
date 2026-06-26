@@ -13,7 +13,7 @@ import { CallOverlay, CallType } from "../components/CallOverlay";
 import { CreateGroupModal } from "../components/CreateGroupModal";
 import { AddGroupMembersModal } from "../components/AddGroupMembersModal";
 import { AddFriendModal } from "../components/AddFriendModal";
-import { CreateAgentModal } from "../components/CreateAgentModal";
+import { CreateAgentModal } from "@sdkwork/agents-pc-agents";
 import { ScanQrCodeModal } from "../components/ScanQrCodeModal";
 import { SettingsModal } from "../components/SettingsModal";
 import {
@@ -21,7 +21,7 @@ import {
   publishAppNotification,
   publishMessageNotification,
 } from "../components/NotificationCenter";
-import { AgentView, type Agent } from "./AgentView";
+import { AgentView, type Agent } from "@sdkwork/agents-pc-agents";
 import { ContactsView } from "./ContactsView";
 import { chatService, resolveIncomingCallWatchConversationIds } from "../services/ChatService";
 import { callService } from "../services/CallService";
@@ -1451,8 +1451,9 @@ const ChatLayoutComponent: React.FC = () => {
         <CreateAgentModal
           isOpen={isCreateAgentModalOpen}
           onClose={() => setIsCreateAgentModalOpen(false)}
-          onSuccess={() => {
+          onSuccess={(agentId) => {
             setIsCreateAgentModalOpen(false);
+            setEditAgentId(agentId);
             setActiveTab("create-agent");
           }}
         />

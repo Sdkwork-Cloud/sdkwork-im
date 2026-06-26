@@ -25,8 +25,36 @@ const FRIEND_REQUEST_LIST_MAX_LIMIT: usize = 200;
 
 static OPEN_API_ID_GENERATOR: OnceLock<RuntimeSnowflakeIdGenerator> = OnceLock::new();
 
+/// Initialize the open-api ID generator from the database.
+///
+/// Must be called during async service startup before any request is served.
+/// If not called, the generator falls back to lazy env-based initialization.
+pub async fn init_open_api_id_generator() {
+    if OPEN_API_ID_GENERATOR.get().is_some() {
+        return;
+    }
+    let generator = RuntimeSnowflakeIdGenerator::from_database_env("social-service")
+        .await
+        .unwrap_or_else(|error| {
+            tracing::warn!(
+                ?error,
+                "database node_id allocation failed; falling back to env for social open-api"
+            );
+            RuntimeSnowflakeIdGenerator::from_env().unwrap_or_else(|error| {
+                tracing::warn!(
+                    ?error,
+                    "SDKWORK_IM_ID_NODE_ID missing; using snowflake node 0 for social open-api handlers"
+                );
+                RuntimeSnowflakeIdGenerator::with_node_id(0)
+                    .expect("snowflake node 0 must initialize")
+            })
+        });
+    let _ = OPEN_API_ID_GENERATOR.set(generator);
+}
+
 fn id_generator() -> &'static RuntimeSnowflakeIdGenerator {
     OPEN_API_ID_GENERATOR.get_or_init(|| {
+        // Fallback for lazy init (e.g., in tests without database)
         RuntimeSnowflakeIdGenerator::from_env().unwrap_or_else(|error| {
             tracing::warn!(
                 ?error,

@@ -132,15 +132,15 @@ impl CommitEnvelope {
 
 pub fn normalize_commit_organization_id(organization_id: &str) -> String {
     let trimmed = organization_id.trim();
-    if trimmed.is_empty() || trimmed == "0" {
-        default_organization_id()
+    if trimmed.is_empty() || trimmed == "0" || trimmed == "default" {
+        "0".to_owned()
     } else {
         trimmed.to_owned()
     }
 }
 
 fn default_organization_id() -> String {
-    "default".to_owned()
+    "0".to_owned()
 }
 
 fn encode_event_key_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> String {

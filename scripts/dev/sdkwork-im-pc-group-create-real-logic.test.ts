@@ -25,7 +25,7 @@ function createMember(conversationId: string, principalId: string): Conversation
     principalKind: 'user',
     role: principalId === 'current-user' ? 'owner' : 'member',
     state: 'joined',
-    tenantId: 'tenant-1',
+    tenantId: '100001',
   };
 }
 
@@ -49,7 +49,7 @@ const fakeClient = {
         conversationId,
         displayName: String(body.displayName ?? ''),
         notice: String(body.notice ?? ''),
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         updatedAt: '2026-06-04T00:00:00.000Z',
       };
     },
@@ -63,7 +63,7 @@ const fakeClient = {
         isPinned: false,
         principalId: 'current-user',
         principalKind: 'user',
-        tenantId: 'tenant-1',
+        tenantId: '100001',
         updatedAt: '2026-06-04T00:00:00.000Z',
       };
     },
@@ -140,7 +140,7 @@ async function main(): Promise<void> {
   const unnamedGroup = await service.createGroup('  ', ['u_bob']);
   assert.equal(
     unnamedGroup.name,
-    '群聊(2人)',
+    '群聊(2�?',
     'empty group names from the create-group modal must persist a readable standard default name',
   );
   assert.deepEqual(
@@ -150,7 +150,7 @@ async function main(): Promise<void> {
       conversationId: unnamedGroup.id,
       body: {
         avatarUrl: unnamedGroup.avatar,
-        displayName: '群聊(2人)',
+        displayName: '群聊(2�?',
       },
     },
     'empty group names must update the real backend conversation profile with the same readable default name',

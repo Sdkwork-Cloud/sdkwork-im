@@ -39,7 +39,7 @@ function createFriendRequest(
     requesterUserId: direction === 'incoming' ? peerUserId : currentUserId,
     status,
     targetUserId: direction === 'incoming' ? currentUserId : peerUserId,
-    tenantId: 'tenant-1',
+    tenantId: '100001',
     updatedAt: '2026-06-04T00:00:00.000Z',
   };
 }
@@ -127,7 +127,7 @@ const fakeClient = {
               avatarUrl: `https://cdn.example.test/${encodeURIComponent(userId)}.png`,
               displayName: `Profile ${userId}`,
               relationshipState: 'none',
-              tenantId: 'tenant-1',
+              tenantId: '100001',
               userId,
             },
           ],
@@ -142,7 +142,7 @@ const fakeClient = {
           friendship: {
             friendshipId: 'friendship-1',
             initiatorUserId: 'incoming-peer-incoming-1',
-            tenantId: 'tenant-1',
+            tenantId: '100001',
             userHighId: 'incoming-peer-incoming-1',
             userLowId: 'current-user',
           },
