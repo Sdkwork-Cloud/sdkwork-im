@@ -15,7 +15,8 @@ use serde::{Deserialize, Serialize};
 use crate::friendship::{
     self, AcceptFriendRequestRequest, AppState, CancelFriendRequestRequest,
     DeclineFriendRequestRequest, FriendRequestInventoryDirectionQuery,
-    FriendRequestInventoryStatusQuery, SocialServiceError, SubmitFriendRequestRequest,
+    FriendRequestInventoryStatusQuery, RemoveFriendshipRequest, SocialServiceError,
+    SubmitFriendRequestRequest,
 };
 use crate::runtime::deterministic_social_id;
 
@@ -86,6 +87,12 @@ struct OpenApiFriendRequestMutationResponse {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct OpenApiFriendshipMutationResponse {
+    friendship: im_domain_core::social::Friendship,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct OpenApiCreateConversationResult {
     tenant_id: String,
     conversation_id: String,
@@ -120,6 +127,11 @@ pub fn build_open_api_router(state: AppState) -> Router {
             "/im/v3/api/social/friend_requests/{request_id}/cancel",
             post(cancel_friend_request),
         )
+        .route(
+            "/im/v3/api/social/friendships/{friendship_id}/remove",
+            post(remove_friendship),
+        )
+        .merge(crate::openapi_contacts::routes())
         .with_state(state)
 }
 
@@ -282,5 +294,28 @@ async fn cancel_friend_request(
 
     Ok(Json(OpenApiFriendRequestMutationResponse {
         friend_request: canceled.friend_request,
+    }))
+}
+
+async fn remove_friendship(
+    Path(friendship_id): Path<String>,
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<OpenApiFriendshipMutationResponse>, SocialServiceError> {
+    let auth = friendship::resolve_auth_from_headers(&headers)?;
+    let removed_at = utc_now_rfc3339_millis();
+    let removed = state.social_runtime.remove_friendship(
+        auth.tenant_id.as_str(),
+        &auth,
+        friendship_id.as_str(),
+        RemoveFriendshipRequest {
+            event_id: next_open_api_event_id()?,
+            removed_by_user_id: auth.user_id.clone(),
+            removed_at,
+        },
+    )?;
+
+    Ok(Json(OpenApiFriendshipMutationResponse {
+        friendship: removed.friendship,
     }))
 }
