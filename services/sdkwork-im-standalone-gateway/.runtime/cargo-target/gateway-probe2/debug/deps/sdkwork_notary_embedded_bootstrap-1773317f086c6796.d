@@ -1,0 +1,10 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sdkwork_notary_embedded_bootstrap-1773317f086c6796.d: E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\lib.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\mod.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\appbase_iam.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\commerce_order.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\drive_workspace.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\bootstrap.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsdkwork_notary_embedded_bootstrap-1773317f086c6796.rmeta: E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\lib.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\mod.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\appbase_iam.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\commerce_order.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\drive_workspace.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\bootstrap.rs
+
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\lib.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\mod.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\appbase_iam.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\commerce_order.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\adapters\drive_workspace.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-notary-embedded-bootstrap\src\bootstrap.rs:

@@ -1,0 +1,20 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sdkwork_drive_contract-b643731651d12c20.d: E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\lib.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\mod.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\errors.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\requests.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\responses.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\mod.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\domain_events.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\download.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\node.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\provider.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\space.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\upload.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\error.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\ids.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\uri.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\media_resource.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsdkwork_drive_contract-b643731651d12c20.rmeta: E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\lib.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\mod.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\errors.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\requests.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\responses.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\mod.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\domain_events.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\download.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\node.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\provider.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\space.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\upload.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\error.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\ids.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\uri.rs E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\media_resource.rs
+
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\lib.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\mod.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\errors.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\requests.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\api\responses.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\mod.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\domain_events.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\download.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\node.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\provider.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\space.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\drive\upload.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\error.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\ids.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\uri.rs:
+E:\sdkwork-space\sdkwork-drive\crates\sdkwork-drive-contract\src\media_resource.rs:

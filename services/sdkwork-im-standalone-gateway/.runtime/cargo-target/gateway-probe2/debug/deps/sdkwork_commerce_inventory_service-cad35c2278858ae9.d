@@ -1,0 +1,11 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sdkwork_commerce_inventory_service-cad35c2278858ae9.d: E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\lib.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\commands\mod.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\domain\mod.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\ports\mod.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\queries\mod.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\service\mod.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\validation\mod.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsdkwork_commerce_inventory_service-cad35c2278858ae9.rmeta: E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\lib.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\commands\mod.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\domain\mod.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\ports\mod.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\queries\mod.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\service\mod.rs E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\validation\mod.rs
+
+E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\lib.rs:
+E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\commands\mod.rs:
+E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\domain\mod.rs:
+E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\ports\mod.rs:
+E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\queries\mod.rs:
+E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\service\mod.rs:
+E:\sdkwork-space\sdkwork-inventory\crates\sdkwork-commerce-inventory-service\src\validation\mod.rs:

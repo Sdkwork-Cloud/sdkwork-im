@@ -1,0 +1,13 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sdkwork_routes_mail_backend_api-c47a103a7eb267a3.d: E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\lib.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\handlers.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\paths.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\routes.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\service.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\web_bootstrap.rs E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\build\sdkwork-routes-mail-backend-api-fceef9aa7edafc42\out/mail_backend_http_routes.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsdkwork_routes_mail_backend_api-c47a103a7eb267a3.rmeta: E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\lib.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\handlers.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\paths.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\routes.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\service.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\web_bootstrap.rs E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\build\sdkwork-routes-mail-backend-api-fceef9aa7edafc42\out/mail_backend_http_routes.rs
+
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\lib.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\handlers.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\paths.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\routes.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\service.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-routes-mail-backend-api\src\web_bootstrap.rs:
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\build\sdkwork-routes-mail-backend-api-fceef9aa7edafc42\out/mail_backend_http_routes.rs:
+
+# env-dep:OUT_DIR=E:\\sdkwork-space\\sdkwork-im\\services\\sdkwork-im-standalone-gateway\\.runtime/cargo-target/gateway-probe2\\debug\\build\\sdkwork-routes-mail-backend-api-fceef9aa7edafc42\\out

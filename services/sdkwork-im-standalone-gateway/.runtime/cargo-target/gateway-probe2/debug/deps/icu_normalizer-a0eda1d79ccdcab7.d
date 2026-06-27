@@ -1,0 +1,10 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\icu_normalizer-a0eda1d79ccdcab7.d: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\properties.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\provider.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\uts46.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libicu_normalizer-a0eda1d79ccdcab7.rlib: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\properties.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\provider.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\uts46.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libicu_normalizer-a0eda1d79ccdcab7.rmeta: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\properties.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\provider.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\uts46.rs
+
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\lib.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\properties.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\provider.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\icu_normalizer-2.2.0\src\uts46.rs:

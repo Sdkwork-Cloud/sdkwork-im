@@ -1,0 +1,12 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sdkwork_communication_mail_service-8e9dfec1168501c6.d: E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\lib.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\error.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\list_window.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\models.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\persistence.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\sync.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\transactional.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\transport.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsdkwork_communication_mail_service-8e9dfec1168501c6.rmeta: E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\lib.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\error.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\list_window.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\models.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\persistence.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\sync.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\transactional.rs E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\transport.rs
+
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\lib.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\error.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\list_window.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\models.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\persistence.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\sync.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\transactional.rs:
+E:\sdkwork-space\sdkwork-mail\crates\sdkwork-communication-mail-service\src\transport.rs:

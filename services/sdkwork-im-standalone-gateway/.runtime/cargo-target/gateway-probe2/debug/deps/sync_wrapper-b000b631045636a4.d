@@ -1,0 +1,5 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sync_wrapper-b000b631045636a4.d: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sync_wrapper-1.0.2\src\lib.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsync_wrapper-b000b631045636a4.rmeta: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sync_wrapper-1.0.2\src\lib.rs
+
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sync_wrapper-1.0.2\src\lib.rs:

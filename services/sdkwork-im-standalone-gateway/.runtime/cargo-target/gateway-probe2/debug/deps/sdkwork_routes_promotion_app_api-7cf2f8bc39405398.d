@@ -1,0 +1,11 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sdkwork_routes_promotion_app_api-7cf2f8bc39405398.d: E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\lib.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\command_headers.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\exchange_router.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\promotion_router.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\routes.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\subject.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\web_bootstrap.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsdkwork_routes_promotion_app_api-7cf2f8bc39405398.rmeta: E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\lib.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\command_headers.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\exchange_router.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\promotion_router.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\routes.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\subject.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\web_bootstrap.rs
+
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\lib.rs:
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\command_headers.rs:
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\exchange_router.rs:
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\promotion_router.rs:
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\routes.rs:
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\subject.rs:
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-routes-promotion-app-api\src\web_bootstrap.rs:

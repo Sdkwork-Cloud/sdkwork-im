@@ -1,0 +1,9 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sdkwork_commerce_promotion_repository_sqlx-e2e306fa4a4516d1.d: E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\lib.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\postgres_exchange.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\postgres_promotion.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\sqlite_exchange.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\sqlite_promotion.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsdkwork_commerce_promotion_repository_sqlx-e2e306fa4a4516d1.rmeta: E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\lib.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\postgres_exchange.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\postgres_promotion.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\sqlite_exchange.rs E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\sqlite_promotion.rs
+
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\lib.rs:
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\postgres_exchange.rs:
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\postgres_promotion.rs:
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\sqlite_exchange.rs:
+E:\sdkwork-space\sdkwork-promotion\crates\sdkwork-commerce-promotion-repository-sqlx\src\sqlite_promotion.rs:

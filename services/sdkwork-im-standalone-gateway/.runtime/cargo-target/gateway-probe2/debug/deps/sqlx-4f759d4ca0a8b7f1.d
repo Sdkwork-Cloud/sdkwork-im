@@ -1,0 +1,12 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sqlx-4f759d4ca0a8b7f1.d: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\any\mod.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\macros\mod.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\ty_match.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\spec_error.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\lib.md C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\macros/test.md C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\any\install_drivers_note.md
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsqlx-4f759d4ca0a8b7f1.rmeta: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\any\mod.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\macros\mod.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\ty_match.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\spec_error.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\lib.md C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\macros/test.md C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\any\install_drivers_note.md
+
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\lib.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\any\mod.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\macros\mod.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\ty_match.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\spec_error.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\lib.md:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\macros/test.md:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sqlx-0.8.6\src\any\install_drivers_note.md:

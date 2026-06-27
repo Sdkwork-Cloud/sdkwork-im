@@ -1,0 +1,1 @@
+SqlxCourseRepository<sqlx_core::pool::Pool<sqlx_postgres::database::Postgres>>: CourseReactionRepository

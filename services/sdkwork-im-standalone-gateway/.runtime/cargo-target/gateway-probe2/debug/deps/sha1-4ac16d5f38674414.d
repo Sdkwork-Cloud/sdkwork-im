@@ -1,0 +1,11 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sha1-4ac16d5f38674414.d: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\block_api.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\compress.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\consts.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\../README.md C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\compress\soft.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\compress\x86_sha.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsha1-4ac16d5f38674414.rmeta: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\block_api.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\compress.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\consts.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\../README.md C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\compress\soft.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\compress\x86_sha.rs
+
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\lib.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\block_api.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\compress.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\consts.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\../README.md:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\compress\soft.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\sha1-0.11.0\src\compress\x86_sha.rs:

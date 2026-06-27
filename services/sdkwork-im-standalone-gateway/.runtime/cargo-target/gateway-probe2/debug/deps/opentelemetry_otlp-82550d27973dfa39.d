@@ -1,0 +1,16 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\opentelemetry_otlp-82550d27973dfa39.d: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\mod.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\mod.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\metrics.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\logs.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\trace.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\logs.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\metric.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\span.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libopentelemetry_otlp-82550d27973dfa39.rmeta: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\mod.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\mod.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\metrics.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\logs.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\trace.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\logs.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\metric.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\span.rs
+
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\lib.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\mod.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\mod.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\metrics.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\logs.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\exporter\http\trace.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\logs.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\metric.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\opentelemetry-otlp-0.30.0\src\span.rs:
+
+# env-dep:CARGO_PKG_NAME=opentelemetry-otlp
+# env-dep:CARGO_PKG_VERSION=0.30.0

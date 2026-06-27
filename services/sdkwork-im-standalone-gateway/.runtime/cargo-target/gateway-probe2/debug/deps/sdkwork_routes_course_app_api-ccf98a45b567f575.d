@@ -1,0 +1,14 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sdkwork_routes_course_app_api-ccf98a45b567f575.d: E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\lib.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\error.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\handlers.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\manifest.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\mod.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\problem.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\request.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\response.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\paths.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\routes.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsdkwork_routes_course_app_api-ccf98a45b567f575.rmeta: E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\lib.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\error.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\handlers.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\manifest.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\mod.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\problem.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\request.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\response.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\paths.rs E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\routes.rs
+
+E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\lib.rs:
+E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\error.rs:
+E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\handlers.rs:
+E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\manifest.rs:
+E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\mod.rs:
+E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\problem.rs:
+E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\request.rs:
+E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\mapper\response.rs:
+E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\paths.rs:
+E:\sdkwork-space\sdkwork-course\crates\sdkwork-routes-course-app-api\src\routes.rs:

@@ -1,0 +1,9 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\aws_smithy_xml-2185f0e695d0a1ff.d: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\decode.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\encode.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\escape.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\unescape.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libaws_smithy_xml-2185f0e695d0a1ff.rmeta: C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\lib.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\decode.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\encode.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\escape.rs C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\unescape.rs
+
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\lib.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\decode.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\encode.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\escape.rs:
+C:\Users\admin\.cargo\registry\src\rsproxy.cn-e3de039b2554c837\aws-smithy-xml-0.60.15\src\unescape.rs:

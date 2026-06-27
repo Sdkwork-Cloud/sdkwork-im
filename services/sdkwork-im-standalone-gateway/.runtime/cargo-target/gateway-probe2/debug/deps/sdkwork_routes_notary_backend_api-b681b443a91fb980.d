@@ -1,0 +1,11 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sdkwork_routes_notary_backend_api-b681b443a91fb980.d: E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\lib.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\handlers.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\manifest.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\paths.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\routes.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\runtime_service.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\service_port.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsdkwork_routes_notary_backend_api-b681b443a91fb980.rmeta: E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\lib.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\handlers.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\manifest.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\paths.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\routes.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\runtime_service.rs E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\service_port.rs
+
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\lib.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\handlers.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\manifest.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\paths.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\routes.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\runtime_service.rs:
+E:\sdkwork-space\sdkwork-notary\crates\sdkwork-routes-notary-backend-api\src\service_port.rs:

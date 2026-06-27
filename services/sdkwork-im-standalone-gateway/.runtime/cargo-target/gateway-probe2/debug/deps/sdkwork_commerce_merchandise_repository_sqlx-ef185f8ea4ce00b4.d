@@ -1,0 +1,8 @@
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\sdkwork_commerce_merchandise_repository_sqlx-ef185f8ea4ce00b4.d: E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\lib.rs E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\postgres_catalog.rs E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\runtime_repository.rs E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\sqlite_catalog.rs
+
+E:\sdkwork-space\sdkwork-im\services\sdkwork-im-standalone-gateway\.runtime/cargo-target/gateway-probe2\debug\deps\libsdkwork_commerce_merchandise_repository_sqlx-ef185f8ea4ce00b4.rmeta: E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\lib.rs E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\postgres_catalog.rs E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\runtime_repository.rs E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\sqlite_catalog.rs
+
+E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\lib.rs:
+E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\postgres_catalog.rs:
+E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\runtime_repository.rs:
+E:\sdkwork-space\sdkwork-merchandise\crates\sdkwork-commerce-merchandise-repository-sqlx\src\sqlite_catalog.rs:
